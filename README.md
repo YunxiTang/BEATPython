@@ -1,2 +1,2 @@
-# wayToPython
+# BEATPython
 python practice
