@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from typing import Tuple
 import math
 import numpy as np
+import copy
 
 
 def plot_circle(x, y, size, color="-b"):  # pragma: no cover
@@ -156,7 +157,7 @@ class RRT:
             if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size:
                 final_node = self._steer(self._node_list[-1], self._goal, self._step_size)
                 self._node_list.append(final_node)
-                new_node = self._goal
+                new_node = copy.deepcopy(self._goal)
                 new_node.set_parent(final_node)
                 self._node_list.append(new_node)
                 print('Find a feasible path.')
