@@ -1,7 +1,6 @@
 # signed distance function
 import jax.numpy as jnp
 import seaborn as sns
-import matplotlib
 import matplotlib.pyplot as plt
 import jax
 
@@ -26,10 +25,9 @@ def sdf_2d_box(p: jnp.ndarray, geom_param: dict) -> float:
     p = jnp.linalg.inv(transform) @ p_homo
     d = jnp.abs(p[0:2]) - b 
     return jnp.linalg.norm(jnp.maximum(d, 0.0)) + jnp.minimum(jnp.maximum(d[0], d[1]), 0.0)
-    
 
 if __name__ == '__main__':
-    num = 50
+    num = 500
     xs = jnp.linspace(-3.0, 3.0, num)
     ys = jnp.linspace(-3.0, 3.0, num)
     
