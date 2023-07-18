@@ -4,16 +4,14 @@ import jax.random as random
 import seaborn as sns
 import matplotlib.pyplot as plt
 from typing import Tuple
-import math
-import numpy as np
 import copy
 
 
-def plot_circle(x, y, size, color="-b"):  # pragma: no cover
+def plot_circle(x, y, size, color="-b"):
     deg = list(range(0, 360, 5))
     deg.append(0)
-    xl = [x + size * math.cos(np.deg2rad(d)) for d in deg]
-    yl = [y + size * math.sin(np.deg2rad(d)) for d in deg]
+    xl = [x + size * jnp.cos(jnp.deg2rad(d)) for d in deg]
+    yl = [y + size * jnp.sin(jnp.deg2rad(d)) for d in deg]
     plt.plot(xl, yl, color)
 
 class Node:
@@ -34,7 +32,7 @@ class Node:
     
     
 class WorldMap:
-    def __init__(self, arena) -> None:
+    def __init__(self, arena, resolution: float = 0.01) -> None:
         
         self.xmin = float(arena[0])
         self.xmax = float(arena[1])
@@ -43,6 +41,8 @@ class WorldMap:
         
         self._lb = jnp.array([self.xmin, self.ymin])
         self._ub = jnp.array([self.xmax, self.ymax])
+        
+        self._resolution = resolution
         
         self._dim = 2
         
@@ -69,9 +69,9 @@ class WorldMap:
             self._rng_key, rng_key = random.split(self._rng_key, 2)
             return random.uniform(rng_key, shape=(self._dim,), minval=self._lb, maxval=self._ub)
         
-    def check_collision(self, start_state: jnp.ndarray, end_state: jnp.ndarray, resolution: float) -> bool:
+    def check_collision(self, start_state: jnp.ndarray, end_state: jnp.ndarray) -> bool:
         state_distance = jnp.linalg.norm(start_state - end_state)
-        N = int(state_distance / resolution)
+        N = int(state_distance / self._resolution)
         ratios = jnp.linspace(0., 1.0, num=N)
         for (ox, oy, size) in self._obstacle:
             center = jnp.array([ox, oy])
@@ -89,6 +89,7 @@ class RRT:
                  start_config: jnp.ndarray,
                  goal_config: jnp.ndarray,
                  map: WorldMap,
+                 step_size: float = 0.1,
                  max_iter: int = 500
                  ) -> None:
         self._start = Node(start_config)
@@ -99,7 +100,7 @@ class RRT:
         self._map = map
         self._node_list = []
         
-        self._step_size = 0.1
+        self._step_size = step_size
         self._max_iter = max_iter
         self._goal_sample_rate = 5
         
@@ -134,7 +135,7 @@ class RRT:
         return new_node
     
     def _check_collision(self, node1: Node, node2: Node) -> bool:
-        return self._map.check_collision(node1.state, node2.state, self._resolution)
+        return self._map.check_collision(node1.state, node2.state)
         
         
     def plan(self, animation=True, verbose=False):
@@ -160,6 +161,8 @@ class RRT:
                 self._node_list.append(new_node)
                 print('Find a feasible path.')
                 return self._generate_final_course()
+            else:
+                print(f'[Info]: Iter: {i}')
         print('Failed to find a feasible path.')
         return self._generate_final_course()
     
@@ -189,20 +192,24 @@ if __name__ == '__main__':
     world_map.update_start(start)
     world_map.update_goal(goal)
     
-    obs1 = (0.5, 0.4, 0.3)
+    obs1 = (0.5, 0.4, 0.25)
     obs2 = (0.4, 0.8, 0.2)
-    obs3 = (0.8, 0.8, 0.1)
+    obs3 = (0.8, 0.8, 0.15)
+    obs4 = (1.0, 0.4, 0.15)
     world_map.add_obstacle(obs1)
     world_map.add_obstacle(obs2)
     world_map.add_obstacle(obs3)
+    world_map.add_obstacle(obs4)
     
     rrt = RRT(
         start_config=start,
         goal_config=goal,
-        map=world_map
+        map=world_map,
+        step_size=0.1
     )
     
     path_solution = rrt.plan()
+    print(f'Path Length: {len(path_solution)}')
     
     if path_solution is not None:
         path = jnp.array(path_solution)
