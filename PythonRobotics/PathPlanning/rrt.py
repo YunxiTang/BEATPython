@@ -155,10 +155,8 @@ class RRT:
                 self._draw_graph(rand_node)
                 
             if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size:
-                final_node = self._steer(self._node_list[-1], self._goal, self._step_size)
-                self._node_list.append(final_node)
-                new_node = copy.deepcopy(self._goal)
-                new_node.set_parent(final_node)
+                final_node = copy.deepcopy(self._goal)
+                final_node.set_parent(new_node)
                 self._node_list.append(new_node)
                 print('Find a feasible path.')
                 return self._generate_final_course()
@@ -191,7 +189,7 @@ if __name__ == '__main__':
     world_map.update_start(start)
     world_map.update_goal(goal)
     
-    obs1 = (0.5, 0.4, 0.2)
+    obs1 = (0.5, 0.4, 0.3)
     obs2 = (0.4, 0.8, 0.2)
     obs3 = (0.8, 0.8, 0.1)
     world_map.add_obstacle(obs1)
