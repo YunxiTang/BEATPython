@@ -4,23 +4,30 @@ import jax.random as random
 import seaborn as sns
 import matplotlib.pyplot as plt
 from typing import Tuple
-import copy
-from rrt import WorldMap, Node, RRT
-
-
-class NodeX(Node):
-    def __init__(self, state) -> None:
-        super().__init__(state)
-        self._cost = 0.0
-        
-    @property
-    def cost(self):
-        return self._cost
+import copy, math
+from rrt import WorldMap, RRT
 
 
 class RRTStar(RRT):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        
+    def plan(self, animation=True, verbose=False):
+        self._node_list.append(self._start)
+        
+        for i in range(self._max_iter):
+            # sample a random node
+            rand_node = self._get_random_node()
+
+            # find the nearest node in the tree
+            nearest_ind, _ = self._get_nearest_node(rand_node)
+            nearest_node = self._node_list[nearest_ind]
+            
+            # get new node candidate
+            new_node = self._steer(nearest_node, rand_node, self._step_size)
+            new_node_cost = nearest_node.cost + self._compute_node_distance(new_node, nearest_node)
+            new_node.set_cost(new_node_cost)
+            print(f"Iter: {i} || No. Nodes: {len(self._node_list)}")
         
         
 if __name__ == '__main__':
@@ -42,3 +49,7 @@ if __name__ == '__main__':
     world_map.add_obstacle(obs4)
     
     planner = RRTStar(start, goal, map=world_map)
+    
+    path_solution = planner.plan()
+    
+    print(planner._goal.state)

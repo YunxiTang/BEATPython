@@ -19,8 +19,14 @@ class Node:
         self._state = state
         self._parent = None
         
+        # For addtional usage
+        self._cost = 0.0
+        
     def set_parent(self, node):
         self._parent = node
+        
+    def set_cost(self, cost):
+        self._cost = cost
         
     @property
     def state(self):
@@ -29,6 +35,10 @@ class Node:
     @property
     def parent(self):
         return self._parent
+    
+    @property
+    def cost(self):
+        return self._cost
     
     
 class WorldMap:
@@ -162,7 +172,7 @@ class RRT:
                 print('Find a feasible path.')
                 return self._generate_final_course()
             else:
-                print(f'[Info]: Iter: {i}')
+                print(f"Iter: {i} || No. Nodes: {len(self._node_list)}")
         print('Failed to find a feasible path.')
         return self._generate_final_course()
     
