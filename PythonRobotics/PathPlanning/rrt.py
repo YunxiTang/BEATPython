@@ -108,7 +108,7 @@ class RRT:
                  start_config: jnp.ndarray,
                  goal_config: jnp.ndarray,
                  map: WorldMap,
-                 step_size: float = 0.1,
+                 step_size: float = 0.01,
                  max_iter: int = 500
                  ) -> None:
         self._start = Node(start_config)
@@ -121,7 +121,7 @@ class RRT:
         
         self._step_size = step_size
         self._max_iter = max_iter
-        self._goal_sample_rate = 5
+        self._goal_sample_rate = 10
         
         self._rng_key = random.PRNGKey(seed=4)
         
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     
     world_map = WorldMap([0., 2., 0., 2.])
     start = jnp.array([0., 0.])
-    goal = jnp.array([0.8, 0.6])
+    goal = jnp.array([0.75, 1.0])
     
     world_map.update_start(start)
     world_map.update_goal(goal)
@@ -243,15 +243,21 @@ if __name__ == '__main__':
         for obs in world_map._obstacle:
             plot_circle(obs[0], obs[1], obs[2])
             
+        for node in rrt._node_list:
+            plt.scatter(node.state[0], node.state[1], c='k')
+            if node.parent != None:
+                plt.plot([node.state[0], node.parent.state[0]], [node.state[1], node.parent.state[1]], 'k-.')
+        
         for i in range(len(path_solution)-1):
             plt.scatter(path[i,0], path[i,1])
             plt.plot(path[i:i+2,0], path[i:i+2,1])
+        
         plt.scatter(path[len(path_solution)-1,0], path[len(path_solution)-1,1]) 
         
         plt.scatter(start[0], start[1], marker='*', linewidths=2)
         plt.scatter(goal[0], goal[1], marker='*', linewidths=2) 
         plt.axis('equal')
-        plt.show()    
+        plt.show()        
     
     
     
