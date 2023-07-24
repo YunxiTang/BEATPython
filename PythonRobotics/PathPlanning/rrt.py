@@ -79,7 +79,7 @@ class WorldMap:
             self._rng_key, rng_key = random.split(self._rng_key, 2)
             return random.uniform(rng_key, shape=(self._dim,), minval=self._lb, maxval=self._ub)
         
-    def check_collision(self, start_state: jnp.ndarray, end_state: jnp.ndarray) -> bool:
+    def check_line_collision(self, start_state: jnp.ndarray, end_state: jnp.ndarray) -> bool:
         state_distance = jnp.linalg.norm(start_state - end_state)
         N = int(state_distance / self._resolution)
         ratios = jnp.linspace(0., 1.0, num=N)
@@ -91,6 +91,15 @@ class WorldMap:
                 if dist <= 0.:
                     # collision
                     return True  
+        return False
+    
+    def check_pos_collision(self, state):
+        for (ox, oy, size) in self._obstacle:
+            center = jnp.array([ox, oy])
+            dist = jnp.linalg.norm(state - center) - size
+            if dist <= 0.:
+                # collision
+                return True  
         return False
         
         
@@ -130,6 +139,7 @@ class RRT:
     def _compute_node_distance(node1: Node, node2: Node):
         return jnp.linalg.norm(node1._state - node2._state)
     
+    
     def _get_nearest_node(self, rand_node):
         dlist = [RRT._compute_node_distance(rand_node, node) for node in self._node_list]
         dlist = jnp.array(dlist)
@@ -144,8 +154,13 @@ class RRT:
         new_node.set_parent(from_node)
         return new_node
     
-    def _check_collision(self, node1: Node, node2: Node) -> bool:
-        return self._map.check_collision(node1.state, node2.state)
+    
+    def _check_edge_collision(self, node1: Node, node2: Node) -> bool:
+        return self._map.check_line_collision(node1.state, node2.state)
+    
+    
+    def _check_node_collision(self, node: Node):
+        return self._map.check_pos_collision(node.state)
         
         
     def plan(self, animation=True, verbose=False):
@@ -159,7 +174,7 @@ class RRT:
             
             new_node = self._steer(nearest_node, rand_node, self._step_size)
             
-            if not self._check_collision(nearest_node, new_node):
+            if not self._check_edge_collision(nearest_node, new_node):
                 self._node_list.append(new_node)
                 
             if animation and i % 5 == 0:

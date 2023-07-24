@@ -39,7 +39,8 @@ class RRTStar(RRT):
             new_node_cost = nearest_node.cost + self._compute_node_distance(new_node, nearest_node)
             new_node.set_cost(new_node_cost)
             
-            if not self._check_collision(nearest_node, new_node):
+            if not self._check_node_collision(new_node):
+                near_inds = self._find_near_nodes(new_node)
                 # collision-free
                 pass
             print(f"Iter: {i} || No. Nodes: {len(self._node_list)}")
