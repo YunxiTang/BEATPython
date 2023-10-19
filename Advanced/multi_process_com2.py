@@ -35,9 +35,10 @@ class subscriber(Process):
 
     def run(self):
         while True:
-            if self._queue.qsize() > 0:
+            if not self._queue.empty():
+                qsize = self._queue.qsize()
                 msg = self._queue.get()
-                print('{} get {} with qsize: {}'.format(self._name, msg, self._queue.qsize()))
+                print('{} get {} with qsize: {}'.format(self._name, msg, qsize))
                 print('=========================')
                 self._pre_msg = msg
             else:
