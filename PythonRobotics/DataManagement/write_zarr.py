@@ -28,6 +28,15 @@ bar = root.create_group('bar')
 # group can contain arrays
 z3 = bar.zeros('baz', shape=(1000, 1000), chunks=(100, 100), dtype='i4')
 z4 = foo.create_dataset('fooz', shape=(1000, 1000), chunks=(100, 100), dtype='i4')
+
+for key, val in root.items():
+    print(key, val)
+
+tmp = ['sd', 'st']
+print('=============', 'foo' in root, '=============')
+print('=============', 'baz' in bar, '=============')
+print('=============', 'sd' in tmp, '=============')
+
 print(z3, z4)
 print(root['foo']['fooz'], root['foo/fooz'])
 print(root.tree())
