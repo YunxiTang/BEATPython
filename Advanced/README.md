@@ -53,6 +53,9 @@ You need to instantiate a class object through the `cls` variable, and then use 
 cls().method_name()
 ```
 
+## dataclass
+
+
 ## MultiProcess
 * See script [multi_process.py](multi_process.py) for a simple sample code;
 * For communications with `Pipe` between two processes, see [multi_process_com.py](multi_process_com.py);
