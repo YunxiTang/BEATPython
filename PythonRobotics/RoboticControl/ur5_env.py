@@ -28,8 +28,8 @@ class UR5Env(BaseEnv):
         self.vis_freq = 1. / 60.
 
     def get_obs(self):
-        qpos = self.mj_data.qpos
-        qvel = self.mj_data.qvel
+        qpos = self.mj_data.qpos.copy()
+        qvel = self.mj_data.qvel.copy()
         return np.concatenate([qpos[:], qvel[:]]).ravel()
 
     def set_state(self, qpos, qvel):
@@ -43,9 +43,13 @@ class UR5Env(BaseEnv):
             self.mj_data.act[:] = None
         mujoco.mj_forward(self.mj_model, self.mj_data)
 
-    def step(self, ctrl):
-        self.mj_data.ctrl = ctrl
+    def step(self, ctrl, grip_motion: float = 0.):
+        act = np.zeros(13,)
+        act[0:12] = ctrl
+        act[12] = grip_motion
+        self.mj_data.ctrl = act
         mujoco.mj_step(self.mj_model, self.mj_data)
+        mujoco.mj_forward(self.mj_model, self.mj_data)
         self.state = self.get_obs()
         self.counts = self.counts + 1
         return np.copy(self.state)
@@ -94,6 +98,6 @@ if __name__ == '__main__':
     for _ in range(5 * 1000):
         if robot.counts > 1000:
             robot.reset(0)
-        action = np.zeros((6,))
+        action = np.zeros((12,))
         robot.step(action)
         robot.render()

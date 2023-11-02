@@ -3,12 +3,45 @@ from pydrake.multibody.plant import MultibodyPlant
 import numpy as np
 from pydrake.multibody.tree import JacobianWrtVariable
 from pydrake.forwarddiff import jacobian
+from pydrake.multibody.inverse_kinematics import InverseKinematics
+from pydrake.solvers import MathematicalProgram, SnoptSolver
+import mujoco as mj
+
+
+def DiffIKPseudoInverse(J_G, V_G_desired, q_now=None, v_now=None, X_now=None):
+    m, n = J_G.shape
+    v = np.linalg.pinv(J_G + 1e-4 * np.eye(m, n)).dot(V_G_desired)
+    return v
+
+
+def DiffIKQP(J_G, V_G_desired, q_now, v_now, X_now):
+    prog = MathematicalProgram()
+    v = prog.NewContinuousVariables(7, "v")
+    v_max = 3.0  # do not modify
+
+    # Add cost and constraints to prog here.
+
+    solver = SnoptSolver()
+    result = solver.Solve(prog)
+
+    if not (result.is_success()):
+        raise ValueError("Could not find the optimal solution.")
+
+    v_solution = result.GetSolution(v)
+
+    return v_solution
 
 
 class IKController:
-    def __init__(self, rbt_model_file: str, rbt_name: str, dt: float = 0.001, fixed_base: bool = True, visualize: bool = False):
+    def __init__(self, 
+                 rbt_model_file: str, 
+                 rbt_name: str, 
+                 ee_name: str,
+                 dt: float = 0.001, 
+                 fixed_base: bool = True, 
+                 visualize: bool = False):
         '''
-            Inverse kinematics controller
+            Inverse Kinematics Controller
         '''
         self.rbt_model_file = rbt_model_file
         self.rbt_name = rbt_name
@@ -18,69 +51,53 @@ class IKController:
 
         self._plant = MultibodyPlant(time_step=dt)
         self._parser = Parser(self._plant)
-        self.rbt_mdl, = self._parser.AddModels(file_name=rbt_model_file) 
+        self.rbt_mdl = self._parser.AddModelFromFile(file_name=rbt_model_file) 
         self._plant.Finalize()
 
         self._nq = self._plant.num_positions()
         self._nv = self._plant.num_velocities()
         self._na = self._plant.num_actuators()
 
-        
+        self._vref = np.zeros((self.nv,))
+
         self._context = self._plant.CreateDefaultContext()  
         self._world_frame = self._plant.world_frame()
+        self._base_frame = self._plant.GetFrameByName(name='base_link')
+        self._ee_frame = self._plant.GetFrameByName(name=ee_name)
+        
 
         self._plant_ad = self._plant.ToAutoDiffXd()
         self._context_ad = self._plant_ad.CreateDefaultContext()
         self._world_frame_autodiff = self._plant_ad.world_frame()
 
-
-    def set_pd(self, Kp, Kd):
-        self._kp = Kp
-        self._kd = Kd
-
-
-    def set_ref_pos(self, q_ref):
-        self._ref_pos = q_ref
-
-
-    def GetControlTorque(self, q, v, t):
+    def GetControl(self, goal_ee_pos, q, v, t):
         '''
-            Get control torque with robot's current state `(q,v,t)`
+            Get control with robot's current state `(q,v,t)`
         '''
+        
         self.UpdateStoredContext(q, v, t)
-        q = self._plant.GetPositions(self._context)
-        v = self._plant.GetVelocities(self._context)
-        # Compute control torques
-        res = self.ControlLaw(q, v, t)
+        p_now, J_full, J_trans, _ = self.CalcFramePositionQuantities(self._ee_frame)
+        
+        R_now = self._ee_frame.CalcRotationMatrixInWorld(self._context)
+        quat_now = R_now.ToQuaternion().wxyz()
+        quat_diff = np.zeros((3,))
+        mj.mju_subQuat(quat_diff, goal_ee_pos[0:4], quat_now)
+
+        V_G_desired = np.concatenate([quat_diff.ravel(), (goal_ee_pos[4:] - p_now).ravel()]).reshape(-1, 1)
+
+        ref_vel = DiffIKPseudoInverse(J_full, V_G_desired)
+        scale = np.diag([3, 3, 3, 1, 1, 1]) / 10
+        delta = np.clip(scale @ ref_vel.ravel(), -.1, .1 )
+        ref_pos = q + delta
+
+        res = np.hstack((ref_pos, self._vref))
         return res
 
-
-    def _ik_solver(self):
-        pass
-
-
-    def ControlLaw(self, q, v, t):
-        """
-            main control law for the robot. 
-        """
-        ref_pos = self._ref_pos.copy()
-        ref_pos[3] = self._ref_pos[3] + 0.5 * np.sin(2. * t)
-        ref_vel = np.zeros((6,))
-        ref_vel[3] = 1.0 * np.cos(2. * t)
-        ref_acc = np.zeros((6,))
-        ref_acc[3] = -2.0 * np.sin(2. * t)
-
-        M, Cv, tau_grav, _ = self.CalcDynamics()
-        u_ff = -tau_grav + Cv
-        u_fb = M @ ( ref_acc + self._kp @ (ref_pos - q) + self._kd @ (ref_vel - v) )
-        u = u_ff + u_fb
-        u = np.clip(u, -100, 100)
-        return u
     
     def UpdateStoredContext(self, q, v, t):
         """
             Use the data in the given inputs to update `self._context`.
-            This should be called at the beginning of each control loop.
+            called at the beginning of each control loop.
         """
         self._context.SetTime(t)
         self._plant.SetPositions(self._context, q)
@@ -128,7 +145,13 @@ class IKController:
                                             frame,
                                             np.array([0,0,0]),
                                             self._world_frame)
-        J = self._plant.CalcJacobianTranslationalVelocity(self._context,
+        J_full = self._plant.CalcJacobianSpatialVelocity(self._context,
+                                                          JacobianWrtVariable.kV,
+                                                          frame,
+                                                          np.array([0,0,0]),
+                                                          self._world_frame,
+                                                          self._world_frame)
+        J_trans = self._plant.CalcJacobianTranslationalVelocity(self._context,
                                                           JacobianWrtVariable.kV,
                                                           frame,
                                                           np.array([0,0,0]),
@@ -140,7 +163,7 @@ class IKController:
                                                             np.array([0,0,0]),
                                                             self._world_frame,
                                                             self._world_frame)
-        return p, J, Jdv
+        return p, J_full, J_trans, Jdv
     
     @property
     def nq(self):
