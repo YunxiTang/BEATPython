@@ -1,35 +1,44 @@
-from pydrake.multibody.parsing import Parser
+from pydrake.multibody.parsing import Parser, AddFrame
 from pydrake.multibody.plant import MultibodyPlant
 import numpy as np
 from pydrake.multibody.tree import JacobianWrtVariable
 from pydrake.forwarddiff import jacobian
+from pydrake.math import RigidTransform, RollPitchYaw, RotationMatrix
 from pydrake.multibody.inverse_kinematics import InverseKinematics
-from pydrake.solvers import MathematicalProgram, SnoptSolver
+from pydrake.solvers import Solve
 import mujoco as mj
+from pydrake.multibody.tree import Frame
 
 
-def DiffIKPseudoInverse(J_G, V_G_desired, q_now=None, v_now=None, X_now=None):
-    m, n = J_G.shape
-    v = np.linalg.pinv(J_G + 1e-4 * np.eye(m, n)).dot(V_G_desired)
-    return v
+def DiffIKQP(plant, 
+             context, 
+             ee_frame, 
+             world_frame, 
+             desired_pose, 
+             q_init, 
+             position_tolerance: float = 1e-5,
+             verbose: bool = False):
+    plant_context = plant.GetMyContextFromRoot(context)
+    ik = InverseKinematics(plant, plant_context, with_joint_limits=True)
+
+    ik.AddPointToPointDistanceConstraint(ee_frame, np.array([0,0,0]), world_frame, desired_pose[0:3], 0, position_tolerance)
+    # orientation constraint
+    rot = RigidTransform(RollPitchYaw(desired_pose[3:6]), desired_pose[0:3]).rotation()
+    ik.AddOrientationConstraint(ee_frame, RotationMatrix(), world_frame, rot, 0)
 
 
-def DiffIKQP(J_G, V_G_desired, q_now, v_now, X_now):
-    prog = MathematicalProgram()
-    v = prog.NewContinuousVariables(7, "v")
-    v_max = 3.0  # do not modify
+    prog = ik.get_mutable_prog()
+    q = ik.q()
+    prog.SetInitialGuess(q, q_init)
+    result = Solve(prog)
+    q_result = result.GetSolution() 
+    success_flag = result.is_success()
 
-    # Add cost and constraints to prog here.
+    if verbose:
+      print("\nStates Solution: \n", np.array(q_result))
+      print ("\nSuccess Flag: ", success_flag, "\n")
 
-    solver = SnoptSolver()
-    result = solver.Solve(prog)
-
-    if not (result.is_success()):
-        raise ValueError("Could not find the optimal solution.")
-
-    v_solution = result.GetSolution(v)
-
-    return v_solution
+    return np.array(q_result)
 
 
 class IKController:
@@ -53,6 +62,7 @@ class IKController:
         self._parser = Parser(self._plant)
         self.rbt_mdl = self._parser.AddModelFromFile(file_name=rbt_model_file) 
         self._plant.Finalize()
+        
 
         self._nq = self._plant.num_positions()
         self._nv = self._plant.num_velocities()
@@ -64,33 +74,29 @@ class IKController:
         self._world_frame = self._plant.world_frame()
         self._base_frame = self._plant.GetFrameByName(name='base_link')
         self._ee_frame = self._plant.GetFrameByName(name=ee_name)
-        
 
         self._plant_ad = self._plant.ToAutoDiffXd()
         self._context_ad = self._plant_ad.CreateDefaultContext()
         self._world_frame_autodiff = self._plant_ad.world_frame()
+    
 
-    def GetControl(self, goal_ee_pos, q, v, t):
+    def GetQPControl(self, goal_ee_pos, q, v, t):
         '''
             Get control with robot's current state `(q,v,t)`
         '''
         
         self.UpdateStoredContext(q, v, t)
-        p_now, J_full, J_trans, _ = self.CalcFramePositionQuantities(self._ee_frame)
-        
-        R_now = self._ee_frame.CalcRotationMatrixInWorld(self._context)
-        quat_now = R_now.ToQuaternion().wxyz()
-        quat_diff = np.zeros((3,))
-        mj.mju_subQuat(quat_diff, goal_ee_pos[0:4], quat_now)
 
-        V_G_desired = np.concatenate([quat_diff.ravel(), (goal_ee_pos[4:] - p_now).ravel()]).reshape(-1, 1)
+        q_target = DiffIKQP(plant=self._plant,
+                            context=self._context,
+                            ee_frame=self._ee_frame,
+                            world_frame=self._world_frame,
+                            desired_pose=goal_ee_pos,
+                            q_init=q)
 
-        ref_vel = DiffIKPseudoInverse(J_full, V_G_desired)
-        scale = np.diag([3, 3, 3, 1, 1, 1]) / 10
-        delta = np.clip(scale @ ref_vel.ravel(), -.1, .1 )
-        ref_pos = q + delta
-
-        res = np.hstack((ref_pos, self._vref))
+        ref_pos = q_target
+        ref_vel = (q_target - q) / 5
+        res = np.hstack((ref_pos, ref_vel))
         return res
 
     

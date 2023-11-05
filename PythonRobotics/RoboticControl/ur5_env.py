@@ -95,9 +95,11 @@ if __name__ == '__main__':
     robot = UR5Env(rbt_model)
     robot.reset(0)
     
-    for _ in range(5 * 1000):
-        if robot.counts > 1000:
-            robot.reset(0)
+    for _ in range(5 * 10000):
+        # if robot.counts > 1000:
+        #     robot.reset(0)
         action = np.zeros((12,))
-        robot.step(action)
+        action[5] = np.sin(2 * robot.sim_time)
+        print(robot.mj_data.site('arm_ee').xmat.reshape(3,3) @ robot.mj_data.site('pinch').xmat.reshape(3,3))
+        robot.step(action, 125)
         robot.render()
