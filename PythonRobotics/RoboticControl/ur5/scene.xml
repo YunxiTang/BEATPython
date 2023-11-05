@@ -29,11 +29,11 @@
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
     <camera name="closeup" pos="0 -.1 1.0" xyaxes="1 0 0 0 1 2"/>
-    <geom type="box" size="1.0 1.0 0.015" pos="0 0 0.47"/>
+    <geom type="box" size="1.0 1.0 0.015" pos="0 0 0.1"/>
   </worldbody>
 
   <keyframe>
-    <key name="home" qpos="0 -1.57 -1.57 -1.57 -1.57 0 0 0 0 0 0 0 0 0" qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
+    <key name="home" qpos="0 -1.57 0 0 0 0 0 0 0 0 0 0 0 0" qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
   </keyframe>
 
 </mujoco>

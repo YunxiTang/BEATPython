@@ -47,7 +47,7 @@
 
                                 <body name="wrist_3_link" pos="0 0 0.09465">
                                     <inertial pos="0 0.06505 0" quat="1.73123e-12 0.707107 -0.707107 1.73123e-12" 
-                                            mass="0.1879" diaginertia="0.000132117 8.46959e-05 8.46959e-05" />
+                                              mass="0.1879" diaginertia="0.000132117 8.46959e-05 8.46959e-05" />
                                     <joint name="wrist_3_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14159 3.14159" damping="0.1"/>
                                     <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="wrist3" />
                                     <geom type="mesh" mesh="wrist3" rgba="1 0 0 1"/>
@@ -55,8 +55,7 @@
 
                                     <!-- Gripper Parts -->
                                     <body name="gripper_base" pos="0.0 0.08 0.0" quat="0.7071068 -0.7071068 0 0">
-                                        <inertial mass="0.777441" pos="0 -2.70394e-05 0.0354675" quat="1 -0.00152849 0 0"
-                                        diaginertia="0.000260285 0.000225381 0.000152708"/>
+                                        <inertial mass="0.777441" pos="0 -2.70394e-05 0.0354675" quat="1 -0.00152849 0 0" diaginertia="0.000260285 0.000225381 0.000152708"/>
                                         <geom class="visual" mesh="g_base" material="black"/>
                                         <geom class="collision" mesh="g_base"/>
                                         <site name="pinch" pos="0 0 0.145" type="sphere" rgba="0.9 0.3 0.3 1" size="0.01"/>
@@ -164,7 +163,7 @@
         <velocity name='vmotor6' ctrllimited="true" ctrlrange="-100 100" joint='wrist_3_joint' kv="10"/>
 
         <general class="2f85" name="fingers_actuator" tendon="split" forcerange="-5 5" ctrlrange="0 255"
-      gainprm="0.3137255 0 0" biasprm="0 -100 -10"/>
+                 gainprm="0.3137255 0 0" biasprm="0 -100 -10"/>
     </actuator>
 
     <sensor>
