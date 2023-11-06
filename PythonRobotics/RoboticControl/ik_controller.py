@@ -103,17 +103,19 @@ class IKController:
         self.X_G_init = self._ee_frame.CalcPoseInWorld(self._context)
         self.X_G_target = RigidTransform(RollPitchYaw(self.goal_XG[3:6]), self.goal_XG[0:3])
 
-        times = {"initial": 0.0, "target": self.duration}
+        times = {"initial": t, "target": t + duration}
         X_Gs = {"initial": self.X_G_init, "target": self.X_G_target}
         self.traj = make_gripper_trajectory(X_Gs, times)
 
 
-    def GetQPControl(self, q, v, t):
+    def GetQPControl(self, q, v, t, target_ee_pos=None):
         '''
             Get control with robot's current state `(q,v,t)`
         '''
         self.UpdateStoredContext(q, v, t)
-        target_ee_pos = self.traj.GetPose(t) if t <= self.duration else self.X_G_target
+
+        if target_ee_pos is None:
+            target_ee_pos = self.traj.GetPose(t)
         
         q_target = DiffIKQP(plant=self._plant,
                             context=self._context,
@@ -124,7 +126,7 @@ class IKController:
                             verbose=False) 
 
         ref_pos = q_target
-        ref_vel = np.clip((q_target - q) / self.dt, -0.5, 0.5)
+        ref_vel = np.clip((q_target - q) / 10, -0.5, 0.5)
         res = np.hstack((ref_pos, ref_vel))
         return res
 

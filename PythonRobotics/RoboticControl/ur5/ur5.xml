@@ -11,7 +11,6 @@
         <mesh name="wrist3" file="wrist3.stl" />
     </asset>
     <worldbody>
-        
         <body name="base_link" pos="0 0 0.5">
             <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" mesh="base" />
             <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="base" />

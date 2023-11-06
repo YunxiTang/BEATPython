@@ -28,8 +28,11 @@ class UR5Env(BaseEnv):
         self.vis_freq = 1. / 60.
 
     def get_obs(self):
-        qpos = self.mj_data.qpos.copy().ravel()[0:6]
-        qvel = self.mj_data.qvel.copy().ravel()[0:6]
+        # qpos = self.mj_data.qpos.copy().ravel()[0:6]
+        # qvel = self.mj_data.qvel.copy().ravel()[0:6]
+
+        qpos = self.mj_data.sensordata.copy().ravel()[0:6]
+        qvel = self.mj_data.sensordata.copy().ravel()[6:12]
         return np.concatenate([qpos[:], qvel[:]])
 
     def set_state(self, qpos, qvel):
@@ -53,6 +56,14 @@ class UR5Env(BaseEnv):
         self.state = self.get_obs()
         self.counts = self.counts + 1
         return np.copy(self.state)
+    
+    def home(self):
+        q = np.array([-1.57, -1.57, -1.57, -1.57, -0, -0])
+        v = np.zeros((6,))
+        ctrl = np.hstack((q, v))
+        for i in range(500):
+            obs = self.step(ctrl, 0.)
+        return obs
 
     def reset(self, key_frame_num = None):
         if key_frame_num is None:
