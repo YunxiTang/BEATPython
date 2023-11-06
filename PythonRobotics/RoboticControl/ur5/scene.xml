@@ -33,7 +33,7 @@
   </worldbody>
 
   <keyframe>
-    <key name="home" qpos="0 -1.57 0 0 0 0 0 0 0 0 0 0 0 0" qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
+    <key name="home" qpos="0 -1.57 -1.57 -1.57 0 0 0 0 0 0 0 0 0 0" qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
   </keyframe>
 
 </mujoco>

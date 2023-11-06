@@ -1,4 +1,4 @@
-from pydrake.multibody.parsing import Parser, AddFrame
+from pydrake.multibody.parsing import Parser
 from pydrake.multibody.plant import MultibodyPlant
 import numpy as np
 from pydrake.multibody.tree import JacobianWrtVariable
@@ -7,7 +7,9 @@ from pydrake.math import RigidTransform, RollPitchYaw, RotationMatrix
 from pydrake.multibody.inverse_kinematics import InverseKinematics
 from pydrake.solvers import Solve
 import mujoco as mj
-from pydrake.multibody.tree import Frame
+from pydrake.trajectories import PiecewiseQuaternionSlerp, PiecewisePose
+from typing import Dict
+
 
 
 def DiffIKQP(plant, 
@@ -16,14 +18,15 @@ def DiffIKQP(plant,
              world_frame, 
              desired_pose, 
              q_init, 
-             position_tolerance: float = 1e-5,
+             position_tolerance: float = 1e-8,
              verbose: bool = False):
     plant_context = plant.GetMyContextFromRoot(context)
+    rot = desired_pose.rotation()
+    trans = desired_pose.translation()
     ik = InverseKinematics(plant, plant_context, with_joint_limits=True)
 
-    ik.AddPointToPointDistanceConstraint(ee_frame, np.array([0,0,0]), world_frame, desired_pose[0:3], 0, position_tolerance)
+    ik.AddPointToPointDistanceConstraint(ee_frame, np.array([0,0,0]), world_frame, trans, 0, position_tolerance)
     # orientation constraint
-    rot = RigidTransform(RollPitchYaw(desired_pose[3:6]), desired_pose[0:3]).rotation()
     ik.AddOrientationConstraint(ee_frame, RotationMatrix(), world_frame, rot, 0)
 
 
@@ -39,6 +42,19 @@ def DiffIKQP(plant,
       print ("\nSuccess Flag: ", success_flag, "\n")
 
     return np.array(q_result)
+
+
+def make_gripper_trajectory(X_G: Dict, times: Dict):
+    """
+        Constructs a gripper position trajectory.
+    """
+    sample_times = []
+    poses = []
+    for name in ["initial", "target"]:
+        sample_times.append(times[name])
+        poses.append(X_G[name])
+
+    return PiecewisePose.MakeCubicLinearWithEndLinearVelocity(sample_times, poses, start_vel=[0.0,0.0,0.0], end_vel=[0.0,0.0,0.0])
 
 
 class IKController:
@@ -60,7 +76,7 @@ class IKController:
 
         self._plant = MultibodyPlant(time_step=dt)
         self._parser = Parser(self._plant)
-        self.rbt_mdl = self._parser.AddModelFromFile(file_name=rbt_model_file) 
+        self.rbt_mdl = self._parser.AddModels(file_name=rbt_model_file) 
         self._plant.Finalize()
         
 
@@ -80,22 +96,35 @@ class IKController:
         self._world_frame_autodiff = self._plant_ad.world_frame()
     
 
-    def GetQPControl(self, goal_ee_pos, q, v, t):
+    def set_goal(self, goal_ee_pos, duration, q, v, t):
+        self.goal_XG = goal_ee_pos
+        self.duration = duration
+        self.UpdateStoredContext(q, v, t)
+        self.X_G_init = self._ee_frame.CalcPoseInWorld(self._context)
+        self.X_G_target = RigidTransform(RollPitchYaw(self.goal_XG[3:6]), self.goal_XG[0:3])
+
+        times = {"initial": 0.0, "target": self.duration}
+        X_Gs = {"initial": self.X_G_init, "target": self.X_G_target}
+        self.traj = make_gripper_trajectory(X_Gs, times)
+
+
+    def GetQPControl(self, q, v, t):
         '''
             Get control with robot's current state `(q,v,t)`
         '''
-        
         self.UpdateStoredContext(q, v, t)
-
+        target_ee_pos = self.traj.GetPose(t) if t <= self.duration else self.X_G_target
+        
         q_target = DiffIKQP(plant=self._plant,
                             context=self._context,
                             ee_frame=self._ee_frame,
                             world_frame=self._world_frame,
-                            desired_pose=goal_ee_pos,
-                            q_init=q)
+                            desired_pose=target_ee_pos,
+                            q_init=q,
+                            verbose=False) 
 
         ref_pos = q_target
-        ref_vel = (q_target - q) / 5
+        ref_vel = np.clip((q_target - q) / self.dt, -0.5, 0.5)
         res = np.hstack((ref_pos, ref_vel))
         return res
 
