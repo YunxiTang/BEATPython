@@ -28,9 +28,9 @@ class UR5Env(BaseEnv):
         self.vis_freq = 1. / 60.
 
     def get_obs(self):
-        qpos = self.mj_data.qpos.copy()
-        qvel = self.mj_data.qvel.copy()
-        return np.concatenate([qpos[:], qvel[:]]).ravel()
+        qpos = self.mj_data.qpos.copy().ravel()[0:6]
+        qvel = self.mj_data.qvel.copy().ravel()[0:6]
+        return np.concatenate([qpos[:], qvel[:]])
 
     def set_state(self, qpos, qvel):
         """
