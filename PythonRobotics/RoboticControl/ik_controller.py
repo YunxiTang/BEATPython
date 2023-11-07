@@ -44,18 +44,20 @@ def DiffIKQP(plant,
     return np.array(q_result)
 
 
-def make_gripper_trajectory(X_G: Dict, times: Dict):
+def make_gripper_trajectory(X_G: Dict, times: Dict, style: str = 'cubic'):
     """
         Constructs a gripper position trajectory.
     """
     sample_times = []
     poses = []
-    for name in ["initial", "target"]:
-        sample_times.append(times[name])
-        poses.append(X_G[name])
-
-    return PiecewisePose.MakeCubicLinearWithEndLinearVelocity(sample_times, poses, start_vel=[0.0,0.0,0.0], end_vel=[0.0,0.0,0.0])
-
+    for key, _ in X_G.items():
+        sample_times.append(times[key])
+        poses.append(X_G[key])
+    if style == 'cubic':
+        traj = PiecewisePose.MakeCubicLinearWithEndLinearVelocity(sample_times, poses, start_vel=[0.0,0.0,0.0], end_vel=[0.0,0.0,0.0])
+    else:
+        traj = PiecewisePose.MakeLinear(sample_times, poses)
+    return traj
 
 class IKController:
     def __init__(self, 
@@ -95,6 +97,11 @@ class IKController:
         self._context_ad = self._plant_ad.CreateDefaultContext()
         self._world_frame_autodiff = self._plant_ad.world_frame()
     
+    
+    def get_ee_pos(self, q, v, t):
+        self.UpdateStoredContext(q, v, t)
+        res = self._ee_frame.CalcPoseInWorld(self._context)
+        return res
 
     def set_goal(self, goal_ee_pos, duration, q, v, t):
         self.goal_XG = goal_ee_pos
@@ -108,6 +115,14 @@ class IKController:
         self.traj = make_gripper_trajectory(X_Gs, times)
 
 
+    def set_task(self, key_frames: Dict[str, RigidTransform], times: Dict[str, float], style='cubic'):
+        '''
+            define a trajectory for a sequence of motions
+        '''
+        self.task_traj = make_gripper_trajectory(key_frames, times, style)
+        return self.task_traj
+
+
     def GetQPControl(self, q, v, t, target_ee_pos=None):
         '''
             Get control with robot's current state `(q,v,t)`
@@ -115,7 +130,7 @@ class IKController:
         self.UpdateStoredContext(q, v, t)
 
         if target_ee_pos is None:
-            target_ee_pos = self.traj.GetPose(t)
+            target_ee_pos = self.task_traj.GetPose(t)
         
         q_target = DiffIKQP(plant=self._plant,
                             context=self._context,
@@ -125,8 +140,8 @@ class IKController:
                             q_init=q,
                             verbose=False) 
 
-        ref_pos = q_target
-        ref_vel = np.clip((q_target - q) / 10, -0.5, 0.5)
+        ref_pos = q + 1.0 * (q_target - q)
+        ref_vel = np.clip((q_target - q) / 0.01, -1.0, 1.0)
         res = np.hstack((ref_pos, ref_vel))
         return res
 
