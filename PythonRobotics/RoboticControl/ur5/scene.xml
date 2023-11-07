@@ -4,7 +4,9 @@
   <include file="2f85.xml"/>
 
   <size memory="2M"/>
-  <option gravity="0 0 -9.8" integrator="implicit" timestep="0.001"/>
+  <option integrator="implicitfast"  timestep="0.0005" noslip_iterations="50" viscosity="0.00" gravity="0.0 0.0 -9.81">
+    <flag multiccd="enable"/>
+  </option>
 
   <statistic center="0.3 0 0.4" extent="0.8"/>
 
@@ -26,14 +28,24 @@
   </asset>
 
   <worldbody>
+    <!-- <camera name="closeup" pos="0 -.1 1.0" xyaxes="1 0 0 0 1 2"/> -->
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
-    <camera name="closeup" pos="0 -.1 1.0" xyaxes="1 0 0 0 1 2"/>
-    <geom type="box" size="1.0 1.0 0.015" pos="0 0 0.1"/>
+    <geom name="floor" size="2.0 1.5 0.05" type="plane" material="groundplane"/>
+    <geom name="table" type="box" size="1.0 0.5 0.015" pos="0 0 0.36" euler="0.00 0 0"/>
+    <geom name="desk" type="box" size="0.1 0.1 0.1" pos="0 0 0.41" material="metal"/>
+
+    <geom class='visual' name="region" type="box" size="0.05 0.05 0.015" pos="0.5 -0.1 0.37" rgba="0.3 0.7 0.4 0.5" euler="0 0 3."/>
+
+    <body name="cube1" pos="0.4 0.3 1.75" euler="0 0 1.05">
+      <inertial mass="0.05" pos="0 0 0" quat="1 0 0 0" diaginertia="0.0000260285 0.0000225381 0.0000152708"/>
+      <joint type="free" pos="0 0 0"/>
+      <geom type="box" size="0.03 0.025 0.05" pos="0 0 0" rgba="1 0 0 1" condim="6" 
+            solimp="0.9 0.95 0.001 0.5 2" solref="0.0001 2" friction="4.95 0.05 0.001" contype="1" conaffinity="1"/>
+    </body>
   </worldbody>
 
-  <keyframe>
-    <key name="home" qpos="0 -1.57 -1.57 -1.57 0 0 0 0 0 0 0 0 0 0" qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
-  </keyframe>
+  <!-- <keyframe>
+    <key name="home" qpos="0 -1.57 -1.57 -1.57 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" qvel="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
+  </keyframe> -->
 
 </mujoco>

@@ -28,8 +28,11 @@ class UR5Env(BaseEnv):
         self.vis_freq = 1. / 60.
 
     def get_obs(self):
-        qpos = self.mj_data.qpos.copy().ravel()[0:6]
-        qvel = self.mj_data.qvel.copy().ravel()[0:6]
+        # qpos = self.mj_data.qpos.copy().ravel()[0:6]
+        # qvel = self.mj_data.qvel.copy().ravel()[0:6]
+
+        qpos = self.mj_data.sensordata.copy().ravel()[0:6]
+        qvel = self.mj_data.sensordata.copy().ravel()[6:12]
         return np.concatenate([qpos[:], qvel[:]])
 
     def set_state(self, qpos, qvel):
@@ -44,15 +47,31 @@ class UR5Env(BaseEnv):
         mujoco.mj_forward(self.mj_model, self.mj_data)
 
     def step(self, ctrl, grip_motion: float = 0.):
-        act = np.zeros(13,)
+        act = np.zeros(16,)
         act[0:12] = ctrl
         act[12] = grip_motion
+        act[13] = -grip_motion
+
+        act[14] = 0
+        act[15] = 0
         self.mj_data.ctrl = act
+
         mujoco.mj_step(self.mj_model, self.mj_data)
         mujoco.mj_forward(self.mj_model, self.mj_data)
         self.state = self.get_obs()
         self.counts = self.counts + 1
+        self.sim_time = self.mj_data.time
         return np.copy(self.state)
+    
+    def home(self):
+        self.reset()
+        q = np.array([-1.57, -1.57, -1.57, 0, 1.57, -0])
+        v = np.zeros((6,))
+        ctrl = np.hstack((q, v))
+        for _ in range(int(5/self.dt)):
+            obs = self.step(ctrl, 0.)
+        mujoco.mj_forward(self.mj_model, self.mj_data)
+        return obs
 
     def reset(self, key_frame_num = None):
         if key_frame_num is None:
@@ -69,11 +88,12 @@ class UR5Env(BaseEnv):
         return self.get_obs()
 
     def render(self):
-        if (self.mj_data.time - self.sim_time) > self.vis_freq:
-            self.renderer.render(self.mj_data)
-            self.sim_time = self.mj_data.time
-        else:
-            pass
+        # if (self.mj_data.time - self.sim_time) > self.vis_freq:
+        #     self.renderer.render(self.mj_data)
+        #     self.sim_time = self.mj_data.time
+        # else:
+        #     pass
+        self.renderer.render(self.mj_data)
         return None
 
     def close(self):
