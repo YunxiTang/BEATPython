@@ -65,11 +65,11 @@ if __name__ == '__main__':
     init_frame = ik_controller.get_ee_pos(q, qdot, t)
     pregrasp_frame = RigidTransform(RollPitchYaw(np.pi, 0.0, np.pi/3), p=np.array([0.4, 0.3, 0.55]))
     grasp_frame = RigidTransform(RollPitchYaw(np.pi, 0.0, np.pi/3), p=np.array([0.4, 0.3, 0.46]))
-    target_frame = RigidTransform(RollPitchYaw(np.pi, 0.0, np.pi/3), p=np.array([0.5, -0.1, 0.6]))
+    target_frame = RigidTransform(RollPitchYaw(np.pi, 0.0, 0.0), p=np.array([0.5, -0.1, 0.6]))
 
     key_frames, grip_frames, key_times = task_setting([init_frame, pregrasp_frame, grasp_frame, target_frame],
-                                                      [t, t+8, t+10, t+15])
-    task_traj = ik_controller.set_task(key_frames, key_times, 'cubic')
+                                                      [t, t+3, t+6, t+9])
+    task_traj = ik_controller.set_task(key_frames, key_times, 'linear')
     
     N = int(20 / robot.dt)
     
