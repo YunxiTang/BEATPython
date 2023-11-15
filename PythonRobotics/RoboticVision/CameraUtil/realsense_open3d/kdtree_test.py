@@ -10,9 +10,9 @@ data = np.random.normal(
     )
 
 bunny_pcd = o3d.io.read_point_cloud('../../bunny.pcd', print_progress=True)
-# o3d.visualization.draw_geometries([bunny_pcd,], 
-#                                   # front=[0.4,0.2, 0.8]
-# )
+o3d.visualization.draw_geometries([bunny_pcd,], 
+                                  # front=[0.4,0.2, 0.8]
+)
 data = np.asarray(bunny_pcd.points)
 tree = spatial.KDTree(data)
 
