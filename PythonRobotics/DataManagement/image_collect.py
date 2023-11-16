@@ -2,6 +2,28 @@ import zarr
 import numpy as np
 import os
 import json
+from typing import Dict
+
+
+def video_replay(dataset: str, total_frames: int = 1000):
+    tmp = zarr.open(dataset, 'r')
+    print(tmp.tree())
+
+    for i in range(total_frames):
+
+        color_img = tmp['data']['rgb_imgs'][i]
+        depth_img = tmp['data']['depth_imgs'][i]
+        depth_colormap = cv2.applyColorMap(
+                            cv2.convertScaleAbs(depth_img, alpha=0.03), 
+                            cv2.COLORMAP_JET
+                            )
+        images = np.hstack((color_img, depth_colormap))
+
+        cv2.namedWindow('video_replay', cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('video_replay', images.astype(np.uint8))
+        cv2.waitKey(1)
+
+    cv2.destroyAllWindows()
 
 
 class ImageCollector:
@@ -47,22 +69,36 @@ class ImageCollector:
         self.frame_count = 0
 
 
-    def add_rgb_and_depth_img(self, rgb_img, depth_img):
+    def add_camera_info(self, camera_device: Dict):
+        '''
+            save camera device info
+        '''
+        with open(os.path.join(self.dataset_path, 'camera_info.json'), 'w') as f:
+            json.dump(camera_device, f, indent=4)
+
+
+    def add_rgb_and_depth_img(self, rgb_img: np.ndarray, depth_img: np.ndarray):
+        '''
+            add RGB-D images
+        '''
         self.rgb_imgs_list.append(rgb_img)
         self.depth_imgs_list.append(depth_img)
         self.frame_count += 1
 
 
     def flush_to_disk(self):
+        '''
+            call at the end of data collection (flush data from memory to disk)
+        '''
         rgb_imgs = self.data.create_dataset('rgb_imgs', 
                                             shape=(self.frame_count, self.image_width, self.image_height, 3), 
-                                            dtype='f4', 
+                                            dtype='i4', 
                                             chunks=(self.chunk_size, None, None, None), 
                                             overwrite=True)
         
         depth_imgs = self.data.create_dataset('depth_imgs', 
                                               shape=(self.frame_count, self.image_width, self.image_height), 
-                                              dtype='f4', 
+                                              dtype='i4', 
                                               chunks=(self.chunk_size, None, None), 
                                               overwrite=True)
         rgb_imgs[:] = np.array(self.rgb_imgs_list)
@@ -80,7 +116,7 @@ if __name__ == '__main__':
     fps = 30
     collector = ImageCollector(
         './dataset',
-        'image_test_v0',
+        'image_test_v0.zarr',
         image_width=360,
         image_height=640,
         camera_fps=30
@@ -104,6 +140,13 @@ if __name__ == '__main__':
 
     align_to = rs2.stream.color
     aligner = rs2.align(align_to)
+
+    camera_info = {
+        'name': 'test',
+        'intrinsic': [1,0,0,0,1,0,0,0,1]
+    }
+    collector.add_camera_info(camera_info)
+
     # Streaming loop
     try:
         while(1):
@@ -123,11 +166,11 @@ if __name__ == '__main__':
 
             depth_img = np.asanyarray(aligned_depth_frame.get_data()).copy()
             color_img = np.asanyarray(color_frame.get_data()).copy()
-            print(depth_img.shape)
+            # print(depth_img.shape)
             # save
-            ts = time.time()
+            # ts = time.time()
             collector.add_rgb_and_depth_img(color_img, depth_img)
-            print(time.time()-ts)
+            # print(time.time()-ts)
 
             # Remove background - Set pixels further than clipping_distance to grey
             grey_color = 153
@@ -136,7 +179,7 @@ if __name__ == '__main__':
             
             # Render images
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_img, alpha=0.03), cv2.COLORMAP_JET)
-            images = np.hstack((bg_removed, depth_colormap))
+            images = np.hstack((color_img, depth_colormap))
             cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
             cv2.imshow('Align Example', images)
             cv2.waitKey(1)
