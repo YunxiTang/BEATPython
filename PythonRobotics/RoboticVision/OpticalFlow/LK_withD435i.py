@@ -42,7 +42,7 @@ try:
     old_frame = color_img
     old_gray = cv.cvtColor(old_frame, cv.COLOR_BGR2GRAY)
     p0 = cv.goodFeaturesToTrack(old_gray, mask = None, **feature_params)
-
+    print(p0)
     # Create a mask image for drawing purposes
     mask = np.zeros_like(old_frame)
 
@@ -63,7 +63,7 @@ try:
         color_img = np.asanyarray(color_frame.get_data())
         frame_gray = cv.cvtColor(color_img, cv.COLOR_BGR2GRAY)
         p1, st, err = cv.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
-
+        print(p1.shape, st.shape)
         # Select good points
         if p1 is not None:
             good_new = p1[st==1]
@@ -78,7 +78,7 @@ try:
             # get depth of key point
             dist_to_center = depth_frame.get_distance(int(new[0]), int(new[1]))
             tmp = depth_img[int(b), int(a)] * depth_scale
-            print('key point: {} with depth {}. {}'.format(new, dist_to_center, tmp))
+            # print('key point: {} with depth {}. {}'.format(new, dist_to_center, tmp))
         print('+-------------------------------------------------+')
 
         img = cv.add(color_img, mask)
