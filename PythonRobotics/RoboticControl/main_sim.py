@@ -71,7 +71,7 @@ if __name__ == '__main__':
                                                       [t, t+2, t+6, t+8])
     task_traj = ik_controller.set_task(key_frames, key_times, 'linear')
     
-    N = int(20 / robot.dt)
+    N = int(15 / robot.dt)
     
     for i in range(N):
         q = obs[0:6]
