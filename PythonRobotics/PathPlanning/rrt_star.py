@@ -80,7 +80,7 @@ class RRTStar(RRT):
                 self._node_list.append(new_node)
                 self._rewire(new_node, near_idxs)
                 
-                if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size:
+                if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size * 0.2:
                     final_node = copy.deepcopy(self._goal)
                     final_node.set_parent(new_node)
                     self._node_list.append(new_node)
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     world_map.add_obstacle(obs3)
     world_map.add_obstacle(obs4)
     
-    planner = RRTStar(0.8, start, goal, step_size=0.1, max_iter=10000, map=world_map)
+    planner = RRTStar(0.2, start, goal, step_size=0.1, max_iter=1000, map=world_map)
     
     path_solution = planner.plan()
     
@@ -129,8 +129,8 @@ if __name__ == '__main__':
         
         plt.scatter(path[len(path_solution)-1,0], path[len(path_solution)-1,1]) 
         
-        plt.scatter(start[0], start[1], marker='*', linewidths=2)
-        plt.scatter(goal[0], goal[1], marker='*', linewidths=2) 
+        plt.scatter(start[0], start[1], marker='*', linewidths=5)
+        plt.scatter(goal[0], goal[1], marker='*', linewidths=5) 
         plt.axis('equal')
         plt.show()    
     

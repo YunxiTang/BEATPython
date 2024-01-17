@@ -109,21 +109,23 @@ class RRT:
                  goal_config: jnp.ndarray,
                  map: WorldMap,
                  step_size: float = 0.01,
-                 max_iter: int = 500
+                 goal_sample_rate: int = 50,
+                 max_iter: int = 500,
+                 seed: int = 0
                  ) -> None:
         self._start = Node(start_config)
         self._goal = Node(goal_config)
         
-        self._resolution = 0.01
+        self._resolution = 0.1
         
         self._map = map
         self._node_list = []
         
         self._step_size = step_size
         self._max_iter = max_iter
-        self._goal_sample_rate = 10
+        self._goal_sample_rate = goal_sample_rate
         
-        self._rng_key = random.PRNGKey(seed=4)
+        self._rng_key = random.PRNGKey(seed=seed)
         
     def _get_random_node(self):
         self._rng_key, rng_key = random.split(self._rng_key, 2)
