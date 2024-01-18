@@ -101,6 +101,9 @@ class CityMap:
 
         # dummy quadrotor with size of radius 0.05 m
         self._s = fcl.Sphere(0.05)
+
+        # TODO: visualization
+        
         
     def update_start(self, start: jnp.ndarray):
         self._start = start
