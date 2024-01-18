@@ -80,7 +80,7 @@ class RRTStar(RRT):
                 self._node_list.append(new_node)
                 self._rewire(new_node, near_idxs)
                 
-                if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size * 0.2:
+                if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size * 1.0:
                     final_node = copy.deepcopy(self._goal)
                     final_node.set_parent(new_node)
                     self._node_list.append(new_node)

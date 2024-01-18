@@ -23,7 +23,7 @@ class Node:
         self._cost = 0.0
         
     def set_parent(self, node):
-        self._parent = node
+        self._parent = copy.deepcopy(node)
         
     def set_cost(self, cost):
         self._cost = cost
