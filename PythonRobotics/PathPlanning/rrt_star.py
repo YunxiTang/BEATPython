@@ -4,12 +4,29 @@ import jax.random as random
 import seaborn as sns
 import matplotlib.pyplot as plt
 from typing import Tuple
-import copy, math
-from rrt import WorldMap, Node, RRT, plot_circle
+import copy
 from typing import List
 
 
+if __name__ == '__main__':
+    
+    import sys
+    import os
+    import pathlib
+
+    ROOT_DIR = str(pathlib.Path(__file__).parent)
+    sys.path.append(ROOT_DIR)
+    os.chdir(ROOT_DIR)
+    from world_map import TwoDimMap
+
+from rrt import Node, RRT
+from utils import plot_circle
+
+
 class RRTStar(RRT):
+    """
+        RRT star implementation
+    """
     def __init__(self, connect_range, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._connect_range = connect_range
@@ -58,7 +75,7 @@ class RRTStar(RRT):
                     node.set_parent(new_node)
                     node.set_cost(updated_cost)
         
-    def plan(self, animation=True, verbose=False):
+    def plan(self, animation=True, verbose=True):
         self._node_list.append(self._start)
         
         for i in range(self._max_iter):
@@ -80,58 +97,85 @@ class RRTStar(RRT):
                 self._node_list.append(new_node)
                 self._rewire(new_node, near_idxs)
                 
-                if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size * 1.0:
-                    final_node = copy.deepcopy(self._goal)
-                    final_node.set_parent(new_node)
-                    self._node_list.append(new_node)
-                    print('Find a feasible path.')
-                    return self._generate_final_course()
-            print(f"Iter: {i} || No. Nodes: {len(self._node_list)}")
-        return self._generate_final_course()
+            if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size * 1.0:
+                final_node = Node(self._goal.state)
+                final_node.set_parent(self._node_list[-1])
+                self._node_list.append(final_node)
+                sol = self._generate_final_course()
+                print(f'Find a feasible path with {len(sol)} nodes!')
+                return sol
+            else:
+                if verbose and i % 10 == 0:
+                    print(f"Iter: {i} || No. of Tree Nodes: {len(self._node_list)}")
+        return None
         
+
 if __name__ == '__main__':
     
-    world_map = WorldMap([0., 2., 0., 2.])
-    start = jnp.array([0., 0.])
-    goal = jnp.array([0.75, 1.0])
+    import sys
+    import os
+    import pathlib
+
+    ROOT_DIR = str(pathlib.Path(__file__).parent)
+    sys.path.append(ROOT_DIR)
+    os.chdir(ROOT_DIR)
+
+    from world_map import TwoDimMap
+
+    world_map = TwoDimMap([0., 2., 0., 2.], resolution=0.02)
+    start = jnp.array([0.0, 0.])
+    goal = jnp.array([2.0, 2.0])
     
     world_map.update_start(start)
     world_map.update_goal(goal)
     
-    obs1 = (0.5, 0.4, 0.25)
-    obs2 = (0.4, 0.8, 0.2)
-    obs3 = (0.8, 0.8, 0.15)
-    obs4 = (1.0, 0.4, 0.15)
-    world_map.add_obstacle(obs1)
-    world_map.add_obstacle(obs2)
-    world_map.add_obstacle(obs3)
-    world_map.add_obstacle(obs4)
+    rng_key = random.PRNGKey(seed=98)
+
+    for i in range(70):
+        rng_key, rng_key_x, rng_key_y, rng_key_r = random.split(rng_key, 4)
+        x = random.uniform(rng_key_x, shape=(1,), minval=0.1, maxval=1.75)
+        y = random.uniform(rng_key_y, shape=(1,), minval=0.1, maxval=1.75)
+        r = random.uniform(rng_key_r, shape=(1,), minval=0.05, maxval=0.1)
+        obs = (x[0], y[0], r[0])
+        world_map.add_obstacle(obs)
     
-    planner = RRTStar(0.2, start, goal, step_size=0.1, max_iter=1000, map=world_map)
-    
-    path_solution = planner.plan()
+    if not world_map.check_pos_collision(start) and not world_map.check_pos_collision(goal):
+        rrt = RRTStar(
+            connect_range=0.5,
+            start_config=start,
+            goal_config=goal,
+            map=world_map,
+            step_size=0.05,
+            goal_sample_rate=0,
+            seed=520,
+            max_iter=1500
+        )
+        path_solution = rrt.plan()
+    else:
+        path_solution = None
     
     if path_solution is not None:
+        print(f'Path Length: {len(path_solution)}')
         path = jnp.array(path_solution)
         
         sns.set()
         for obs in world_map._obstacle:
             plot_circle(obs[0], obs[1], obs[2])
             
-        for node in planner._node_list:
-            plt.scatter(node.state[0], node.state[1], c='k')
+        for node in rrt._node_list:
+            plt.scatter(node.state[0], node.state[1], c='k', s=0.5)
             if node.parent != None:
-                plt.plot([node.state[0], node.parent.state[0]], [node.state[1], node.parent.state[1]], 'k-.')
+                plt.plot([node.state[0], node.parent.state[0]],
+                          [node.state[1], node.parent.state[1]], 
+                          'k-.', linewidth=0.5)
         
         for i in range(len(path_solution)-1):
             plt.scatter(path[i,0], path[i,1])
-            plt.plot(path[i:i+2,0], path[i:i+2,1])
+            plt.plot(path[i:i+2,0], path[i:i+2,1], linewidth=2.5)
         
         plt.scatter(path[len(path_solution)-1,0], path[len(path_solution)-1,1]) 
         
-        plt.scatter(start[0], start[1], marker='*', linewidths=5)
-        plt.scatter(goal[0], goal[1], marker='*', linewidths=5) 
+        plt.scatter(start[0], start[1], marker='*', linewidths=2)
+        plt.scatter(goal[0], goal[1], marker='*', linewidths=2) 
         plt.axis('equal')
-        plt.show()    
-    
-    
+        plt.show()

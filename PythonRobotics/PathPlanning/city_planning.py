@@ -8,7 +8,6 @@ if __name__ == "__main__":
     os.chdir(ROOT_DIR)
 
 from world_map import CityMap, Block
-from rrt import RRT
 from rrt_star import RRTStar
 import numpy as np
 import jax.numpy as jnp
