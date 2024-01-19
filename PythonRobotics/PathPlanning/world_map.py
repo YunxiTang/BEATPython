@@ -3,54 +3,36 @@ import jax.numpy as jnp
 import numpy as np
 import jax.random as random
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
 import fcl
+from typing import Tuple
+from abc import abstractmethod, ABCMeta
 
 
-def plot_box(center, size, ax, clr='gray'):
-    center_x, center_y, center_z = center
-    size_x, size_y, size_z = size
-    half_x = size_x / 2.
-    half_y = size_y / 2.
-    half_z = size_z / 2.
-
-    faces = Poly3DCollection([
-        [[center_x-half_x, center_y-half_y, center_z-half_z], 
-         [center_x+half_x, center_y-half_y, center_z-half_z], 
-         [center_x+half_x, center_y+half_y, center_z-half_z], 
-         [center_x-half_x, center_y+half_y, center_z-half_z]
-         ], # bottom
-        [[center_x-half_x, center_y-half_y, center_z+half_z], 
-         [center_x+half_x, center_y-half_y, center_z+half_z], 
-         [center_x+half_x, center_y+half_y, center_z+half_z], 
-         [center_x-half_x, center_y+half_y, center_z+half_z]
-         ], # top
-        [[center_x-half_x, center_y-half_y, center_z-half_z], 
-         [center_x+half_x, center_y-half_y, center_z-half_z], 
-         [center_x+half_x, center_y-half_y, center_z+half_z], 
-         [center_x-half_x, center_y-half_y, center_z+half_z]
-         ], # front
-        [[center_x-half_x, center_y+half_y, center_z-half_z], 
-         [center_x+half_x, center_y+half_y, center_z-half_z], 
-         [center_x+half_x, center_y+half_y, center_z+half_z], 
-         [center_x-half_x, center_y+half_y, center_z+half_z]
-         ], # back
-        [[center_x-half_x, center_y+half_y, center_z-half_z], 
-         [center_x-half_x, center_y+half_y, center_z+half_z], 
-         [center_x-half_x, center_y-half_y, center_z+half_z], 
-         [center_x-half_x, center_y-half_y, center_z-half_z]
-         ], # left
-        [[center_x+half_x, center_y+half_y, center_z-half_z], 
-         [center_x+half_x, center_y+half_y, center_z+half_z], 
-         [center_x+half_x, center_y-half_y, center_z+half_z], 
-         [center_x+half_x, center_y-half_y, center_z-half_z]
-         ] # right
-    ])
-
-    faces.set_alpha(0.8)
-    faces.set_facecolor(clr)
-    faces.set_edgecolor('k')
-    ax.add_collection3d(faces)
+class ABCMap(metaclass=ABCMeta):
+    @abstractmethod
+    def update_start(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def update_goal(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def update_start(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def sample_free_pos(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def check_pos_collision(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def check_line_collision(self):
+        return NotImplemented
 
 
 class Block:
@@ -76,7 +58,7 @@ class Block:
         self._color = clr
 
 
-class CityMap:
+class CityMap(ABCMap):
     def __init__(self, start=None, goal=None, resolution: float = 0.1):
 
         self._obstacle = []
@@ -123,7 +105,7 @@ class CityMap:
 
         self._finalized = True
         
-    def sample_pos(self, toward_goal: bool = False) -> jnp.ndarray:
+    def sample_free_pos(self, toward_goal: bool = False) -> jnp.ndarray:
         assert self._finalized, 'city_map is not finalized!'
         if toward_goal and self._goal is not None:
             return self._goal
@@ -174,7 +156,8 @@ class CityMap:
                 return True  
         return False
     
-    def visualize(self, ax):
+    def visualize_map(self, ax):
+        from utils import plot_box
         ax.set_xlim(self._xmin, self._xmax)
         ax.set_ylim(self._ymin, self._ymax)
         ax.set_zlim(self._zmin, self._zmax)
@@ -197,6 +180,75 @@ class CityMap:
                      ax = ax,
                      clr = obstacle._color)
         return None
+
+
+class TwoDimMap(ABCMap):
+    def __init__(self, arena, resolution: float = 0.01) -> None:
+        
+        self.xmin = float(arena[0])
+        self.xmax = float(arena[1])
+        self.ymin = float(arena[2])
+        self.ymax = float(arena[3])
+        
+        self._lb = jnp.array([self.xmin, self.ymin])
+        self._ub = jnp.array([self.xmax, self.ymax])
+        
+        self._resolution = resolution
+        
+        self._dim = 2
+        
+        self._obstacle = []
+        
+        self._start = None
+        self._goal = None
+        
+        self._rng_key = random.PRNGKey(seed=146)
+        
+    def update_start(self, start: jnp.ndarray):
+        self._start = start
+        
+    def update_goal(self, goal: jnp.ndarray):
+        self._goal = goal
+        
+    def add_obstacle(self, obstacle: Tuple):
+        self._obstacle.append(obstacle)
+        
+    def sample_free_pos(self, toward_goal: bool = False) -> jnp.ndarray:
+        if toward_goal and self._goal is not None:
+            return self._goal
+        
+        else:
+            while True:
+                self._rng_key, rng_key = random.split(self._rng_key, 2)
+                sampled_pos = random.uniform(rng_key, shape=(self._dim,), 
+                                             minval=self._lb, 
+                                             maxval=self._ub)
+                collision = self.check_pos_collision(sampled_pos)
+                if not collision:
+                    return sampled_pos
+        
+    def check_line_collision(self, start_state: jnp.ndarray, end_state: jnp.ndarray) -> bool:
+        state_distance = jnp.linalg.norm(start_state - end_state)
+        N = int(state_distance / self._resolution)
+        ratios = jnp.linspace(0., 1.0, num=N)
+        for (ox, oy, size) in self._obstacle:
+            center = jnp.array([ox, oy])
+            for ratio in ratios[1:]:
+                state_sample = (1 - ratio) * start_state + ratio * end_state
+                dist = jnp.linalg.norm(state_sample - center) - size
+                if dist <= 0.:
+                    # collision
+                    return True  
+        return False
+    
+    def check_pos_collision(self, state):
+        for (ox, oy, size) in self._obstacle:
+            center = jnp.array([ox, oy])
+            dist = jnp.linalg.norm(state - center) - size
+            if dist <= 0.:
+                # collision
+                return True  
+        return False
 
 
 if __name__ == '__main__':
