@@ -23,6 +23,15 @@ class Node:
         
     def set_cost(self, cost):
         self._cost = cost
+
+    def reset_parent(self, node):
+        self._parent = copy.deepcopy(node)
+
+    def __eq__(self, other):
+        eq = False
+        if jnp.linalg.norm(self.state - other.state) < 1e-3:
+            eq = True
+        return eq
         
     @property
     def state(self):
