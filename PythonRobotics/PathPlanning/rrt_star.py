@@ -30,6 +30,8 @@ class RRTStar(RRT):
     def __init__(self, connect_range, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._connect_range = connect_range
+
+        self._potential_final_node = self._start
         
     def _find_near_node_idx(self, new_node: Node):
         """find all the nodes in some range
@@ -43,21 +45,26 @@ class RRTStar(RRT):
     
     def _choose_parent(self, near_node_idxs: List[int], new_node: Node):
         """
-            Computes the cheapest node to new_node contained in the list
-            and set such node as the parent of new_node.
+            computes the cheapest node to new_node contained in the list
+            and reset the node as new_node.parent.
         """
         costs = [RRT._compute_node_distance(self._node_list[idx], new_node) + self._node_list[idx].cost for idx in near_node_idxs]
+        
         if costs:
-            costs = jnp.array(costs)
-            min_idx = jnp.argmin(costs)
-            if not self._check_edge_collision(self._node_list[near_node_idxs[min_idx]], new_node):
-                updated_parent_node = copy.deepcopy(new_node)
-                updated_parent_node.set_parent(self._node_list[near_node_idxs[min_idx]])
-                return updated_parent_node
-            else:
-                return new_node
-        else:
-            return new_node
+            # costs = jnp.array(costs)
+            # min_idx = jnp.argmin(costs)
+            # if not self._check_edge_collision(self._node_list[near_node_idxs[min_idx]], new_node):
+            #     new_node.reset_parent(self._node_list[near_node_idxs[min_idx]])
+            
+            sorted_idx = sorted(range(len(costs)), key=lambda k: costs[k])
+            for idx in sorted_idx:
+                if not self._check_edge_collision(self._node_list[near_node_idxs[idx]], new_node):
+                    new_node.reset_parent(self._node_list[near_node_idxs[idx]])
+                    break
+
+        new_node_cost = new_node.parent.cost + self._compute_node_distance(new_node, new_node.parent)
+        new_node.set_cost(new_node_cost)
+        return new_node
     
     
     def _rewire(self, new_node: Node, near_node_idxs: List[int]):
@@ -72,8 +79,18 @@ class RRTStar(RRT):
             if new_node.parent != node:
                 updated_cost = new_node.cost + RRT._compute_node_distance(node, new_node)
                 if updated_cost < node.cost and (not self._check_edge_collision(node, new_node)):
-                    node.set_parent(new_node)
+                    node.reset_parent(new_node)
                     node.set_cost(updated_cost)
+
+    def _generate_final_course(self):
+        path = []
+        node = self._potential_final_node
+        while node.parent is not None:
+            path.append(node.state)
+            node = node.parent
+        path.append(node.state)
+        return super()._generate_final_course()
+
         
     def plan(self, animation=True, verbose=True):
         self._node_list.append(self._start)
@@ -89,25 +106,37 @@ class RRTStar(RRT):
             # get new node candidate
             new_node = self._steer(nearest_node, rand_node, self._step_size)
             
-            if not self._check_edge_collision(nearest_node, new_node):
+            if not self._check_node_collision(new_node):
                 near_idxs = self._find_near_node_idx(new_node)
                 new_node = self._choose_parent(near_idxs, new_node)
-                new_node_cost = new_node.parent.cost + self._compute_node_distance(new_node, new_node.parent)
-                new_node.set_cost(new_node_cost)
-                self._node_list.append(new_node)
-                self._rewire(new_node, near_idxs)
                 
-            if self._calc_dist_to_goal(self._node_list[-1]) <= self._step_size * 1.0:
-                final_node = Node(self._goal.state)
-                final_node.set_parent(self._node_list[-1])
-                self._node_list.append(final_node)
-                sol = self._generate_final_course()
-                print(f'Find a feasible path with {len(sol)} nodes!')
-                return sol
-            else:
-                if verbose and i % 10 == 0:
+                self._node_list.append(new_node)
+
+                # rewire
+                self._rewire(new_node, near_idxs)
+
+                if self._calc_dist_to_goal(new_node) < self._calc_dist_to_goal(self._potential_final_node):
+                    self._potential_final_node = copy.deepcopy(new_node)
+            
+            if verbose and i % 10 == 0:
                     print(f"Iter: {i} || No. of Tree Nodes: {len(self._node_list)}")
-        return None
+        
+            # if self._calc_dist_to_goal(new_node) <= self._step_size * 1.0:
+            #     final_node = Node(self._goal.state)
+            #     final_node.set_parent(new_node)
+            #     final_node.set_cost(final_node.parent.cost + self._compute_node_distance(final_node, final_node.parent))
+            #     self._node_list.append(final_node)
+            #     sol = self._generate_final_course()
+            #     print(self._node_list[-1].cost)
+            #     print(f'Find a feasible path with {len(sol)} nodes!')
+            #     return sol
+            # else:
+            #     if verbose and i % 10 == 0:
+            #         print(f"Iter: {i} || No. of Tree Nodes: {len(self._node_list)}")
+        sol = self._generate_final_course()
+        print(self._potential_final_node.cost)
+        print(f'Find a feasible path with {len(sol)} nodes!')
+        return sol
         
 
 if __name__ == '__main__':
@@ -129,7 +158,7 @@ if __name__ == '__main__':
     world_map.update_start(start)
     world_map.update_goal(goal)
     
-    rng_key = random.PRNGKey(seed=98)
+    rng_key = random.PRNGKey(seed=198)
 
     for i in range(70):
         rng_key, rng_key_x, rng_key_y, rng_key_r = random.split(rng_key, 4)
@@ -147,7 +176,7 @@ if __name__ == '__main__':
             map=world_map,
             step_size=0.05,
             goal_sample_rate=0,
-            seed=520,
+            seed=5020,
             max_iter=1500
         )
         path_solution = rrt.plan()
@@ -164,7 +193,7 @@ if __name__ == '__main__':
             
         for node in rrt._node_list:
             plt.scatter(node.state[0], node.state[1], c='k', s=0.5)
-            if node.parent != None:
+            if node.parent is not None:
                 plt.plot([node.state[0], node.parent.state[0]],
                           [node.state[1], node.parent.state[1]], 
                           'k-.', linewidth=0.5)
