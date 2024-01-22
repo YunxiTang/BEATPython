@@ -40,7 +40,7 @@ class RRTStar(RRT):
             new_node (Node): node
         """
         node_dists = [RRT._compute_node_distance(new_node, node) for node in self._node_list]
-        near_idx = [node_dists.index(i) for i in node_dists if i <= self._connect_range**2]
+        near_idx = [node_dists.index(i) for i in node_dists if i <= self._connect_range]
         return near_idx
     
     def _choose_parent(self, near_node_idxs: List[int], new_node: Node):
@@ -83,13 +83,13 @@ class RRTStar(RRT):
                     node.set_cost(updated_cost)
 
     def _generate_final_course(self):
-        path = []
+        path = [self._goal.state]
         node = self._potential_final_node
         while node.parent is not None:
             path.append(node.state)
             node = node.parent
         path.append(node.state)
-        return super()._generate_final_course()
+        return path
 
         
     def plan(self, animation=True, verbose=True):
@@ -115,27 +115,32 @@ class RRTStar(RRT):
                 # rewire
                 self._rewire(new_node, near_idxs)
 
-                if self._calc_dist_to_goal(new_node) < self._calc_dist_to_goal(self._potential_final_node):
+                if self._calc_dist_to_goal(new_node) <= self._calc_dist_to_goal(self._potential_final_node):
                     self._potential_final_node = copy.deepcopy(new_node)
-            
+
+                # assemble solution due to early stop
+                if self._calc_dist_to_goal(self._potential_final_node) <= self._step_size:
+                    self._goal.set_parent(self._potential_final_node)
+                    self._goal.set_cost(self._potential_final_node.cost \
+                            + self._compute_node_distance(self._potential_final_node, self._goal))
+                    sol = self._generate_final_course()
+                    print(f'Find a path with {len(sol)} nodes due to early stop at iter {i}. Goal cost: {self._goal.cost}')
+                    return sol
+
+            # verbose (print information)
             if verbose and i % 10 == 0:
                     print(f"Iter: {i} || No. of Tree Nodes: {len(self._node_list)}")
         
-            # if self._calc_dist_to_goal(new_node) <= self._step_size * 1.0:
-            #     final_node = Node(self._goal.state)
-            #     final_node.set_parent(new_node)
-            #     final_node.set_cost(final_node.parent.cost + self._compute_node_distance(final_node, final_node.parent))
-            #     self._node_list.append(final_node)
-            #     sol = self._generate_final_course()
-            #     print(self._node_list[-1].cost)
-            #     print(f'Find a feasible path with {len(sol)} nodes!')
-            #     return sol
-            # else:
-            #     if verbose and i % 10 == 0:
-            #         print(f"Iter: {i} || No. of Tree Nodes: {len(self._node_list)}")
-        sol = self._generate_final_course()
-        print(self._potential_final_node.cost)
-        print(f'Find a feasible path with {len(sol)} nodes!')
+        # assemble solution due to max iter
+        if not self._check_edge_collision(self._potential_final_node, self._goal):
+            self._goal.set_parent(self._potential_final_node)
+            self._goal.set_cost(self._potential_final_node.cost \
+                                + self._compute_node_distance(self._potential_final_node, self._goal))
+            sol = self._generate_final_course()
+            print(f'Find a path with {len(sol)} nodes due to max_iter. Goal cost: {self._goal.cost}')
+        else:
+            print(f'Failed to find a feasible path with max_iter {self._max_iter}')
+            sol = None
         return sol
         
 
@@ -144,6 +149,8 @@ if __name__ == '__main__':
     import sys
     import os
     import pathlib
+    import scipy.interpolate as interpolate
+    import numpy as np
 
     ROOT_DIR = str(pathlib.Path(__file__).parent)
     sys.path.append(ROOT_DIR)
@@ -151,16 +158,16 @@ if __name__ == '__main__':
 
     from world_map import TwoDimMap
 
-    world_map = TwoDimMap([0., 2., 0., 2.], resolution=0.02)
+    world_map = TwoDimMap([0., 2., 0., 2.], resolution=0.01)
     start = jnp.array([0.0, 0.])
     goal = jnp.array([2.0, 2.0])
     
     world_map.update_start(start)
     world_map.update_goal(goal)
     
-    rng_key = random.PRNGKey(seed=198)
+    rng_key = random.PRNGKey(seed=1838)
 
-    for i in range(70):
+    for i in range(100):
         rng_key, rng_key_x, rng_key_y, rng_key_r = random.split(rng_key, 4)
         x = random.uniform(rng_key_x, shape=(1,), minval=0.1, maxval=1.75)
         y = random.uniform(rng_key_y, shape=(1,), minval=0.1, maxval=1.75)
@@ -169,17 +176,17 @@ if __name__ == '__main__':
         world_map.add_obstacle(obs)
     
     if not world_map.check_pos_collision(start) and not world_map.check_pos_collision(goal):
-        rrt = RRTStar(
-            connect_range=0.5,
+        planner = RRTStar(
+            connect_range=0.25,
             start_config=start,
             goal_config=goal,
             map=world_map,
-            step_size=0.05,
+            step_size=0.01,
             goal_sample_rate=0,
-            seed=5020,
-            max_iter=1500
+            seed=502,
+            max_iter=2500
         )
-        path_solution = rrt.plan()
+        path_solution = planner.plan()
     else:
         path_solution = None
     
@@ -191,7 +198,7 @@ if __name__ == '__main__':
         for obs in world_map._obstacle:
             plot_circle(obs[0], obs[1], obs[2])
             
-        for node in rrt._node_list:
+        for node in planner._node_list:
             plt.scatter(node.state[0], node.state[1], c='k', s=0.5)
             if node.parent is not None:
                 plt.plot([node.state[0], node.parent.state[0]],
@@ -201,7 +208,14 @@ if __name__ == '__main__':
         for i in range(len(path_solution)-1):
             plt.scatter(path[i,0], path[i,1])
             plt.plot(path[i:i+2,0], path[i:i+2,1], linewidth=2.5)
-        
+
+        # path_solution.reverse()
+        # xs = [path[0] for path in path_solution]
+        # ys = [path[1] for path in path_solution]
+        # tck, u = interpolate.splprep([xs, ys], k=5, s=3)
+        # new_points = interpolate.splev(u, tck)
+        # plt.plot(new_points[0], new_points[1], 'r-', linewidth=2.5)
+
         plt.scatter(path[len(path_solution)-1,0], path[len(path_solution)-1,1]) 
         
         plt.scatter(start[0], start[1], marker='*', linewidths=2)

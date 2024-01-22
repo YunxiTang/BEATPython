@@ -16,10 +16,11 @@ from visualizer import Visualizer
 
 if __name__ == '__main__':
     start = np.array([0., 0., 0.])
-    goal = jnp.array([200., 200., 55.])
+    goal = jnp.array([200., 200., 5.])
 
     city_map = CityMap(start=start,
-                       goal=goal)
+                       goal=goal,
+                       resolution=0.05)
 
     # add some obstacles
     obs1 = Block(30., 30., 120., 
@@ -40,19 +41,18 @@ if __name__ == '__main__':
                                 150., 140., clr=[0.3, 0.3, 0.4]))
     city_map.finalize()
 
-    rrt = RRTStar(
+    planner = RRTStar(
         connect_range=5.0,
         start_config=start,
         goal_config=goal,
         map=city_map,
-        step_size=5.,
-        goal_sample_rate=20,
+        step_size=2.,
+        goal_sample_rate=50,
         max_iter=2000,
-        seed=495
+        seed=498
     )
 
-    path_solution = rrt.plan()
-    print(f'Path Length: {len(path_solution)}')
+    path_solution = planner.plan()
 
     rviz_replay = True
     if rviz_replay:
