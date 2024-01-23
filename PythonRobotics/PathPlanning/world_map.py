@@ -81,8 +81,8 @@ class CityMap(ABCMap):
 
         self._finalized = False
 
-        # dummy quadrotor with size of radius 0.05 m
-        self._s = fcl.Sphere(0.05)
+        # dummy quadrotor with size of radius 0.1 m
+        self._s = fcl.Sphere(0.1)
 
         # TODO: visualization
         
@@ -110,12 +110,16 @@ class CityMap(ABCMap):
         if toward_goal and self._goal is not None:
             return self._goal
         else:
-            self._rng_key, rng_key_x, rng_key_y, rng_key_z = random.split(self._rng_key, 4)
-            x = random.uniform(rng_key_x, shape=(1,), minval=self._xmin, maxval=self._xmax)
-            y = random.uniform(rng_key_y, shape=(1,), minval=self._ymin, maxval=self._ymax)
-            z = random.uniform(rng_key_z, shape=(1,), minval=self._zmin, maxval=self._zmax)
-            return jnp.array([x[0], y[0], z[0]])
-        
+            while True:
+                self._rng_key, rng_key_x, rng_key_y, rng_key_z = random.split(self._rng_key, 4)
+                x = random.uniform(rng_key_x, shape=(1,), minval=self._xmin, maxval=self._xmax)
+                y = random.uniform(rng_key_y, shape=(1,), minval=self._ymin, maxval=self._ymax)
+                z = random.uniform(rng_key_z, shape=(1,), minval=self._zmin, maxval=self._zmax)
+                sampled_pos = jnp.array([x[0], y[0], z[0]])
+                collision = self.check_pos_collision(sampled_pos)
+                if not collision:
+                    return sampled_pos
+
 
     def check_pos_collision(self, state):
         assert self._finalized, 'city_map is not finalized!'
@@ -128,6 +132,7 @@ class CityMap(ABCMap):
         self._collision_manager.collide(robot, rdata, fcl.defaultCollisionCallback)
         return rdata.result.is_collision
         
+
     def check_line_collision(self, start_state: jnp.ndarray, end_state: jnp.ndarray) -> bool:
         assert self._finalized, 'city_map is not finalized!'
         state_distance = jnp.linalg.norm(start_state - end_state)
