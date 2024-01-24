@@ -4,23 +4,28 @@ from rrt import Node
 
 
 class ABCCostMapLayer(metaclass=ABCMeta):
-    @abstractmethod
-    def get_node_cost(self):
-        return NotImplemented
     
     @abstractmethod
-    def get_edge_cost(self):
+    def compute_edge_cost(self, parent_node: Node, child_node: Node):
         return NotImplemented
     
 
 class EuclideanCostMapLayer(ABCCostMapLayer):
-    def __init__(self, world_map):
-        self._world_map = world_map
 
-    def get_node_cost(self, node):
-        cost = 0.0
+    def compute_edge_cost(self, parent_node: Node, child_node: Node):
+        cost = jnp.linalg.norm(parent_node._state - child_node._state)
         return cost
     
-    def get_edge_cost(self, node1: Node, node2: Node):
-        cost = jnp.linalg.norm(node1._state - node2._state)
+
+class CostMap:
+    def __init__(self):
+        self._cost_layers = []
+
+    def add_cost_layer(self, cost_layer):
+        self._cost_layers.append(cost_layer)
+    
+    def compute_edge_cost(self, parent_node: Node, child_node: Node):
+        cost = 0.0
+        for cost_layer in self._cost_layers:
+            cost += cost_layer.compute_edge_cost(parent_node, child_node)
         return cost
