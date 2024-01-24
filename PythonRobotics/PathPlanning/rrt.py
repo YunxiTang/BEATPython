@@ -120,7 +120,7 @@ class RRT:
         return self._map.check_pos_collision(node.state)
         
         
-    def plan(self, animation=True, verbose=True):
+    def plan(self, verbose=True, animation=True):
         # initialize the tree 
         self._node_list = [self._start]
         

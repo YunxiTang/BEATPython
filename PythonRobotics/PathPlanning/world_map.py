@@ -33,6 +33,10 @@ class ABCMap(metaclass=ABCMeta):
     @abstractmethod
     def check_line_collision(self):
         return NotImplemented
+    
+    @abstractmethod
+    def finalize(self):
+        return NotImplemented
 
 
 class Block:
@@ -208,6 +212,8 @@ class TwoDimMap(ABCMap):
         self._goal = None
         
         self._rng_key = random.PRNGKey(seed=146)
+
+        self._finalized = False
         
     def update_start(self, start: jnp.ndarray):
         self._start = start
@@ -217,6 +223,10 @@ class TwoDimMap(ABCMap):
         
     def add_obstacle(self, obstacle: Tuple):
         self._obstacle.append(obstacle)
+
+    def finalize(self):
+        self._finalized = True
+        return None
         
     def sample_free_pos(self, toward_goal: bool = False) -> jnp.ndarray:
         if toward_goal and self._goal is not None:
