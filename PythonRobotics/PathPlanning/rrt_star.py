@@ -172,14 +172,13 @@ if __name__ == '__main__':
 
     world_map = TwoDimMap([0., 2., 0., 2.], resolution=0.01)
     start = jnp.array([0.0, 0.])
-    goal = jnp.array([2.0, 2.0])
-    
+    goal = jnp.array([2.0, 2.0])    
     world_map.update_start(start)
     world_map.update_goal(goal)
     
-    rng_key = random.PRNGKey(seed=128)
+    rng_key = random.PRNGKey(seed=88)
 
-    for i in range(70):
+    for i in range(100):
         rng_key, rng_key_x, rng_key_y, rng_key_r = random.split(rng_key, 4)
         x = random.uniform(rng_key_x, shape=(1,), minval=0.1, maxval=1.75)
         y = random.uniform(rng_key_y, shape=(1,), minval=0.1, maxval=1.75)
@@ -189,7 +188,7 @@ if __name__ == '__main__':
     
     if not world_map.check_pos_collision(start) and not world_map.check_pos_collision(goal):
         planner = RRTStar(
-            connect_range=0.15,
+            connect_range=0.1,
             start_config=start,
             goal_config=goal,
             map=world_map,
@@ -198,7 +197,7 @@ if __name__ == '__main__':
             seed=50,
             max_iter=4500
         )
-        path_solution = planner.plan(early_stop=False)
+        path_solution = planner.plan(early_stop=True)
     else:
         path_solution = None
     

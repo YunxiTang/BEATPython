@@ -4,11 +4,11 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 def plot_circle(x, y, size, color="-b"):
-        deg = list(range(0, 360, 5))
-        deg.append(0)
-        xl = [x + size * jnp.cos(jnp.deg2rad(d)) for d in deg]
-        yl = [y + size * jnp.sin(jnp.deg2rad(d)) for d in deg]
-        plt.plot(xl, yl, color)
+    deg = list(range(0, 360, 5))
+    deg.append(0)
+    xl = [x + size * jnp.cos(jnp.deg2rad(d)) for d in deg]
+    yl = [y + size * jnp.sin(jnp.deg2rad(d)) for d in deg]
+    plt.plot(xl, yl, color)
 
 
 def plot_box(center, size, ax, clr='gray'):
