@@ -11,42 +11,79 @@ if __name__ == '__main__':
 import jax.numpy as jnp   
 from world_map import CityMap, Block
 from cost_map import CityCostMapLayer
-import matplotlib.pyplot as plt
-from utils import plot_rectangle
+from rrt_star import RRTStar
+from visualizer import Visualizer
 
 
 if __name__ == '__main__':
     start = jnp.array([0., 0., 0.])
-    goal = jnp.array([200., 200., 5.])
+    goal = jnp.array([200., 200., 200.])
 
     city_map = CityMap(start=start,
                        goal=goal,
                        resolution=0.05)
 
     # add some obstacles
-    obs1 = Block(30., 30., 190., 
-                 100., 90., 
-                 clr=[0.4, 0.5, 0.4])
-    obs2 = Block(30., 20., 180., 
-                 120., 50., 
-                 clr=[0.5, 0.5, 0.6])
-    obs3 = Block(40., 40., 90., 
-                 30., 70., 
-                 clr=[0.3, 0.3, 0.4])
-    
-    city_map.add_obstacle(obs1)
-    city_map.add_obstacle(obs2)
-    city_map.add_obstacle(obs3)
-    city_map.add_obstacle(Block(20., 30., 70., 
-                                70., 160., clr=[0.3, 0.3, 0.4]))
+    city_map.add_obstacle(Block(30., 30., 195., 
+                                50., 25., 
+                                clr=[0.1, 0.5, 0.4]))
+    city_map.add_obstacle(Block(30., 30., 190., 
+                                100., 90., 
+                                clr=[0.4, 0.5, 0.4]))
+    city_map.add_obstacle(Block(30., 30., 180., 
+                                120., 20., 
+                                clr=[0.5, 0.5, 0.6]))
+    city_map.add_obstacle(Block(40., 40., 90., 
+                                30., 95., 
+                                clr=[0.3, 0.3, 0.4]))
+    city_map.add_obstacle(Block(20., 30., 120., 
+                                70., 160., 
+                                clr=[0.3, 0.3, 0.4]))
     city_map.add_obstacle(Block(20., 30., 150., 
-                                150., 140., clr=[0.4, 0.3, 0.6]))
-    city_map.add_obstacle(Block(30., 40., 195., 
-                                180., 40., clr=[0.6, 0.3, 0.6]))
+                                160., 140., 
+                                clr=[0.4, 0.3, 0.6]))
+    city_map.add_obstacle(Block(30., 40., 196., 
+                                180., 35., 
+                                clr=[0.6, 0.3, 0.6]))
     city_map.finalize()
     
     city_map.visualize_map()
 
     city_cost_layer = CityCostMapLayer(city_map)
     city_cost_layer.visualize()
+
+    exit()
+
+    planner = RRTStar(
+        connect_range=5.0,
+        start_config=start,
+        goal_config=goal,
+        map=city_map,
+        step_size=2.,
+        goal_sample_rate=50,
+        max_iter=2000,
+        seed=498
+    )
+
+    path_solution = planner.plan()
+
+    rviz_replay = True
+    if rviz_replay:
+        try:
+            # set ROS Rviz and launchfile
+            import subprocess
+            import rospy
+
+            subprocess.Popen(["roslaunch", ROOT_DIR + "/city_planning.launch"])
+            rospy.loginfo("visualization started.")
+        
+        except:
+            print('Failed to automatically run RVIZ. Launch it manually.')
+
+        # visualize the result in RVIZ
+        vis = Visualizer(city_map, path_solution)
+        vis.visualize()
+
+    else:
+        print("To visualize the planned, start the script with the '--replay")
     
