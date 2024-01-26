@@ -165,8 +165,11 @@ class CityMap(ABCMap):
                 return True  
         return False
     
-    def visualize_map(self, ax):
+    def visualize_map(self, ax=None):
         from utils import plot_box
+        if ax is None:
+            fig = plt.figure(figsize=plt.figaspect(0.5))
+            ax = fig.add_subplot(projection='3d')
         ax.set_xlim(self._xmin, self._xmax)
         ax.set_ylim(self._ymin, self._ymax)
         ax.set_zlim(self._zmin, self._zmax)
@@ -188,7 +191,7 @@ class CityMap(ABCMap):
                      size = (obstacle._size_x, obstacle._size_y, obstacle._size_z),
                      ax = ax,
                      clr = obstacle._color)
-        return None
+        return ax
 
 
 class TwoDimMap(ABCMap):
@@ -283,7 +286,7 @@ if __name__ == '__main__':
     city_map.finalize()
 
     # visualize the world map and others
-    fig, ax = city_map.visualize()
+    ax = city_map.visualize_map()
     # T = 0
     # N = 200
     # for i in range(N):
@@ -301,8 +304,8 @@ if __name__ == '__main__':
     
     T = 0
     for i in range(200):
-        sample1 = city_map.sample_pos()
-        sample2 = city_map.sample_pos()
+        sample1 = city_map.sample_free_pos()
+        sample2 = city_map.sample_free_pos()
         ts = time.time()
         res = city_map.check_line_collision(sample1, sample2)
         delta_t = time.time() - ts

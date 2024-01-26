@@ -1,6 +1,18 @@
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from matplotlib.patches import Rectangle 
+
+
+def plot_rectangle(size_x, size_y, pos_x, pos_y, ax, center=True, color='b'):
+    if center:
+        ax.add_patch(Rectangle([pos_x, pos_y], size_x / 2., size_y / 2., color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., size_y / 2., color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., -size_y / 2., color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), size_x / 2., -size_y / 2., color=color))
+    else:
+        pass
+
 
 
 def plot_circle(x, y, size, color="-b"):
