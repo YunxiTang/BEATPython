@@ -15,12 +15,12 @@ def plot_rectangle(size_x, size_y, pos_x, pos_y, ax, center=True, color='b'):
 
 
 
-def plot_circle(x, y, size, color="-b"):
+def plot_circle(x, y, radius, ax, color="-b"):
     deg = list(range(0, 360, 5))
     deg.append(0)
-    xl = [x + size * jnp.cos(jnp.deg2rad(d)) for d in deg]
-    yl = [y + size * jnp.sin(jnp.deg2rad(d)) for d in deg]
-    plt.plot(xl, yl, color)
+    xl = [x + radius * jnp.cos(jnp.deg2rad(d)) for d in deg]
+    yl = [y + radius * jnp.sin(jnp.deg2rad(d)) for d in deg]
+    ax.plot(xl, yl, color)
 
 
 def plot_box(center, size, ax, clr='gray'):

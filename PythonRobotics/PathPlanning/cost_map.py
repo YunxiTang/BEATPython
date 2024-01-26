@@ -13,6 +13,7 @@ from utils import plot_rectangle
 class Passage(NamedTuple):
     vrtx1: list
     vrtx2: list
+    min_dist: float
 
 
 class PassageMapObtacle(object):
@@ -22,7 +23,7 @@ class PassageMapObtacle(object):
         self._pos_x = pos_x
         self._pos_y = pos_y
 
-        self._geom = fcl.Box(size_x, size_y, 0.0)
+        self._geom = fcl.Box(size_x, size_y, 0.001)
         self._tf = fcl.Transform(jnp.array([pos_x, pos_y, 0.0]))
 
         # collision property
@@ -49,17 +50,56 @@ class PassageMap(object):
     
     def finalize(self):
         self.construct_passage()
+        self.filter_passage()
         self._finalized = True
         return None
 
 
     def construct_passage(self):
         for obs_pair in combinations(self._obstacle, 2):
-            request = fcl.DistanceRequest()
-            result = fcl.DistanceResult()
+            # 1
+            request1 = fcl.DistanceRequest()
+            result1 = fcl.DistanceResult()
+            fcl.distance(obs_pair[0]._collision_obj, obs_pair[1]._collision_obj, request1, result1)
 
-            fcl.distance(obs_pair[0]._collision_obj, obs_pair[1]._collision_obj, request, result)
-            self._passages.append(Passage(result.nearest_points[0], result.nearest_points[1]))
+            # 2
+            request2 = fcl.DistanceRequest()
+            result2 = fcl.DistanceResult()
+            fcl.distance(obs_pair[1]._collision_obj, obs_pair[0]._collision_obj, request2, result2)
+
+            if result1.min_distance <= result2.min_distance:
+                self._passages.append(Passage(result1.nearest_points[0], result1.nearest_points[1], result1.min_distance))
+            else:
+                self._passages.append(Passage(result2.nearest_points[0], result2.nearest_points[1], result2.min_distance))
+
+    def filter_passage(self):
+        """
+            filter out the useless passage
+        """
+        self._filtered_passages = []
+        for passage in self._passages:
+            passage_center = [(passage.vrtx1[0] + passage.vrtx2[0]) / 2.,
+                              (passage.vrtx1[1] + passage.vrtx2[1]) / 2.]
+            
+            # passage_half_length = jnp.linalg.norm(
+            #     jnp.array([passage.vrtx1[0] - passage.vrtx2[0],
+            #                passage.vrtx1[1] - passage.vrtx2[1]])
+            #     ) / 2. - 0.001
+            passage_half_length = passage.min_dist / 2. - 0.0001
+            cylinder_g = fcl.Cylinder(passage_half_length, 0.001)
+            cylinder_t = fcl.Transform(jnp.array([passage_center[0], passage_center[1], 0.0]))
+            cylinder = fcl.CollisionObject(cylinder_g, cylinder_t)
+            collision = False
+            for obs in self._obstacle:
+                request = fcl.CollisionRequest()
+                result = fcl.CollisionResult()
+                fcl.collide(cylinder, obs._collision_obj, request, result)
+                collision = (collision or result.is_collision)
+                
+            if not collision:
+                self._filtered_passages.append(passage)
+
+        return self._filtered_passages
 
 
     def visualize(self, ax):
@@ -68,6 +108,9 @@ class PassageMap(object):
         
         for passage in self._passages:
             ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k-.')
+
+        for passage in self._filtered_passages:
+            ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'r-')
 
     def __repr__(self) -> str:
         return 'PassageMap' + self._name + f' with #{len(self._obstacle)} obstacles' \
