@@ -11,6 +11,9 @@ if __name__ == '__main__':
 import jax.numpy as jnp   
 from world_map import CityMap, Block
 from cost_map import CityCostMapLayer
+import matplotlib.pyplot as plt
+from utils import plot_rectangle
+
 
 if __name__ == '__main__':
     start = jnp.array([0., 0., 0.])
@@ -21,7 +24,7 @@ if __name__ == '__main__':
                        resolution=0.05)
 
     # add some obstacles
-    obs1 = Block(30., 30., 120., 
+    obs1 = Block(30., 30., 190., 
                  100., 90., 
                  clr=[0.4, 0.5, 0.4])
     obs2 = Block(30., 20., 180., 
@@ -30,13 +33,20 @@ if __name__ == '__main__':
     obs3 = Block(40., 40., 90., 
                  30., 70., 
                  clr=[0.3, 0.3, 0.4])
+    
     city_map.add_obstacle(obs1)
     city_map.add_obstacle(obs2)
     city_map.add_obstacle(obs3)
     city_map.add_obstacle(Block(20., 30., 70., 
                                 70., 160., clr=[0.3, 0.3, 0.4]))
-    city_map.add_obstacle(Block(20., 30., 180., 
-                                150., 140., clr=[0.3, 0.3, 0.4]))
+    city_map.add_obstacle(Block(20., 30., 150., 
+                                150., 140., clr=[0.4, 0.3, 0.6]))
+    city_map.add_obstacle(Block(30., 40., 195., 
+                                180., 40., clr=[0.6, 0.3, 0.6]))
     city_map.finalize()
+    
+    city_map.visualize_map()
 
     city_cost_layer = CityCostMapLayer(city_map)
+    city_cost_layer.visualize()
+    
