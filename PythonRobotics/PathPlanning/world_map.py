@@ -10,6 +10,9 @@ from abc import abstractmethod, ABCMeta
 
 
 class ABCMap(metaclass=ABCMeta):
+    '''
+        abstract map
+    '''
     @abstractmethod
     def update_start(self):
         return NotImplemented
@@ -40,9 +43,12 @@ class ABCMap(metaclass=ABCMeta):
 
 
 class Block:
+    '''
+        city building block
+    '''
     def __init__(self, size_x, size_y, size_z, 
                  pos_x, pos_y, pos_z = None,
-                 clr='gray'):
+                 clr='gray', is_wall: bool = False):
         
         self._size_x = size_x
         self._size_y = size_y
@@ -61,8 +67,13 @@ class Block:
         # visualization property
         self._color = clr
 
+        self._wall = is_wall
+
 
 class CityMap(ABCMap):
+    '''
+        city map
+    '''
     def __init__(self, start=None, goal=None, resolution: float = 0.1):
 
         self._obstacle = []
@@ -85,11 +96,18 @@ class CityMap(ABCMap):
 
         self._finalized = False
 
-        # dummy quadrotor with size of radius 0.1 m
-        self._s = fcl.Sphere(0.1)
+        # dummy robot geometery with size of radius 0.1 m (sphere)
+        self._s = fcl.Sphere(0.5)
 
-        # TODO: visualization
-        
+        # add walls
+        wall_left = Block(5., 200., 200., -2.5, 100., is_wall=True)
+        wall_right = Block(5., 200., 200., 202.5, 100., is_wall=True)
+        wall_down = Block(200., 5., 200., 100, -2.5, is_wall=True)
+        wall_up = Block(200., 5., 200., 100, 202.5, is_wall=True)
+        self.add_obstacle(wall_left)
+        self.add_obstacle(wall_right)
+        self.add_obstacle(wall_down)
+        self.add_obstacle(wall_up)
         
     def update_start(self, start: jnp.ndarray):
         self._start = start
@@ -161,7 +179,7 @@ class CityMap(ABCMap):
         for ratio in ratios:
             state_sample = (1 - ratio) * start_state + ratio * end_state
             res = self.check_pos_collision(state_sample)
-            if res: # collision
+            if res:
                 return True  
         return False
     
@@ -170,27 +188,29 @@ class CityMap(ABCMap):
         if ax is None:
             fig = plt.figure(figsize=plt.figaspect(0.5))
             ax = fig.add_subplot(projection='3d')
-        ax.set_xlim(self._xmin, self._xmax)
-        ax.set_ylim(self._ymin, self._ymax)
-        ax.set_zlim(self._zmin, self._zmax)
+        ax.set_xlim(self._xmin-5, self._xmax+5)
+        ax.set_ylim(self._ymin-5, self._ymax+5)
+        ax.set_zlim(0, self._zmax+5)
         ax.set_aspect('equal')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('z')
-        ax.grid(False)
+        ax.xaxis.set_ticks(np.arange(self._xmin, self._xmax, 50.0))
+        ax.yaxis.set_ticks(np.arange(self._ymin, self._ymax, 50.0))
+        ax.zaxis.set_ticks(np.arange(self._zmin, self._zmax, 50.0))
+        ax.set(xlabel='$x (m)$', ylabel='$y (m)$', zlabel='$z (m)$')
+        ax.grid(True)
 
         # start and goal visualzation
         if self._start is not None:
-            ax.scatter(self._start[0], self._start[1], self._start[2], color='b', marker='o', s=125)
+            ax.scatter(self._start[0], self._start[1], self._start[2], color='b', marker='o', s=85)
         if self._goal is not None:
-            ax.scatter(self._goal[0], self._goal[1], self._goal[2], color='r',  marker='*', s=175)
+            ax.scatter(self._goal[0], self._goal[1], self._goal[2], color='r',  marker='*', s=85)
 
         # obstacle visulization
         for obstacle in self._obstacle:
-            plot_box(center = (obstacle._pos_x, obstacle._pos_y, obstacle._pos_z), 
-                     size = (obstacle._size_x, obstacle._size_y, obstacle._size_z),
-                     ax = ax,
-                     clr = obstacle._color)
+            if not obstacle._wall:
+                plot_box(center = (obstacle._pos_x, obstacle._pos_y, obstacle._pos_z), 
+                        size = (obstacle._size_x, obstacle._size_y, obstacle._size_z),
+                        ax = ax,
+                        clr = obstacle._color)
         return ax
 
 
