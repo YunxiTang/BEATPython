@@ -7,6 +7,27 @@ import copy
 import time
 
 
+class SimpleNode:
+    def __init__(self, state, path_len):
+        self._state = state
+        self._path_len = path_len
+
+    def set_state(self, state):
+        self._state = state
+
+    @property
+    def state(self):
+        return self._state
+    
+    @property
+    def path_len(self):
+        return self._path_len
+    
+    def __repr__(self) -> str:
+        return 'Simple Node' + f' at {self._state} obstacles' \
+                            + f' with {self._path_len}'
+
+
 class Node:
     """
         Node in RRT/RRT* algorithm
@@ -16,7 +37,8 @@ class Node:
         self._parent = None
         
         # For usage in RRR*
-        self._cost = 0.0
+        self._cost = -100. * 200.
+        self.min_dist = 200.
         
     def set_parent(self, node):
         self._parent = copy.deepcopy(node)
@@ -26,6 +48,9 @@ class Node:
 
     def reset_parent(self, node):
         self._parent = copy.deepcopy(node)
+
+    def reset_min_dist(self, min_dist):
+        self.min_dist = min_dist
 
     def __eq__(self, other):
         eq = False

@@ -1,0 +1,4 @@
+<launch>
+    <!-- run rviz with custom environment -->
+    <node type="rviz" name="rviz" pkg="rviz" args="-d /home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/city_map_path_set.rviz" output="screen"/>
+</launch>
