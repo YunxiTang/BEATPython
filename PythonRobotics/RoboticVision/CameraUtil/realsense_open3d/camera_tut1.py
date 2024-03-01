@@ -1,6 +1,7 @@
 import pyrealsense2 as rs2
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 if __name__ == '__main__':
