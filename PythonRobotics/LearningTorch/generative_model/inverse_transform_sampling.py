@@ -1,3 +1,7 @@
+"""
+    Inverse sampling
+"""
+
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,6 +22,6 @@ if __name__ == '__main__':
     ax[0].set_title("prob")
     ax[0].hist(p, bins=10, density=False)
     
-    ax[1].set_title("Samples")
+    ax[1].set_title("samples")
     ax[1].hist(x, bins=20, density=False)
     plt.show()
