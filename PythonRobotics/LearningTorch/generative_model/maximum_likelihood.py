@@ -10,16 +10,16 @@ sns.set_theme()
 class Theta(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._theta = nn.Parameter(torch.tensor([-5.0,]))
+        self._theta = nn.Parameter(torch.tensor([-5.0, 1.0]))
 
     def forward(self, x):
-        return 1. / math.sqrt(2. * math.pi) * torch.exp(-1./2. * (x - self._theta) ** 2)
+        return 1. / (self._theta[1] * math.sqrt(2. * math.pi)) * torch.exp(-1./2 * ((x - self._theta[0]) / self._theta[1]) ** 2)
     
     def sample(self, n):
         '''
             sample data from the approximated distribution
         '''
-        dist_tmp = torch.distributions.Normal(loc=self._theta.data, scale=1.0)
+        dist_tmp = torch.distributions.Normal(loc=self._theta.data[0], scale=self._theta.data[1])
         samples = dist_tmp.sample([n, 1])
         return samples
 
@@ -28,24 +28,24 @@ N = 2000
 batch_size = 500
 dist_q = Theta()
 dist_p = torch.distributions.Normal(loc=loc, scale=1.0)
-sampled_data = dist_p.sample([N, 1])
+sampled_data = torch.concat((dist_p.sample([N, 1]), torch.distributions.Normal(loc=5.0, scale=1.0).sample([N, 1])), dim=0)
 
 # set optimizer
-optimizer = torch.optim.AdamW(dist_q.parameters(), 1e-3)
+optimizer = torch.optim.AdamW(dist_q.parameters(), 5e-5)
 loss_hist = []
 k = 0
 fig, ax = plt.subplots(2, 5)
-for epoch in range(50):
-    if epoch % 5 == 0:
-        tmp_samples = dist_q.sample(N)
+for epoch in range(100):
+    if epoch % 10 == 0:
+        tmp_samples = dist_q.sample(2*N)
         ax[k // 5, k % 5].set_xlim(-10, 10)
         ax[k // 5, k % 5].set_title(f'Epoch {epoch}')
-        ax[k // 5, k % 5].hist(tmp_samples.flatten().data, bins=20, density=True)
+        ax[k // 5, k % 5].hist(tmp_samples.flatten().data, bins=40, density=True)
         ax[k // 5, k % 5].hist(sampled_data.flatten(), bins=20, density=True)
         k += 1
     
     tmp = 0.
-    for i in range(N-batch_size):
+    for i in range(2*N-batch_size):
         x = sampled_data[i:i+batch_size]
         prob_q = dist_q(x)
         
@@ -54,10 +54,8 @@ for epoch in range(50):
         loss.backward()
         optimizer.step()
         tmp += loss.data
-    
-
     print(epoch, '||', tmp)
-    loss_hist.append(loss.data)
+    loss_hist.append(tmp)
 plt.show()
 
 print(dist_q._theta, loc)
