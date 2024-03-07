@@ -49,7 +49,7 @@ if __name__ == '__main__':
     asset_file = "urdf/kinova_description/urdf/kinova.urdf"
     asset = gym.load_asset(sim, asset_root, asset_file, asset_options)
 
-    num_envs = 64
+    num_envs = 2
     envs_per_row = 8
     env_spacing = 2.0
     env_lower = gymapi.Vec3(-env_spacing, 0.0, -env_spacing)
