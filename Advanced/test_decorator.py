@@ -16,6 +16,7 @@ test_func(12, 23, *input_1, **input_2)
 
 # decorator function
 def printDecorator(func):
+    
     @wraps(func)
     def wrapped_func(*args, **kwargs):
         print(f'wrapped function {func.__name__}')
@@ -77,5 +78,28 @@ def fun_x(x, y):
 print('==========')
 fun_o(1, 2)
 fun_x(1, 2)
-            
+
+
+def repeat(times):
+    ''' call a function a number of times '''
+    def decorate(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            for _ in range(times):
+                result = fn(*args, **kwargs)
+            return result
+        return wrapper
+    return decorate
+
+
+@repeat(10)
+def say(message):
+    ''' print the message 
+    Arguments
+        message: the message to show
+    '''
+    print(message)
+
+
+say('Hello')
 
