@@ -18,6 +18,8 @@ class ReprMixin:
 
 
 class Person(MappingMixin, ReprMixin):
+    include_keys = ('name')
+    exclude_keys = tuple()
     def __init__(self, name, gender, age):
         # super.__init__()
         self.name = name
@@ -29,7 +31,12 @@ class Person(MappingMixin, ReprMixin):
 
 if __name__ == '__main__':
     p = Person('Jack', 'male', 25)
-    # print(p.__dict__)
+    print(p.__dict__)
+    
+    for key, val in p.__dict__.items():
+        print(key, val)
+
+    print(Person.__dict__)
     # print(p.name)
     print(p['name'])
     print(p)
