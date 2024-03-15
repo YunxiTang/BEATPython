@@ -88,7 +88,7 @@ if __name__ == '__main__':
         print(buffer)
 
     batch_size = 3
-    seq_len = 1
+    seq_len = 2
     emb_dim = 4
     mype = SinPosEmb(4)
     offpe = SinusoidalPosEmb(4)
