@@ -1,4 +1,4 @@
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 from pathlib import Path
 
 
@@ -10,4 +10,8 @@ def main(cfg_path):
     return cfg
 
 if __name__ =='__main__':
-    main(Path('PythonRobotics/LearningTorch/config_manage/config/train_cfg.yaml'))
+    cfg_path = Path('PythonRobotics/LearningTorch/config_manage/config/train_cfg.yaml')
+    with cfg_path.open(mode='r'):
+        print('open yaml file...')
+    print( cfg_path )
+    main( cfg_path )
