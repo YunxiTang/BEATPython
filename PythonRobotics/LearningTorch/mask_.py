@@ -1,10 +1,12 @@
 import torch
 import numpy as np
 import torch.nn as nn
+from einops import rearrange
 
 
 if __name__ == '__main__':
-    mask = torch.tensor([[0, 1, 0],
+    # batched mask
+    mask = torch.tensor([[0, 1, 1],
                          [0, 0, 1]]).bool()
     x = torch.randint(2, 15, size=(2, 3))
 
@@ -17,3 +19,10 @@ if __name__ == '__main__':
 
     y = torch.randn([1, 7, 3])
     print(lin_layer(y).shape)
+
+    k = torch.arange(0, 5, 1)
+    v = rearrange(k, 'k -> k 1')
+    print( k.shape, v.shape )
+    z = k * v
+    print(z)
+    print(z.shape)
