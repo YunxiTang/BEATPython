@@ -40,7 +40,7 @@ for epoch in range(100):
         tmp_samples = dist_q.sample(2*N)
         ax[k // 5, k % 5].set_xlim(-10, 10)
         ax[k // 5, k % 5].set_title(f'Epoch {epoch}')
-        ax[k // 5, k % 5].hist(tmp_samples.flatten().data, bins=40, density=True)
+        ax[k // 5, k % 5].hist(tmp_samples.flatten().data, bins=20, density=True)
         ax[k // 5, k % 5].hist(sampled_data.flatten(), bins=20, density=True)
         k += 1
     
