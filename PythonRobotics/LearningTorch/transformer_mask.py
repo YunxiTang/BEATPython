@@ -23,5 +23,5 @@ if __name__ == '__main__':
 
     encoder_layer = nn.TransformerEncoderLayer(d_model, nhead, batch_first=True)
     encoder = nn.TransformerEncoder(encoder_layer, num_layer)
-    output = encoder(src_seq, src_key_padding_mask = encoder_mask)
+    output = encoder(src_seq, src_key_padding_mask=encoder_mask)
     print(output.shape)
