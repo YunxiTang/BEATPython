@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
-from einops import rearrange
+from einops import rearrange, repeat
 
 
 if __name__ == '__main__':
@@ -26,3 +26,21 @@ if __name__ == '__main__':
     z = k * v
     print(z)
     print(z.shape)
+
+    # ==============================
+    x = torch.randn(size=(2, 3, 3))
+    avg = x.mean(dim=1, keepdim=True)
+    print(x)
+    print(avg)
+    print(x - avg)
+
+
+    padded_idxs = torch.tensor([0] * 5 + [1] * (10 - 5), dtype=torch.int32).repeat(2, 1)
+    print( padded_idxs )
+    print( padded_idxs.shape )
+
+    action = torch.randn(size=(2, 3))
+    repeated_action = repeat(action, 'batch nu -> batch seq nu', seq=5)
+    print( action )
+    print(repeated_action)
+    print(repeated_action.shape)
