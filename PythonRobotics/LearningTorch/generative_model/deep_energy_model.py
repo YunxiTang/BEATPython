@@ -129,6 +129,7 @@ class Sampler:
         model.eval()
         for p in model.parameters():
             p.requires_grad = False
+            
         inp_imgs.requires_grad = True
 
         # Enable gradient calculation if not already the case
