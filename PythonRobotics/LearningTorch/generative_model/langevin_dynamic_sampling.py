@@ -17,9 +17,9 @@ def energy_func(x:jnp.ndarray):
     center1 = jnp.array([1.2, 1.2])
     center2 = jnp.array([2.5, 2.5])
 
-    dist0 = jnp.linalg.norm(x - center0) - 0.1
-    dist1 = jnp.linalg.norm(x - center1) - 0.1
-    dist2 = jnp.linalg.norm(x - center2) - 0.1
+    dist0 = jnp.linalg.norm(x - center0) - 0.3
+    dist1 = jnp.linalg.norm(x - center1) - 0.05
+    dist2 = jnp.linalg.norm(x - center2) - 0.4
     energy = jnp.minimum(jax.nn.relu(dist0), 
                          jnp.minimum(jax.nn.relu(dist1), 
                                      jax.nn.relu(dist2))
@@ -49,18 +49,20 @@ if __name__ == '__main__':
     surf = ax.plot_surface(X, Y, enery_map, cmap=cm.coolwarm, alpha=0.3)
     ax.contour(X, Y, enery_map, zdir='z', offset=0, cmap='coolwarm')
 
-    num_sample = 1200
+    num_sample = 2400
     res = []
     for sample in range(num_sample):
-        if random.random() < 0.5 and sample > 1:
+        if random.random() < 0.95 and sample > 1:
             point = random.choice(res)
         else:
             point = np.random.uniform(0.0, 3.0, size=[2,])
+
         for k in range(30):
             noise = np.random.normal(0.0, 0.05, size=[2,])
             point = point - 0.02 * energy_func_grad(point) + noise
             
         res.append(point)
+
     ax.scatter([ele[0] for ele in res], 
                [ele[1] for ele in res], 
                len(res)*[0,], color=[0.5, 0.4, sample/num_sample])
