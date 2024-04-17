@@ -16,6 +16,7 @@ import numpy as np
 import jax.numpy as jnp
 from visualizer import Visualizer
 from cost_map import CityCostMapLayer
+import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
@@ -56,7 +57,8 @@ if __name__ == '__main__':
                                 161., 81., clr=[0.6, 0.1, 0.4]))
     city_map.finalize()
     city_map.visualize_map()
-
+    plt.show()
+    exit()
     planner = CityRRTStar(
         connect_range=25.,
         start_config=start,
