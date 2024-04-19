@@ -21,7 +21,7 @@ from cost_map import CityCostMapLayer
 from rrt import SimpleNode
 from utils import transfer_path
 
-with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/with_kp_s3.pkl", "rb") as fp:
+with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v1/with_kp_s3.pkl", "rb") as fp:
     path_solution = pickle.load(fp)
 
 path_solution.reverse()

@@ -88,7 +88,7 @@ if __name__ == '__main__':
         pose = gymapi.Transform()
         pose.p = gymapi.Vec3(0.0, 0.0, height)
 
-        actor_handle = gym.create_actor(env, asset, pose, "MyActor", i, 1)
+        actor_handle = gym.create_actor(env, asset, pose, f"MyActor_{i}", i, 1)
         actor_handles.append(actor_handle)
         gym.set_rigid_body_color(env, actor_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, color)
 
@@ -113,7 +113,7 @@ if __name__ == '__main__':
                                   dtype=torch.float)
             forces[:, 0, 1] = 0.0
             torques[:, 0, 2] = torque_amt
-            
+
             gym.apply_rigid_body_force_tensors(sim, 
                                                gymtorch.unwrap_tensor(forces), 
                                                gymtorch.unwrap_tensor(torques), 
