@@ -73,6 +73,7 @@ if __name__ == '__main__':
     actor_handles = []
 
     # create and populate the environments
+    num_actor_per_env = 1
     for i in range(num_envs):
         env = gym.create_env(sim, 
                              env_lower,
@@ -120,9 +121,16 @@ if __name__ == '__main__':
                                                gymapi.ENV_SPACE)
             torque_amt = -torque_amt
         
-        
+        # acquire tensor descriptors
+        root_states_desc = gym.acquire_actor_root_state_tensor(sim)
+        root_states = gymtorch.wrap_tensor(root_states_desc)
+        root_states_vec = root_states.view(num_envs, num_actor_per_env, 13)
+        print('pos', root_states_vec[0,0,0:3])
         # step the physics
         gym.simulate(sim)
+
+        gym.refresh_actor_root_state_tensor(sim)
+        gym.refresh_dof_state_tensor(sim)
         gym.fetch_results(sim, True)
 
         # update the viewer
