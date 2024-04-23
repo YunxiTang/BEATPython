@@ -7,7 +7,10 @@ from geometry_msgs.msg import PoseStamped, PolygonStamped, Polygon, Point32
 
 
 class Visualizer:
-    def __init__(self, world_map, path_solution=None, path_list=None) -> None:
+    def __init__(self, 
+                 world_map, 
+                 path_solution=None, 
+                 path_list=None) -> None:
         self._world_map = world_map
         self._path_solution = path_solution
         
@@ -38,96 +41,36 @@ class Visualizer:
                 pose_stamped.pose.orientation.w = 1
                 self._planned_path.poses.append(pose_stamped)
 
-        else:
+        if path_list is not None:
             self._list = True
-            self.path_pub1 = rospy.Publisher('optimal_path1', Path, queue_size=1)
-            self.path_pub2 = rospy.Publisher('optimal_path2', Path, queue_size=1)
-            self.path_pub3 = rospy.Publisher('optimal_path3', Path, queue_size=1)
-            self.path_pub4 = rospy.Publisher('optimal_path4', Path, queue_size=1)
-            self.path_pub5 = rospy.Publisher('optimal_path5', Path, queue_size=1)
-
-            self.path_lenth = len(path_list[0])
-            self._planned_path1 = Path()
-            self._planned_path2 = Path()
-            self._planned_path3 = Path()
-            self._planned_path4 = Path()
-            self._planned_path5 = Path()
-
+            num_path = len(path_list)
             
-            self._planned_path1.header.stamp = rospy.Time.now()
-            self._planned_path1.header.frame_id = f"obstacle_frame"
-            for k in range(self.path_lenth):    
-                pose_stamped = PoseStamped()
-                pose_stamped.pose.position.x = path_list[0][k][0]
-                pose_stamped.pose.position.y = path_list[0][k][1]
-                pose_stamped.pose.position.z = path_list[0][k][2]
+            self.path_lenth = len(path_list[0])
+            self.num_path = num_path
 
-                pose_stamped.pose.orientation.x = 0
-                pose_stamped.pose.orientation.y = 0
-                pose_stamped.pose.orientation.z = 0
-                pose_stamped.pose.orientation.w = 1
-                self._planned_path1.poses.append(pose_stamped)
+            self.path_pub_list = []
+            self._planned_path_list = []
 
-            self._planned_path2.header.stamp = rospy.Time.now()
-            self._planned_path2.header.frame_id = f"obstacle_frame"
-            for k in range(self.path_lenth):    
-                pose_stamped = PoseStamped()
-                pose_stamped.pose.position.x = path_list[1][k][0]
-                pose_stamped.pose.position.y = path_list[1][k][1]
-                pose_stamped.pose.position.z = path_list[1][k][2]
+            for i in range(num_path):
+                self.path_pub_list.append(rospy.Publisher(f'optimal_path{i}', Path, queue_size=1))
+                self._planned_path_list.append(Path())
 
-                pose_stamped.pose.orientation.x = 0
-                pose_stamped.pose.orientation.y = 0
-                pose_stamped.pose.orientation.z = 0
-                pose_stamped.pose.orientation.w = 1
-                self._planned_path2.poses.append(pose_stamped)
+            for i in range(num_path):
+                self._planned_path_list[i].header.stamp = rospy.Time.now()
+                self._planned_path_list[i].header.frame_id = f"obstacle_frame"
+                for k in range(self.path_lenth):   
+                    pose_stamped = PoseStamped()
+                    pose_stamped.pose.position.x = path_list[i][k][0]
+                    pose_stamped.pose.position.y = path_list[i][k][1]
+                    pose_stamped.pose.position.z = path_list[i][k][2]
 
-            self._planned_path3.header.stamp = rospy.Time.now()
-            self._planned_path3.header.frame_id = f"obstacle_frame"
-            for k in range(self.path_lenth):    
-                pose_stamped = PoseStamped()
-                pose_stamped.pose.position.x = path_list[2][k][0]
-                pose_stamped.pose.position.y = path_list[2][k][1]
-                pose_stamped.pose.position.z = path_list[2][k][2]
-
-                pose_stamped.pose.orientation.x = 0
-                pose_stamped.pose.orientation.y = 0
-                pose_stamped.pose.orientation.z = 0
-                pose_stamped.pose.orientation.w = 1
-                self._planned_path3.poses.append(pose_stamped)
-
-            self._planned_path4.header.stamp = rospy.Time.now()
-            self._planned_path4.header.frame_id = f"obstacle_frame"
-            for k in range(self.path_lenth):    
-                pose_stamped = PoseStamped()
-                pose_stamped.pose.position.x = path_list[3][k][0]
-                pose_stamped.pose.position.y = path_list[3][k][1]
-                pose_stamped.pose.position.z = path_list[3][k][2]
-
-                pose_stamped.pose.orientation.x = 0
-                pose_stamped.pose.orientation.y = 0
-                pose_stamped.pose.orientation.z = 0
-                pose_stamped.pose.orientation.w = 1
-                self._planned_path4.poses.append(pose_stamped)
-
-            self._planned_path5.header.stamp = rospy.Time.now()
-            self._planned_path5.header.frame_id = f"obstacle_frame"
-            for k in range(self.path_lenth):    
-                pose_stamped = PoseStamped()
-                pose_stamped.pose.position.x = path_list[4][k][0]
-                pose_stamped.pose.position.y = path_list[4][k][1]
-                pose_stamped.pose.position.z = path_list[4][k][2]
-
-                pose_stamped.pose.orientation.x = 0
-                pose_stamped.pose.orientation.y = 0
-                pose_stamped.pose.orientation.z = 0
-                pose_stamped.pose.orientation.w = 1
-                self._planned_path5.poses.append(pose_stamped)
+                    pose_stamped.pose.orientation.x = 0
+                    pose_stamped.pose.orientation.y = 0
+                    pose_stamped.pose.orientation.z = 0
+                    pose_stamped.pose.orientation.w = 1
+                    self._planned_path_list[i].poses.append(pose_stamped)
 
         self.rate = rospy.Rate(20)
-
-
-        # plot planned path
         
 
         # plot the city map
@@ -217,9 +160,9 @@ class Visualizer:
         start_marker.pose.orientation.z = 0.0
         start_marker.pose.orientation.w = 1.0
     
-        start_marker.scale.x = 3.0
-        start_marker.scale.y = 3.0
-        start_marker.scale.z = 3.0
+        start_marker.scale.x = 4.0
+        start_marker.scale.y = 4.0
+        start_marker.scale.z = 4.0
     
         # Set the color -- be sure to set alpha to something non-zero!
         start_marker.color.r = 0.0
@@ -268,15 +211,11 @@ class Visualizer:
         while not rospy.is_shutdown():
             self.map_pub.publish(self.marker_array)
 
-            if False:
+            if not self._list:
                 self.path_pub.publish(self._planned_path)
             else:
-                self.path_pub1.publish(self._planned_path1)
-                self.path_pub2.publish(self._planned_path2)
-                self.path_pub3.publish(self._planned_path3)
-                self.path_pub4.publish(self._planned_path4)
-                self.path_pub5.publish(self._planned_path5)
-
+                for i in range(self.num_path):
+                    self.path_pub_list[i].publish(self._planned_path_list[i])
 
             for i in range(self.num_blocks):
                 self.br.sendTransform(

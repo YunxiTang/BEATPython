@@ -21,7 +21,7 @@ from cost_map import CityCostMapLayer
 from rrt import SimpleNode
 from utils import transfer_path
 
-with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/with_kp_s5.pkl", "rb") as fp:
+with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v1/with_kp_s5.pkl", "rb") as fp:
     path_solution = pickle.load(fp)
 
 start = jnp.array([0., 100., 61.])
@@ -300,11 +300,13 @@ ax.yaxis.set_tick_params(labelsize = 9.5)
 plt.show()
 
 # exit()
-subprocess.Popen(["roslaunch", ROOT_DIR + "/city_planning_path_set.launch"])
-rospy.loginfo("visualization started.")
+
 
 path_list = [[i.state for i in transfered_path] for transfered_path in transfered_path_list]
 path_list.append([i for i in path_solution])
-vis = Visualizer(city_map, path_list=path_list)
-# vis.visualize()
-vis.visualize_with_plane()
+
+subprocess.Popen(["roslaunch", ROOT_DIR + "/city_planning_path_set.launch"])
+rospy.loginfo("visualization started.")
+vis = Visualizer(city_map, path_solution=None, path_list=path_list)
+vis.visualize()
+# vis.visualize_with_plane()

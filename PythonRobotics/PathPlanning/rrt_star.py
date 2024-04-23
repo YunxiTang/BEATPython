@@ -301,7 +301,7 @@ class CityRRTStar(RRT):
                 print(f"Iter: {i} || No. of Tree Nodes: {len(self._node_list)}")
                 # print(self._gamma_rrt_star * (jnp.log(self._card())/ self._card())**(1./self._d), self._compute_connective_range())
             
-            self._step_size = 0.9995 * self._step_size if self._step_size > 5.0 else 5.0
+            self._step_size = 0.9995 * self._step_size if self._step_size > 0.5 else 0.5
             self._connect_range = 0.9995 * self._connect_range if self._connect_range > 10.0 else 10.0
             
 
@@ -315,7 +315,7 @@ class CityRRTStar(RRT):
                 path_solution = sol[0]
 
                 print(f'Path with {len(sol[0])} nodes. Goal cost: {self._goal.cost}')
-                print(self._step_size, self._connect_range)
+                # print(self._step_size, self._connect_range)
 
                 if animation:
                     path = jnp.array(path_solution)
