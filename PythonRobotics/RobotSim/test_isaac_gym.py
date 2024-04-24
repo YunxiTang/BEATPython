@@ -63,7 +63,7 @@ if __name__ == '__main__':
     num_bodies = gym.get_asset_rigid_body_count(asset)
 
     num_envs = 16
-    envs_per_row = 8
+    envs_per_row = 4
     env_spacing = 2.0
     env_lower = gymapi.Vec3(-env_spacing, 0.0, -env_spacing)
     env_upper = gymapi.Vec3(env_spacing, env_spacing, env_spacing)
