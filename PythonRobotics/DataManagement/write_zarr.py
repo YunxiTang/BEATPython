@@ -4,7 +4,9 @@ import tqdm
 
 
 # Creating an array
-z = zarr.zeros(shape=(10000, 10000), chunks=(1000, 1000), dtype='f4')
+z = zarr.zeros(shape=(10000, 10000), 
+               chunks=(1000, 1000), 
+               dtype='f4')
 print(z, z.chunks)
 
 # Reading and writing data
@@ -14,7 +16,10 @@ print(type(z_np))
 print(z[0, 0:5])
 
 # Persistent arrays
-z1 = zarr.open('dataset/example.zarr', mode='w', shape=(1000, 1000), chunks=(100, 100), dtype='i4')
+z1 = zarr.open('dataset/example.zarr', mode='w', 
+               shape=(1000, 1000), chunks=(100, 100), 
+               dtype='i4')
+
 for i in tqdm.tqdm(range(1000)):
     z1[i,...] = np.random.rand(1000)
 z1[0, :] = np.arange(1000)

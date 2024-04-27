@@ -131,10 +131,10 @@ if __name__ == '__main__':
         envs.append(env)
 
         franka_handle = gym.create_actor(env, franka_asset, pose, f"franka", i, 0)
-        table_handle = gym.create_actor(env, table_asset, table_pose, f"table", i, 0)
+        table_handle = gym.create_actor(env, table_asset, table_pose, f"table", i, 10)
 
         mug_pose.r = gymapi.Quat.from_euler_zyx(math.pi/2+np.random.random(1)[0], 0, math.pi/2+np.random.random(1)[0])
-        mug_handle = gym.create_actor(env, mug_asset, mug_pose, f"table", i, 0)
+        mug_handle = gym.create_actor(env, mug_asset, mug_pose, f"table", i, 20)
 
         # Set initial DOF states
         gym.set_actor_dof_states(env, franka_handle, default_dof_state, gymapi.STATE_ALL)
@@ -156,13 +156,14 @@ if __name__ == '__main__':
         color = gymapi.Vec3(c[0], c[1], c[2])
         gym.set_rigid_body_color(env, table_handle, 0, gymapi.MESH_VISUAL, color)
 
-        for k in range(franka_num_bodies):
+        for k in range(franka_num_bodies-2):
             c = 0.5 + 0.5 * np.random.random(3)
             color = gymapi.Vec3(c[0], c[1], c[2])
             gym.set_rigid_body_color(env, franka_handle, k, gymapi.MESH_VISUAL, color)
         actor_handles.append(franka_handle)
 
     gym.prepare_sim(sim)
+    
     # initial hand position and orientation tensors
     init_pos = torch.Tensor(init_pos_list).view(num_envs, 3)
     init_orn = torch.Tensor(init_orn_list).view(num_envs, 4)
