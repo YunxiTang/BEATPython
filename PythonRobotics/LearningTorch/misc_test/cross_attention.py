@@ -52,12 +52,9 @@ class CrossAttention(nn.Module):
             dots = dots.masked_fill(attention_mask == 0, -9e15)
 
         attn = F.softmax(dots, dim=-1)
-        # print('attns \n', attn[0,0,...].squeeze())
-        # print('values\n' , values[0,0,...].squeeze())
 
         out = torch.matmul(attn, values)# torch.einsum('bhij, bhjd -> bhid', attn, values)
         out = einops.rearrange(out, 'b h i d -> b i (h d)')
-        # print('outs\n' ,  out[0,0,...].squeeze() )
         return attn, out
     
 
@@ -72,8 +69,11 @@ if __name__ == '__main__':
     vals = torch.randn([batch_size, seq_len, d_model])
     ques = torch.randn([batch_size, seq_len, d_model])
 
-    tmp = torch.randn([seq_len, seq_len])
-    causual_mask = torch.tril(torch.ones_like(tmp))
+    tmp = keys[:,0,:]
+    print( tmp.shape )
+
+    causual_mask_tmp = torch.randn([seq_len, seq_len])
+    causual_mask = torch.tril(torch.ones_like(causual_mask_tmp))
     
     atten, out = cross_block(ques, keys, vals, causual_mask)
 
