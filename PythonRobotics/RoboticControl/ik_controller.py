@@ -125,7 +125,7 @@ class IKController:
 
     def GetQPControl(self, q, v, t, target_ee_pos=None):
         '''
-            Get control with robot's current state `(q,v,t)`
+            Get control with robot's current state `(q, v, t)`
         '''
         self.UpdateStoredContext(q, v, t)
 
@@ -141,7 +141,7 @@ class IKController:
                             verbose=False) 
 
         ref_pos = q + 1.0 * (q_target - q)
-        ref_vel = np.clip((q_target - q) / 0.01, -1.0, 1.0)
+        ref_vel = np.clip((q_target - q), -0.001, 0.001)
         res = np.hstack((ref_pos, ref_vel))
         return res
 

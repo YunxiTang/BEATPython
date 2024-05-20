@@ -1,55 +1,80 @@
 <mujoco model="ur5">
-    <compiler angle="radian" meshdir="visual" />
+    <compiler angle="radian" meshdir="assets" />
     <size njmax="500" nconmax="100" />
+
     <asset>
-        <mesh name="base" file="base.stl" />
-        <mesh name="shoulder" file="shoulder.stl" />
-        <mesh name="upperarm" file="upperarm.stl" />
-        <mesh name="forearm" file="forearm.stl" />
-        <mesh name="wrist1" file="wrist1.stl" />
-        <mesh name="wrist2" file="wrist2.stl" />
-        <mesh name="wrist3" file="wrist3.stl" />
+        <material name="black" rgba="0.033 0.033 0.033 1"/>
+        <material name="jointgray" rgba="0.278 0.278 0.278 1"/>
+        <material name="linkgray" rgba="0.82 0.82 0.82 1"/>
+        <material name="urblue" rgba="0.49 0.678 0.8 1"/>
+        <mesh name="base_0" file="base_0.obj" />
+        <mesh name="base_1" file="base_1.obj" />
+        <mesh name="shoulder_0" file="shoulder_0.obj" />
+        <mesh name="shoulder_1" file="shoulder_1.obj" />
+        <mesh name="shoulder_2" file="shoulder_2.obj" />
+        <mesh name="upperarm_0" file="upperarm_0.obj" />
+        <mesh name="upperarm_1" file="upperarm_1.obj" />
+        <mesh name="upperarm_2" file="upperarm_2.obj" />
+        <mesh name="upperarm_3" file="upperarm_3.obj" />
+        <mesh name="forearm_0" file="forearm_0.obj" />
+        <mesh name="forearm_1" file="forearm_1.obj" />
+        <mesh name="forearm_2" file="forearm_2.obj" />
+        <mesh name="forearm_3" file="forearm_3.obj" />
+        <mesh name="wrist1_0" file="wrist1_0.obj" />
+        <mesh name="wrist1_1" file="wrist1_1.obj" />
+        <mesh name="wrist1_2" file="wrist1_2.obj" />
+        <mesh name="wrist2_0" file="wrist2_0.obj" />
+        <mesh name="wrist2_1" file="wrist2_1.obj" />
+        <mesh name="wrist2_2" file="wrist2_2.obj" />
+        <mesh name="wrist3" file="wrist3.obj" />
     </asset>
     <worldbody>
         <body name="base_link" pos="0 0 0.5">
-            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" mesh="base" />
-            <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="base" />
+            <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="base_0" />
+            <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="base_1" />
+
             <body name="shoulder_link" pos="0 0 0.089159">
                 <inertial pos="0 0 0" mass="3.7" diaginertia="0.0102675 0.0102675 0.00666" />
                 <joint name="shoulder_pan_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-3.14159 3.14159" damping="1.1"/>
-                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" mesh="shoulder" />
-                <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="shoulder" />
+                <geom mesh="shoulder_0" material="urblue" class="visual"/>
+                <geom mesh="shoulder_1" material="black" class="visual"/>
+                <geom mesh="shoulder_2" material="jointgray" class="visual"/>
 
                 <body name="upper_arm_link" pos="0 0.13585 0" quat="0.707107 0 0.707107 0">
                     <inertial pos="0 0 0.28" mass="8.393" diaginertia="0.226891 0.226891 0.0151074" />
                     <joint name="shoulder_lift_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14159 3.14159" damping="1.1"/>
-                    <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" mesh="upperarm" />
-                    <geom type="mesh" mesh="upperarm" />
+                    <geom mesh="upperarm_0" material="linkgray" class="visual"/>
+                    <geom mesh="upperarm_1" material="black" class="visual"/>
+                    <geom mesh="upperarm_2" material="jointgray" class="visual"/>
+                    <geom mesh="upperarm_3" material="urblue" class="visual"/>
 
                     <body name="forearm_link" pos="0 -0.1197 0.425">
                         <inertial pos="0 0 0.25" mass="2.275" diaginertia="0.0312168 0.0312168 0.004095" />
                         <joint name="elbow_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14159 3.14159" damping="1.1"/>
-                        <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" mesh="forearm" />
-                        <geom type="mesh" mesh="forearm" />
+                        <geom mesh="forearm_0" material="urblue" class="visual"/>
+                        <geom mesh="forearm_1" material="linkgray" class="visual"/>
+                        <geom mesh="forearm_2" material="black" class="visual"/>
+                        <geom mesh="forearm_3" material="jointgray" class="visual"/>
 
                         <body name="wrist_1_link" pos="0 0 0.39225" quat="0.707107 0 0.707107 0">
                             <inertial pos="0 0.093 0" mass="1.219" diaginertia="0.0025599 0.0025599 0.0021942" />
                             <joint name="wrist_1_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14159 3.14159" damping="1.1"/>
-                            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" mesh="wrist1" />
-                            <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="wrist1" />
+                            <geom mesh="wrist1_0" material="black" class="visual"/>
+                            <geom mesh="wrist1_1" material="urblue" class="visual"/>
+                            <geom mesh="wrist1_2" material="jointgray" class="visual"/>
                             
-                            <body name="wrist_2_link" pos="0 0.093 0">
+                            <body name="wrist_2_link" pos="0 0.127 0">
                                 <inertial pos="0 0 0.09465" mass="1.219" diaginertia="0.0025599 0.0025599 0.0021942" />
                                 <joint name="wrist_2_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-3.14159 3.14159" damping="1.1"/>
-                                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" mesh="wrist2" />
-                                <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="wrist2" />
+                                <geom mesh="wrist2_0" material="black" class="visual"/>
+                                <geom mesh="wrist2_1" material="urblue" class="visual"/>
+                                <geom mesh="wrist2_2" material="jointgray" class="visual"/>
 
-                                <body name="wrist_3_link" pos="0 0 0.09465">
+                                <body name="wrist_3_link" pos="0 0 0.1">
                                     <inertial pos="0 0.06505 0" quat="1.73123e-12 0.707107 -0.707107 1.73123e-12" 
                                               mass="0.1879" diaginertia="0.000132117 8.46959e-05 8.46959e-05" />
                                     <joint name="wrist_3_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-3.14159 3.14159" damping="1.1"/>
-                                    <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="wrist3" />
-                                    <geom type="mesh" mesh="wrist3" rgba="1 0 0 1"/>
+                                    <geom material="linkgray" mesh="wrist3" class="visual"/>
                                     <site name="arm_ee" pos="0 0 0" rgba="1 0 0 1" size="0.01" type="sphere"/>
 
                                     <!-- Simple Gripper Parts -->
@@ -63,7 +88,7 @@
                                         <body name="right_finger" pos="0 0.055 0.13">
                                             <inertial mass="0.015" pos="0 0 0" diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
                                             <joint name="finger_joint_r" class="finger"/> 
-                                            <geom type="box" size="0.012 0.005 0.025" pos="0 0 0" rgba="1 0.5 0 1"  condim="6"
+                                            <geom type="box" size="0.012 0.005 0.025" pos="0 0 0" material="linkgray"  condim="6"
                                                 solref="0.0001 2" friction="4 2 2.0" conaffinity="1" contype="1"
                                                 solimp="0.9 0.95 0.001 0.5 2"/>
                                         </body>
@@ -72,7 +97,7 @@
                                         <body name="left_finger" pos="0 -0.055 0.13">
                                             <inertial mass="0.015" pos="0 0 0" diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
                                             <joint name="finger_joint_l" class="finger"/> 
-                                            <geom type="box" size="0.012 0.005 0.025" pos="0 0 0" rgba="1 0.5 0 1"  condim="6"
+                                            <geom type="box" size="0.012 0.005 0.025" pos="0 0 0" material="linkgray"  condim="6"
                                                 solref="0.0001 2" friction="4 2.0 2.0" conaffinity="1" contype="1"
                                                 solimp="0.9 0.95 0.001 0.5 2"/>
                                         </body>
