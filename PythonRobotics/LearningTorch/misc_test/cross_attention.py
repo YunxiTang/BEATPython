@@ -67,7 +67,9 @@ if __name__ == '__main__':
     
     keys = torch.randn([batch_size, seq_len, d_model])
     vals = torch.randn([batch_size, seq_len, d_model])
-    ques = torch.randn([batch_size, seq_len, d_model])
+
+    ques_len = seq_len - 2
+    ques = torch.randn([batch_size, ques_len, d_model])
 
     tmp = keys[:,0,:]
     print( tmp.shape )
@@ -75,6 +77,7 @@ if __name__ == '__main__':
     causual_mask_tmp = torch.randn([seq_len, seq_len])
     causual_mask = torch.tril(torch.ones_like(causual_mask_tmp))
     
-    atten, out = cross_block(ques, keys, vals, causual_mask)
+    atten, out = cross_block(ques, keys, vals, attention_mask=None)
+    print( out.shape )
 
    

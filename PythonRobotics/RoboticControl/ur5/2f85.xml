@@ -7,7 +7,7 @@
     <material name="metal" rgba="0.58 0.58 0.58 1"/>
     <material name="silicone" rgba="0.1882 0.1882 0.1882 1"/>
     <material name="gray" rgba="0.4627 0.4627 0.4627 1"/>
-    <material name="black" rgba="0.149 0.149 0.149 1"/>
+    <!-- <material name="black" rgba="0.149 0.149 0.149 1"/> -->
     <mesh class="2f85" name='g_base' file="g_base.stl"/>
   </asset>
 

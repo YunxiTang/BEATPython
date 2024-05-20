@@ -3,8 +3,7 @@ from einops import rearrange, repeat
 import torch.nn as nn
 
 
-if __name__ == '__main__':
-
+def test1():
     cls_token = nn.Parameter(torch.rand(1, 1, 7), requires_grad=True)
     repeated_cls = cls_token.repeat(2, 1, 1)
     repeated_cls_v2 = repeat(cls_token, 'a b c -> (repeat a) b c', repeat=2)
@@ -44,3 +43,15 @@ if __name__ == '__main__':
     print( '=================' )
     print(tensor_0)
     print(tensor_1)
+
+
+def test2():
+    x = torch.randn(2, 4, 3)
+    num_feats = torch.LongTensor([[1,1,0,0],
+                                  [1,1,1,0]])
+    return
+
+
+if __name__ == '__main__':
+    test1()
+    
