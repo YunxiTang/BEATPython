@@ -46,12 +46,17 @@ def test1():
 
 
 def test2():
-    x = torch.randn(2, 4, 3)
-    num_feats = torch.LongTensor([[1,1,0,0],
-                                  [1,1,1,0]])
-    return
+    latent_z = torch.randint(1, 5, (2, 5, 3))
+    print( latent_z )
+    mask_idx = torch.tensor([[0,1],
+                             [0,2]])
+    indices = mask_idx.unsqueeze(-1).repeat(1, 1, latent_z.shape[-1])
+    tmp = torch.gather(latent_z, dim=1, index=indices)
+    print( '=============================' )
+    print( tmp )
+    return tmp
 
 
 if __name__ == '__main__':
-    test1()
+    test2()
     
