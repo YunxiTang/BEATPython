@@ -7,8 +7,8 @@ model, preprocess = clip.load("ViT-B/32", device=device)
 
 print(model)
 
-image = preprocess(Image.open("./Franka.jpg")).unsqueeze(0).to(device)
-text = clip.tokenize(["a diagram", "a dog", "a cat", "a robot arm"]).to(device)
+image = preprocess(Image.open("./puppy.jpg")).unsqueeze(0).to(device)
+text = clip.tokenize(["It is a diagram", "It should be a puppy", "I guess a cat", "It is a robot arm"]).to(device)
 
 with torch.no_grad():
     image_features = model.encode_image(image)
