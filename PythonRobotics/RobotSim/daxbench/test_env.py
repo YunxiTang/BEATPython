@@ -7,6 +7,12 @@ import matplotlib.pyplot as plt
 from daxbench.core.utils.util import get_expert_start_end_mpm
 import time
 
+import zarr
+import os
+import pathlib
+import glob
+import numpy as np
+
 
 def visualize_shape(dlo: np.ndarray, ax, clr=None):
     '''
@@ -83,31 +89,65 @@ def test():
 
 
 def test1():
-    # Create the environments
-    states = []
+    # create the environments
+    batch_size = 1
+    dlo_len = 0.5
     env_cfg = DefaultConf()
-    env_cfg.rope_hardness = 0.5
-    env_cfg.rope_width = [0.5, 0.006, 0.006]
+    env_cfg.rope_hardness = 0.25
+    env_cfg.rope_width = [dlo_len, 0.006, 0.006]
     env_cfg.dt = 1e-4
-    env = ShapeRopeEnv(batch_size=2, seed=10, conf=env_cfg)
+
+    env = ShapeRopeEnv(batch_size=batch_size, seed=10, conf=env_cfg)
+
+
+    data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)))
+    dlo_data = os.path.join(data_dir, 'dax_dlo_0.zarr')
+    overwrite = True
+    root = zarr.open(dlo_data, mode='w')
+    data = root.create_group('data', overwrite=overwrite)
+    meta = root.create_group('meta', overwrite=overwrite)
+
+    
     obs, state = env.reset(env.simulator.key)
-    N = 10
+
+    N = 2
+    dlo_shape_list = []
+    dlo_len_list = []
     for _ in range(N):
-        acts = env.random_policy(2, radius=0.05)
+        acts = env.random_policy(batch_size, radius=0.05)
         acts[:, 1] = 0
         state, reward, done, info = env.step_diff(acts, state)
-        # state, reward, done, info = self.step_diff(actions, self.state)
         state = info["state"]
-        states.append(np.array(state[0]))
+
+        dlo_len_list = dlo_len_list + [dlo_len,] * batch_size
+        dlo_shape_list.append(np.array(state))
     
-    print(len(states))
+    # num_frame = N * batch_size
+    
+    # chunk_size = 1000
+
+    # dlo_lens = meta.create_dataset('dlo_len', 
+    #                                 shape=(num_frame, ), 
+    #                                 dtype='f4', 
+    #                                 chunks=(chunk_size, ), 
+    #                                 overwrite=True)
+    
+    # keypoints = data.create_dataset('keypoints', 
+    #                                 shape=(num_frame, 36), 
+    #                                 dtype='f4', 
+    #                                 chunks=(chunk_size, None), 
+    #                                 overwrite=True)
+    
+    # dlo_lens[:] = np.array(dlo_len_list)
+    # keypoints[:] = np.array(dlo_shape_list)
+
     fig = plt.figure(figsize=plt.figaspect(0.5))
     ax = fig.add_subplot(projection='3d')
     ax.set_aspect('equal')
     ax.scatter(0.0, 0.0, 0.0, color='r',  marker='*', s=100)
     for idx in range(N):
-        visualize_shape(states[idx][0, 0:582:30, :], ax, clr='r')
-        visualize_shape(states[idx][1, 0:582:30, :], ax, clr='r')
+        visualize_shape(dlo_shape_list[idx][0, 0:582:30, :], ax, clr='r')
+        visualize_shape(dlo_shape_list[idx][1, 0:582:30, :], ax, clr='r')
     plt.show()
 
 
