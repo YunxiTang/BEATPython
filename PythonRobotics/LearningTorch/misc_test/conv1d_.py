@@ -12,3 +12,7 @@ if __name__ == '__main__':
     x = torch.randn(5, 3, 12)
     res = layer(x)
     print(res.shape)
+
+    y = torch.randint(0, 3, size=(5, 3))
+    print( y )
+    print( torch.sum(y, dim=1, keepdim=True) )
