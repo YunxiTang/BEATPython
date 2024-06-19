@@ -103,3 +103,13 @@ if __name__ == '__main__':
     print('offpe:', offpe(x).shape)
     z = torch.ones(1, emb_dim)
     print(x.expand(2, -1))
+
+    # ++++++++++++++++++++++++++++
+    pos_emb = SinPosEmb(emb_dim)
+    x = torch.zeros(1, 4, emb_dim)
+    print(x)
+    out = pos_emb(x)
+    loss = torch.sum(out)
+    print(out)
+    # loss.backward()
+    # print(loss, pos_emb.pe.grad)

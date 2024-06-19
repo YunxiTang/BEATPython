@@ -27,7 +27,8 @@ def sdf_2d_box(p: jnp.ndarray, geom_param: dict) -> float:
     return jnp.linalg.norm(jnp.maximum(d, 0.0)) + jnp.minimum(jnp.maximum(d[0], d[1]), 0.0)
 
 if __name__ == '__main__':
-    num = 500
+    print(jax.devices())
+    num = 100
     xs = jnp.linspace(-3.0, 3.0, num)
     ys = jnp.linspace(-3.0, 3.0, num)
     
@@ -49,10 +50,14 @@ if __name__ == '__main__':
     
     
     sdf_map = []
+    total = 0
     for i in range(num):
         for j in range(num):
+            if total % 100 == 0:
+                print(f'===== {total} ==== ')
             p = jnp.array([xs[i], ys[j]])
             sdf_map.append(sdf_2d_box(p, box))
+            total += 1
     sdf_map = jnp.array(sdf_map).reshape(num, num).transpose()
     sns.set()
     ax = sns.heatmap(sdf_map)
