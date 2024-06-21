@@ -5,20 +5,21 @@ import pyrealsense2 as rs2
 import cv2
 import numpy as np
 import time
-
+from threading import Thread
 from diffusion_planner.common.logger import ZarrLogger
+
 
 
 if __name__ == '__main__':
 
     logger = ZarrLogger(path_to_save='/home/yxtang/CodeBase/PythonCourse/dataset/img_test.zarr', 
-                        ks=['time', 'color_img', 'depth_img'],
+                        ks=['timestamp', 'color_img', 'depth_img'],
                         chunk_size=1,
-                        dtype='f4')
+                        dtype='uint8')
 
     pipeline = rs2.pipeline()
     config = rs2.config()
-    config.enable_stream(rs2.stream.depth, 640, 360, rs2.format.z16, 15)
+    config.enable_stream(rs2.stream.depth, 640, 480, rs2.format.z16, 15)
     config.enable_stream(rs2.stream.color, 640, 480, rs2.format.bgr8, 15)
 
     profile = pipeline.start(config)
@@ -26,10 +27,9 @@ if __name__ == '__main__':
     align_to = rs2.stream.color
     aligner = rs2.align(align_to)
 
-    k = 0
     # streaming loop
     try:
-        for _ in range(2000):
+        for idx in range(1500):
             frames = pipeline.wait_for_frames()
             raw_depth_frame = frames.get_depth_frame()
 
@@ -47,9 +47,13 @@ if __name__ == '__main__':
             depth_img = np.asanyarray(aligned_depth_frame.get_data())
             color_img = np.asanyarray(color_frame.get_data())
             
-            tc = time.time()
-            logger.log_dict_data({'time': tc, 'color_img': color_img, 'depth_img': depth_img})
-            print(time.time() - tc)
+            timestamp = time.time()
+            # save_thread = Thread( target=logger.log_dict_data, args=[{'timestamp': timestamp, 
+            #                                                           'color_img': color_img, 
+            #                                                           'depth_img': depth_img},])
+            # # logger.log_dict_data()
+            # save_thread.start()
+            print(f'frame id {idx}:', time.time() - timestamp)
 
             # render images
             cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
