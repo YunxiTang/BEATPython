@@ -32,6 +32,7 @@ if __name__ == '__main__':
     full_model = FullModel(64)
     variables = full_model.init({'params': model_init_rng, 'dropout': rng}, dummy_inp, False)
     print(variables.keys())
+    
     # for training
     y0, updates = full_model.apply(variables, dummy_inp, True, rngs={'dropout': rng}, mutable=['batch_stats'])
     print(updates)
