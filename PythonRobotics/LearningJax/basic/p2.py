@@ -273,7 +273,7 @@ class FlaxTrainer:
     '''
         A trainer class for flax model
     '''
-    def __init__(self, cfg: OmegaConf, *inp_sample):
+    def __init__(self, cfg: OmegaConf, inp_sample):
         self.cfg = cfg
 
         # create a rng_key for random streaming
@@ -287,9 +287,9 @@ class FlaxTrainer:
         self.train_state = None
 
         # init the model & train state
-        self.train_state = self._init_train_state(*inp_sample)
+        self.train_state = self._init_train_state(inp_sample)
 
-    def _init_train_state(self, *inp_args):
+    def _init_train_state(self, inp_sample):
         '''
             - initialize the variables for the model, 
             - initialize the opt_state for the optimizer 
@@ -298,7 +298,7 @@ class FlaxTrainer:
         # ============= model initialization ================
         print('========= Model Initialization ==========')
         params_key, dropout_key, self.rng_key = jax.random.split(self.rng_key, 3)
-        variables = self.model.init({'params': params_key, 'dropout': dropout_key}, *inp_args)
+        variables = self.model.init({'params': params_key, 'dropout': dropout_key}, inp_sample, False)
         params = variables.get('params')
         batch_stats = variables.get('batch_stats', {})
         print('========= Model Initialization Done =========')
@@ -383,6 +383,7 @@ class FlaxTrainer:
         jitted_eval_step = jax.jit(eval_step)
         
         # ========= main loop ===================
+        
         for epoch in range(cfg.train.max_epoch):
             Loss = 0
             tc = time.time()
@@ -390,9 +391,9 @@ class FlaxTrainer:
                 metric, self.train_state = jitted_train_step(self.train_state, batch)
                 Loss += metric['loss']
             print('elapsed time: ', time.time() - tc)
-            # if epoch % 20:
-            #     print(f'Epoch: {epoch}: Train Loss: {Loss}')
-        
+
+            if epoch % 20:
+                print(f'Epoch: {epoch}: Train Loss: {Loss}')
         return None
 
     def save_checkpoint(self):
@@ -405,7 +406,6 @@ if __name__ == '__main__':
 
     dummy_sample = jax.random.normal(jax.random.PRNGKey(0), shape=[2, 1])
     dummy_sample = jax.device_put(dummy_sample, jax.devices()[0])
-    inp_args = [dummy_sample, False]
-    trainer = FlaxTrainer(cfg, *inp_args)
+    trainer = FlaxTrainer(cfg, dummy_sample)
 
     trainer.train()
