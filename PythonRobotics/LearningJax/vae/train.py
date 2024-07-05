@@ -163,8 +163,8 @@ class FlaxTrainer:
             else:
                 predicts, updated_model_state = output, None
             res, z_mean, z_logvar = predicts
-            loss_val = kl_divergence(z_mean, z_logvar) + binary_cross_entropy_with_logits(res, feats) \
-             + jnp.mean(optax.l2_loss(res, feats), axis=1) 
+            loss_val = 1.01 * kl_divergence(z_mean, z_logvar) + 0.0 * binary_cross_entropy_with_logits(res, feats) \
+             + jnp.mean(optax.huber_loss(res, feats), axis=1) 
             return jnp.mean(loss_val), updated_model_state
             
         # train step function
@@ -198,8 +198,7 @@ class FlaxTrainer:
         ds.set_format('jax', device=str(jax.devices()[0]))
         train_ds = ds['train'].shuffle(12)
         test_ds = ds['test']
-        train_dataset = train_ds.with_format('jax')
-        test_dataset = test_ds.with_format('jax')
+        train_dataset = train_ds
         # ========= configure the dataloader ========
 
         # create the functions
@@ -264,7 +263,7 @@ if __name__ == '__main__':
     root_rng = random.PRNGKey(100)
     model_init_rng, reparam_rng = random.split(root_rng, 2)
     variables = model.init({'params': model_init_rng, 'latent_sample': reparam_rng}, sample_img, sample_label, False)
-   
+    
     trainer = FlaxTrainer(sample_img, sample_label, False)
     trainer.train()
     
