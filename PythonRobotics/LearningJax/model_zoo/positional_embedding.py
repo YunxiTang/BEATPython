@@ -15,7 +15,7 @@ class PositionalEncoding(nn.Module):
             # Create place-hold matrix of [SeqLen, HiddenDim] representing PE
             pe = np.zeros((max_len, d_model))
             position = np.arange(0, max_len, dtype=jnp.float32)[:,None]
-            div_term = np.exp( (-np.log(10000.0) / d_model) * np.arange(0, d_model, 2) )
+            div_term = np.exp( (np.log(10000.0) / -d_model) * np.arange(0, d_model, 2) )
             pe[:, 0::2] = np.sin(position * div_term)
             pe[:, 1::2] = np.cos(position * div_term)
             pe = jax.device_put(pe[None])
