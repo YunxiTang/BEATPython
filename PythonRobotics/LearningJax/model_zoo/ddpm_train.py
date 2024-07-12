@@ -49,10 +49,8 @@ class DDPMScheduler:
 
 
 if __name__ == '__main__':
-
-    NUM_EPOCHS = 10
-    BATCH_SIZE = 64
-    NUM_STEPS_PER_EPOCH = 60000 // BATCH_SIZE
+    from unet1d import CondUnet1D
+    import einops
 
     ds = load_dataset("ylecun/mnist", cache_dir='/home/yxtang/CodeBase/PythonCourse/dataset')
     ds.set_format('jax')
@@ -60,35 +58,50 @@ if __name__ == '__main__':
     test_ds = ds['test']
 
     scheduler = DDPMScheduler(timesteps=200, seed=0)
-    num = 30
+    num = 10
     sample_img = train_ds[0:0+num]['image'] / 127.5 - 1
+    sample_label = train_ds[0:0+num]['label']
 
     # sample noise to add to data points
     noises = random.normal(random.key(0), shape=sample_img.shape)
 
     # sample a diffusion iteration for each data point
-    timesteps = random.randint(random.key(0), shape=[sample_img.shape[0], 1], 
+    timesteps = random.randint(random.key(0), shape=[sample_img.shape[0],], 
                                minval=10, maxval=scheduler.timesteps)
     
     # forward diffusion process
-    noisy_sample = scheduler.add_noise(sample_img, noises, timesteps)
-    print(noisy_sample[...,None].shape)
-
-    imgs = [(noisy_sample[i] + 1) * 127.5 for i in range(sample_img.shape[0])]
+    noisy_images = scheduler.add_noise(sample_img, noises, timesteps)
+    imgs = [(noisy_images[i] + 1) * 127.5 for i in range(sample_img.shape[0])]
     fig = plt.figure(figsize=(60, 15))
     imgs = np.hstack(imgs)
     plt.imshow(imgs, cmap='gray')
     plt.show()
 
-    from model_zoo.unet1d import CondUnet1D
-    # channels = 784
-    # model = CondUnet1D(64, 64, 3, basic_channel=channels, channel_scale_factor=(1, 2, 4, 8), num_groups=8)
-    # variables = model.init(
-    #     {'params': random.PRNGKey(20), 'dropout_rng': random.PRNGKey(30)},
-    #     (noisy_sample[...,None], timesteps)
-    # )
-    # print(variables)
+    # model test
+    label_conds = nn.one_hot(sample_label, num_classes=10)
+    channel = 1
+    noisy_sample = einops.rearrange(noisy_images, 'b h w -> b (h w)')
+    noisy_sample = einops.repeat(noisy_sample, 'b s -> b s c', c = channel)
+    model = CondUnet1D(64, 64, 3, basic_channel=channel, 
+                       channel_scale_factor=(1, 2, 4, 8), 
+                       num_groups=1)
+    
+    outputs, variables = model.init_with_output(
+        {'params': random.PRNGKey(20), 'dropout_rng': random.PRNGKey(30)},
+        noisy_sample, timesteps, label_conds)
+    
+    print(outputs.shape)
+    outputs = jnp.reshape(jnp.squeeze(outputs), (num, 28, 28))
+    print(outputs.shape)
+    
+    res = noisy_images - outputs
+    imgs = [(res[i] + 1) * 127.5 for i in range(outputs.shape[0])]
+    fig = plt.figure(figsize=(60, 15))
+    imgs = np.hstack(imgs)
+    plt.imshow(imgs, cmap='gray')
+    plt.show()
 
+    
     
 
     

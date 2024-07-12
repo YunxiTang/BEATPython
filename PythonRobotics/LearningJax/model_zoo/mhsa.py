@@ -22,7 +22,7 @@ def scaled_dot_product(q, k, v):
 
 class MHSA(nn.Module):
     '''
-        multi head self attention implementation
+        multi head self attention (MHSA) implementation
     '''
     embed_dim: int
     nhead: int = 2
