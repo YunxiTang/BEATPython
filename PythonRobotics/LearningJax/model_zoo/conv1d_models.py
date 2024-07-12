@@ -14,13 +14,13 @@ class Mish(nn.Module):
 
 class Conv1DBlock(nn.Module):
     ''' 
-        Conv1d --> GroupNorm --> Mish 
+        Conv1d -> GroupNorm -> Mish 
     '''
     out_channels: int
     kernel_size: int
-    stride: int
+    stride: int = 1
     padding: PaddingLike = 'SAME'
-    ngroup: int = 32
+    ngroup: int = 8
 
     def setup(self):
         self.con1d = nn.Conv(self.out_channels, 
@@ -65,7 +65,7 @@ class UpSample1D(nn.Module):
 
 
 if __name__ == '__main__':
-    model = Conv1DBlock(64, 3, 2, 'SAME', 32)
+    model = Conv1DBlock(64, 3, 1, 'SAME', 32)
     x = jax.random.normal(jax.random.key(0), shape=[2, 10, 3])
     out, variables = model.init_with_output({'params': jax.random.PRNGKey(0)}, x)
     print(x.shape, out.shape)

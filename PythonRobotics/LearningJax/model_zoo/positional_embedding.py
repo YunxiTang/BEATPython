@@ -3,6 +3,21 @@ import jax.numpy as jnp
 import einops
 import jax
 import numpy as np
+import math
+
+
+class SinusoidalEmbedding(nn.Module):
+    dim: int = 32
+    
+    @nn.compact
+    def __call__(self, inputs):
+        half_dim = self.dim // 2
+        emb = math.log(10000) / (half_dim - 1)
+        emb = jnp.exp(jnp.arange(half_dim) * -emb)
+        emb = inputs[:, None] * emb[None, :]
+        emb = jnp.concatenate([jnp.sin(emb), jnp.cos(emb)], -1)
+        return emb
+
 
 
 class PositionalEncoding(nn.Module):
@@ -28,17 +43,20 @@ class PositionalEncoding(nn.Module):
     
 
 if __name__ == '__main__':
-    x = jnp.array([[1,2,3,4]])
-    x = einops.repeat(x, 'b s -> b s c', c=4)
-    print(x.shape)
-    pe = PositionalEncoding(4)
-    output, variables = pe.init_with_output({}, x)
-    val = variables.get('embeds')['sin_posemb']
-    print(val.shape)
-    print(output - x)
+    x = jnp.array([1, 2, 2, 4])
+    # x = einops.repeat(x, 'b -> b c', c=4)
+    # print(x)
 
-    out = pe.bind(variables)(x)
+    pe = SinusoidalEmbedding(128)
+    output, variables = pe.init_with_output({}, x)
+    # print(output)
+    print(output.shape)
+
+    # val = variables.get('embeds')['sin_posemb']
+    # print(val.shape)
+    
+    # out = pe.bind(variables)(x)
     # print(out)
 
-    print(type(jax.device_get(out)))
-    print(type(jax.device_put(out, device=jax.devices()[0])))
+    # print(type(jax.device_get(out)))
+    # print(type(jax.device_put(out, device=jax.devices()[0])))
