@@ -1,0 +1,187 @@
+import numpy as np
+import jax
+import jax.numpy as jnp
+from jax import random
+from flax import linen as nn
+from typing import Any
+from flax.training import train_state, checkpoints
+import optax
+from datasets import Dataset, load_dataset
+import orbax
+from scheduler import DDPMScheduler
+import einops
+
+
+class TrainState(train_state.TrainState):
+    batch_stats: Any = None
+    dropout_rng: Any = None
+   
+   
+class FlaxTrainer:
+    '''
+        A trainer class for flax model
+    '''
+    def __init__(self, model, *inp_sample):
+        # create a rng_key for random streaming
+        self.rng_key = jax.random.PRNGKey(seed=1200)
+
+        # create a model
+        self.model: nn.Module
+        self.model = model
+
+        # create an empty train state
+        self.train_state = None
+
+        # init the model & train state
+        self.train_state = self._init_train_state(*inp_sample)
+        
+        # scheduler
+        self.scheduler = DDPMScheduler(timesteps=500, seed=0)
+        
+        self.log_dir = '/Users/y.xtang/Documents/ML/JAX_script/deep_learning_jax/checkpoints'
+
+    def _init_train_state(self, *inp_sample):
+        '''
+            - initialize the variables for the model,
+            - initialize the opt_state for the optimizer
+            - create a train state for the training
+        '''
+        # ============= model initialization ================
+        print('========= Model Initialization ==========')
+        params_key, dropout_key, self.rng_key = jax.random.split(self.rng_key, 3)
+        variables = self.model.init({'params': params_key,
+                                     'droput_rng': dropout_key}, *inp_sample)
+        params = variables.get('params')
+        batch_stats = variables.get('batch_stats', {})
+        print('========= Model Initialization Done =========')
+
+        # ============= optimizer initialization =============
+        print('========= Optimizer Initialization =========')
+        optimizer_ = optax.adamw(learning_rate=0.001)
+        optimizer = optax.chain(
+            optax.clip_by_global_norm(1.0),
+            optimizer_
+        )
+        opt_state = optimizer.init(params)
+        print('========= Optimizer Initialization Done =========')
+
+        # ============= assemble the train state =============
+        train_state = TrainState(
+            step=0,
+            apply_fn=self.model.apply,
+            params=params,
+            tx=optimizer,
+            opt_state=opt_state,
+            batch_stats=batch_stats,
+            dropout_rng=self.rng_key
+        )
+        return train_state
+
+    def create_function(self):
+        # loss function
+        def loss_fn(params, state: TrainState, 
+                    noises,
+                    noisy_sample, timesteps, label_conds, train: bool):
+            model_variables = {'params': params, 'batch_stats': state.batch_stats}
+            output = state.apply_fn(model_variables,
+                                    noisy_sample, timesteps, label_conds, train,
+                                    rngs={'dropout_rng': state.dropout_rng} if train else None,
+                                    mutable=['batch_stats'] if train else False)
+            
+            if train:
+                predicts, updated_model_state = output  
+            else:
+                predicts, updated_model_state = output, None
+            predicts = jnp.reshape(predicts, (predicts.shape[0], 28, 28))
+            loss_val = jnp.mean(optax.l2_loss(predicts, noises))
+            return loss_val, updated_model_state
+            
+        # train step function
+        def train_step(state: TrainState, 
+                       noises,
+                       noisy_sample, timesteps, label_conds):
+            loss_val_grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+            (loss_value, updated_model_state), grads = loss_val_grad_fn(state.params, state, 
+                                                                        noises,
+                                                                        noisy_sample, timesteps, label_conds, train=True)
+            # update the dropout rng!
+            dropout_rng = jax.random.fold_in(state.dropout_rng, data=state.step)
+            
+            updated_state = state.apply_gradients(
+                grads=grads,
+                batch_stats=updated_model_state['batch_stats'],
+                dropout_rng=dropout_rng)
+            return {'loss': loss_value}, updated_state
+       
+        # eval step function
+        def eval_step(state: TrainState, 
+                      noises,
+                      noisy_sample, timesteps, label_conds):
+            loss_val, updated_model_state = loss_fn( state.params, state, noises,
+                       noisy_sample, timesteps, label_conds, train=False)
+            
+            return {'loss': loss_val}
+        return train_step, eval_step
+    
+    
+    def save_model(self, epoch=0):
+        # Save current model at certain training epoch
+        checkpoints.save_checkpoint(ckpt_dir=self.log_dir,
+                                    target={'params': self.train_state.params,
+                                            'batch_stats': self.train_state.batch_stats},
+                                    step=epoch,
+                                    overwrite=True)
+   
+    def train(self):
+        '''
+            train
+        '''
+        assert self.train_state is not None, 'Train state is None!'
+        # ========= configure the dataset ==========
+        ds = load_dataset("ylecun/mnist",
+                          cache_dir='/Users/y.xtang/Documents/ML/JAX_script/dataset')
+        ds.set_format('jax', device=str(jax.devices()[0]))
+        train_ds = ds['train'].shuffle(12)
+        test_ds = ds['test']
+        train_dataset = train_ds.with_format('jax')
+        test_dataset = test_ds.with_format('jax')
+        # ========= configure the dataloader ========
+
+        # create the functions
+        train_step, eval_step = self.create_function()
+        jitted_train_step = jax.jit(train_step)
+        jitted_eval_step = jax.jit(eval_step)
+        
+        # ========= main loop ===================
+        step = 0
+        for epoch in range(10):
+            Loss = 0
+            for batch in train_dataset.iter(128):
+                sample_img = batch['image'] / 127.5 - 1
+                sample_label = batch['label']
+                
+                key1, key2 = random.split(self.rng_key, 2)
+                timesteps = random.randint(key1, shape=[sample_img.shape[0],], 
+                                           minval=0, maxval=self.scheduler.timesteps)
+                
+                noises = random.normal(key2, shape=sample_img.shape)
+                noisy_images = self.scheduler.add_noise(sample_img, noises, timesteps)
+                label_conds = nn.one_hot(sample_label, num_classes=10)
+                
+                noisy_sample = einops.rearrange(noisy_images, 'b h w -> b (h w)')
+                noisy_sample = einops.repeat(noisy_sample, 'b s -> b s c', c = 1)
+                
+                metric, self.train_state = jitted_train_step(self.train_state, 
+                                                             noises, 
+                                                             noisy_sample, timesteps, label_conds)
+                step_loss = metric['loss']
+                Loss += step_loss
+                
+                self.rng_key = jax.random.fold_in(self.rng_key, data=step)
+                step += 1
+                if step % 100 == 0:
+                    print(f'Step: {step} || Step Loss: {step_loss}')
+            print(f'Epoch: {epoch} || Train Loss: {Loss}')
+            if epoch % 5 == 0:
+                self.save_model(epoch)
+        return None
