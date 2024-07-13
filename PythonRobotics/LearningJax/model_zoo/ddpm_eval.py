@@ -22,12 +22,12 @@ if __name__ == '__main__':
                        channel_scale_factor=(1, 2), 
                        num_groups=14)
     
-    log_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/LearningJax/model_zoo/res/checkpoints/checkpoint_76'
+    log_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/LearningJax/model_zoo/res/checkpoints/checkpoint_96'
     state_dict = checkpoints.restore_checkpoint(ckpt_dir=log_dir, target=None)
     
     variables = {'params': state_dict['params']}
 
-    bind_model = model.bind(variables)
+    jitted_model_apply = jax.jit(model.apply)
     
     noisy_sample = jax.random.normal(random.key(0), shape=(2, 28, 28))
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         k = scheduler.timesteps - t
         timesteps = jnp.array([k, k])
 
-        noise_pred = bind_model(noisy_sample, timesteps, label_conds, False)
+        noise_pred = jitted_model_apply(variables, noisy_sample, timesteps, label_conds, False)
         
         noisy_sample = scheduler.backward_denoising_ddpm(noisy_sample, noise_pred, timesteps)
 
