@@ -1,35 +1,35 @@
-from typing import Any
+from typing import Tuple
 import jax
 import flax.linen as nn
 import jax.numpy as jnp
-from conv1d_models import Conv1DBlock, Mish, DownSample1D, UpSample1D
+from conv2d_models import Conv2DBlock, Mish, DownSample2D, UpSample2D
 from positional_embedding import SinusoidalEmbedding
 
 
-class CondResConv1D(nn.Module):
+class CondResConv2D(nn.Module):
     '''
         conditional residual conv1d block
     '''
-    out_channels: int
-    kernel_size: int
+    out_channels: int 
+    kernel_size: Tuple
     ngroup: int = 8
 
     def setup(self):
-        # residual conv layer 1
-        self.conv1d_1 = Conv1DBlock(self.out_channels, 
+        # conv layer 1
+        self.conv2d_1 = Conv2DBlock(self.out_channels, 
                                     self.kernel_size, 
-                                    stride=1, 
+                                    stride=(1, 1), 
                                     padding='SAME', 
                                     ngroup=self.ngroup)
-        # residual conv layer 2
-        self.conv1d_2 = Conv1DBlock(self.out_channels, 
+        # conv layer 2
+        self.conv2d_2 = Conv2DBlock(self.out_channels, 
                                     self.kernel_size, 
-                                    stride=1, 
+                                    stride=(1, 1),
                                     padding='SAME', 
                                     ngroup=self.ngroup)
         
         # residual conv layer
-        self.res_conv1d = nn.Conv(self.out_channels, kernel_size=(1,))
+        self.res_conv2d = nn.Conv(self.out_channels, kernel_size=(1, 1))
 
         # conditional encoder
         cond_channels = 2 * self.out_channels
@@ -38,29 +38,29 @@ class CondResConv1D(nn.Module):
 
     def __call__(self, x, cond):
         '''
-            x : [ batch_size x seq_len x in_channels ]
+            x : [ batch_size x h x w x in_channels ]
             cond : [ batch_size x cond_dim]
 
             returns:
-            out : [ batch_size x seq_len x out_channels]
+            out : [ batch_size x h x w x out_channels]
         '''
-        out = self.conv1d_1(x) # [batch_size x seq_len x out_channels]
+        out = self.conv2d_1(x) # [batch_size x h x w x out_channels]
 
         condition_embed = self.cond_encoder(cond) # [ batch_size x 2*out_channels]
-        embed = jnp.reshape(condition_embed, (condition_embed.shape[0], 2, 1, self.out_channels))
+        embed = jnp.reshape(condition_embed, (condition_embed.shape[0], 2, 1, 1, self.out_channels))
 
-        scale = embed[:,0,...] # [ batch_size x 1 x out_channels]
+        scale = embed[:,0,...] # [ batch_size x 1 x 1 x out_channels]
         bias = embed[:,1,...]
         out = scale * out + bias
-        out = self.conv1d_2(out)
-        out = out + self.res_conv1d(x)
+        out = self.conv2d_2(out)
+        out = out + self.res_conv2d(x)
         return out
     
 
-class CondUnet1D(nn.Module):
+class CondUnet2D(nn.Module):
     diffusion_step_embed_dim: int
     condition_embed_dim: int
-    kernel_size: int
+    kernel_size: Tuple = (3, 3)
     basic_channel: int = 128
     channel_scale_factor: tuple = (1, 2, 4, 8)
     num_groups: int = 8
@@ -87,60 +87,59 @@ class CondUnet1D(nn.Module):
         # Downsampling phase
         pre_downsampling = []
         for down_index, down_channel in enumerate(channels):
-            x = CondResConv1D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
-            x = CondResConv1D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
-            x = DownSample1D(down_channel)(x)
+            x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+            x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+            x = DownSample2D(down_channel)(x)
+            
             pre_downsampling.append(x)
 
         # Middle block
         mid_channel = down_channel
-        x = CondResConv1D(mid_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
-        x = CondResConv1D(mid_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+        x = CondResConv2D(mid_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+        x = CondResConv2D(mid_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+        
 
         # Upsampling phase
         for up_index, up_channel in enumerate(reversed(channels)):
             residual = pre_downsampling.pop()
             x = jnp.concatenate([x, residual], -1)
-            x = CondResConv1D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
-            x = CondResConv1D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
-            x = UpSample1D(up_channel)(x)
-        x = CondResConv1D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+            x = CondResConv2D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+            x = CondResConv2D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+            x = UpSample2D(up_channel)(x)
+            
+        x = CondResConv2D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
         return x
 
 
 if __name__ == '__main__':
     import time
     batch_size = 2 
-    seq_len = 5 
-    channels = 5
+    h = 28
+    w = 28
+    channels = 16
 
-    x = jnp.ones([batch_size, seq_len, channels])
-    y = jnp.ones([batch_size, 1, channels]) * 2
+    x = jnp.ones([batch_size, h, w, channels])
+    y = jnp.ones([batch_size, 1, 1, channels]) * 2
     z = x + y
 
     print( x.shape, y.shape )
     print( z.shape )
-    print( z )
 
-    x = jnp.ones([batch_size, seq_len, channels])
+    x = jnp.ones([batch_size, h, w, channels])
     cond = jnp.ones([batch_size, 12])
-    model = CondResConv1D(64, 3)
+    model = CondResConv2D(32, (5, 5))
     output, variables = model.init_with_output({'params': jax.random.PRNGKey(0)}, x, cond)
-    print(output.shape)
-
-    sample = jnp.ones([4, seq_len, channels])
-    cond = jnp.ones([4, 12])
-    res = model.apply(variables, sample, cond)
-    print(res.shape)
+    print(x.shape, output.shape)
 
     print('=================================')
-    seq_len = 32
-    channels = 28
-    sample = jnp.ones([4, seq_len, channels])
+    h = 128
+    w = 128
+    channels = 32
+    sample = jnp.ones([4, h, w, channels])
     cond = jnp.ones([4, 12])
     diff_step = jnp.array([1, 2, 3, 4])
 
-    model = CondUnet1D(64, 64, 3, basic_channel=channels, channel_scale_factor=(1, 2, 4, 8), num_groups=4)
+    model = CondUnet2D(64, 64, (3, 3), basic_channel=channels, channel_scale_factor=(1, 2, 4, 8), num_groups=4)
 
     print(sample.shape)
     print('---')
@@ -152,8 +151,15 @@ if __name__ == '__main__':
     print('---')
     print(output.shape)
 
+
+    jitted_apply = jax.jit(model.apply)
     tc = time.time()
-    output = model.apply(variables, sample, diff_step, cond, False)
+    output = jitted_apply(variables, sample, diff_step, cond, False)
+    e_t = time.time() - tc
+    print(e_t)
+
+    tc = time.time()
+    output = jitted_apply(variables, sample, diff_step, cond, False)
     e_t = time.time() - tc
     print(e_t)
     

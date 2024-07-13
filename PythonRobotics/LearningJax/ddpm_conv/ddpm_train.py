@@ -19,7 +19,7 @@ if __name__ == '__main__':
     from unet1d import CondUnet1D
     import einops
 
-    ds = load_dataset("ylecun/mnist", cache_dir='/Users/y.xtang/Documents/ML/JAX_script/dataset')
+    ds = load_dataset("ylecun/mnist", cache_dir='/home/yxtang/CodeBase/PythonCourse/dataset')
     ds.set_format('jax')
     train_ds = ds['train']
     test_ds = ds['test']
@@ -43,12 +43,12 @@ if __name__ == '__main__':
     # model test
     label_conds = nn.one_hot(sample_label, num_classes=10)
     
-    channel = 1
-    noisy_sample = einops.rearrange(noisy_images, 'b h w -> b (h w)')
-    noisy_sample = einops.repeat(noisy_sample, 'b s -> b s c', c = channel)
-    model = CondUnet1D(32, 16, 15, basic_channel=channel, 
-                       channel_scale_factor=(1, 2, 4), 
-                       num_groups=1)
+    channel = 28
+    noisy_sample = noisy_images
+
+    model = CondUnet1D(16, 16, 7, basic_channel=channel, 
+                       channel_scale_factor=(1, 2), 
+                       num_groups=14)
     
     trainer = FlaxTrainer(model, noisy_sample, timesteps, label_conds, False)
     trainer.train()
