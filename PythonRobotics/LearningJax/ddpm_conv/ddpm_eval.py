@@ -12,7 +12,7 @@ from flax.training import checkpoints
 
 
 if __name__ == '__main__':
-    from unet1d import CondUnet1D
+    from PythonRobotics.LearningJax.ddpm_conv.unet2d import CondUnet1D
     import einops
     import matplotlib.cm as cm
 
