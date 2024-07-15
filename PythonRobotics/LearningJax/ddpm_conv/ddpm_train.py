@@ -16,7 +16,7 @@ from utils import FlaxTrainer
 
 
 if __name__ == '__main__':
-    from PythonRobotics.LearningJax.ddpm_conv.unet2d import CondUnet1D
+    from unet2d import CondUnet2D
     import einops
 
     ds = load_dataset("ylecun/mnist", cache_dir='/home/yxtang/CodeBase/PythonCourse/dataset')
@@ -27,29 +27,30 @@ if __name__ == '__main__':
     scheduler = DDPMScheduler(timesteps=500, seed=0)
     
     num = 10
-    sample_img = train_ds[0:0+num]['image'] / 127.5 - 1
+    sample_img = train_ds[0:0+num]['image'][...,None] / 127.5 - 1
     sample_label = train_ds[0:0+num]['label']
-
+    
     # sample noise to add to data points
     noises = random.normal(random.key(0), shape=sample_img.shape)
-
+    
     # sample a diffusion iteration for each data point
     timesteps = random.randint(random.key(0), shape=[sample_img.shape[0],], 
                                minval=0, maxval=scheduler.timesteps)
     
     # forward diffusion process
     noisy_images = scheduler.add_noise(sample_img, noises, timesteps)
-
+    
     # model test
     label_conds = nn.one_hot(sample_label, num_classes=10)
     
-    channel = 28
     noisy_sample = noisy_images
 
-    model = CondUnet1D(16, 16, 7, basic_channel=channel, 
-                       channel_scale_factor=(1, 2), 
-                       num_groups=14)
-    
+    model = CondUnet2D(64, 64, 
+                       in_channel=1, 
+                       kernel_size=(3, 3),
+                       basic_channel=16, 
+                       channel_scale_factor=(4, 8), 
+                       num_groups=8)
     trainer = FlaxTrainer(model, noisy_sample, timesteps, label_conds, False)
     trainer.train()
     

@@ -1,4 +1,8 @@
 import jax.numpy as jnp
+import jax
+
+def func(x):
+    return jnp.mean(x ** 2)
 
 
 if __name__ == '__main__':
@@ -8,3 +12,8 @@ if __name__ == '__main__':
     indices = jnp.array([0, 1, 5])
     res = jnp.take(x, indices)
     print(res)
+    
+    print(x.devices())
+    print(x.sharding)
+
+    jax.debug.visualize_array_sharding(x)

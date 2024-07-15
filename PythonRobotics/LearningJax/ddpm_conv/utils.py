@@ -38,7 +38,7 @@ class FlaxTrainer:
         # scheduler
         self.scheduler = DDPMScheduler(timesteps=500, seed=0)
         
-        self.log_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/LearningJax/model_zoo/res/checkpoints'
+        self.log_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/LearningJax/ddpm_conv/res/checkpoints'
 
     def _init_train_state(self, *inp_sample):
         '''
@@ -57,7 +57,7 @@ class FlaxTrainer:
 
         # ============= optimizer initialization =============
         print('========= Optimizer Initialization =========')
-        optimizer_ = optax.adamw(learning_rate=0.002)
+        optimizer_ = optax.adamw(learning_rate=0.001)
         optimizer = optax.chain(
             optax.clip_by_global_norm(1.0),
             optimizer_
@@ -65,6 +65,8 @@ class FlaxTrainer:
         opt_state = optimizer.init(params)
         print('========= Optimizer Initialization Done =========')
 
+        total_param_count = sum(x.size for x in jax.tree_util.tree_leaves(params))
+        print(f"**** Number of Params: {total_param_count} ****")
         # ============= assemble the train state =============
         train_state = TrainState(
             step=0,
@@ -152,24 +154,20 @@ class FlaxTrainer:
         
         # ========= main loop ===================
         step = 0
-        for epoch in range(500):
+        for epoch in range(50):
             Loss = 0
             for batch in train_dataset.iter(256):
-                sample_img = batch['image'] / 127.5 - 1.0
+                sample_img = batch['image'][...,None] / 127.5 - 1.0
+
                 sample_label = batch['label']
-                
                 label_conds = nn.one_hot(sample_label, num_classes=10)
 
                 key1, key2 = random.split(self.rng_key, 2)
 
-                timesteps = random.randint(key1, shape=[sample_img.shape[0],], 
-                                           minval=0, maxval=self.scheduler.timesteps)
-                
+                timesteps = random.randint(key1, shape=[sample_img.shape[0],], minval=0, maxval=self.scheduler.timesteps)
                 noises = random.normal(key2, shape=sample_img.shape)
 
-                noisy_images = self.scheduler.add_noise(sample_img, noises, timesteps)
-                
-                noisy_sample = noisy_images
+                noisy_sample = self.scheduler.add_noise(sample_img, noises, timesteps)
                 
                 metric, self.train_state = jitted_train_step(self.train_state, 
                                                              noises, 
@@ -182,8 +180,8 @@ class FlaxTrainer:
                 
                 if step % 100 == 0:
                     print(f'Step: {step} || Step Loss: {step_loss}')
-            print(f'Epoch: {epoch} || Train Loss: {Loss}')
 
+            print(f'Epoch: {epoch} || Train Loss: {Loss}')
             if epoch % 2 == 0:
                 self.save_model(epoch)
-        return None
+        return Loss
