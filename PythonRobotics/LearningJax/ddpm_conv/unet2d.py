@@ -4,6 +4,7 @@ import flax.linen as nn
 import jax.numpy as jnp
 from conv2d_models import Conv2DBlock, Mish, DownSample2D, UpSample2D
 from positional_embedding import SinusoidalEmbedding
+import math
 
 
 class CondResConv2D(nn.Module):
@@ -60,10 +61,12 @@ class CondResConv2D(nn.Module):
 class CondUnet2D(nn.Module):
     diffusion_step_embed_dim: int
     condition_embed_dim: int
+    in_channel: int
     kernel_size: Tuple = (3, 3)
     basic_channel: int = 128
-    channel_scale_factor: tuple = (1, 2, 4, 8)
+    channel_scale_factor: tuple = (2, 4, 8)
     num_groups: int = 8
+
 
     @nn.compact
     def __call__(self, x, diffustion_step, condition, train):
@@ -73,6 +76,7 @@ class CondUnet2D(nn.Module):
             condition: (batch_size, cond_dim)
             output: (batch_size, seq_len, input_dim)
         """
+        # assemble condition embedding
         diffustion_step_embed = nn.Sequential([SinusoidalEmbedding(self.diffusion_step_embed_dim),
                                                nn.Dense(2*self.diffusion_step_embed_dim), Mish(),
                                                nn.Dense(self.diffusion_step_embed_dim)])(diffustion_step)
@@ -84,30 +88,34 @@ class CondUnet2D(nn.Module):
         
         channels = [self.basic_channel * i for i in self.channel_scale_factor]
 
-        # Downsampling phase
+        # first conv layer
+        x = CondResConv2D(self.basic_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+        
+        # downsampling phase
         pre_downsampling = []
         for down_index, down_channel in enumerate(channels):
             x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
             x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
             x = DownSample2D(down_channel)(x)
-            
+            print( x.shape )
             pre_downsampling.append(x)
 
-        # Middle block
+        # middle block
         mid_channel = down_channel
         x = CondResConv2D(mid_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
         x = CondResConv2D(mid_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
-        
 
-        # Upsampling phase
+        # upsampling phase
         for up_index, up_channel in enumerate(reversed(channels)):
             residual = pre_downsampling.pop()
             x = jnp.concatenate([x, residual], -1)
             x = CondResConv2D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
             x = CondResConv2D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
             x = UpSample2D(up_channel)(x)
-            
-        x = CondResConv2D(up_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+
+        # last conv layer
+        num_ng = max(1, self.in_channel // 2)
+        x = CondResConv2D(self.in_channel, self.kernel_size, num_ng)(x, global_cond_embed)
         return x
 
 
@@ -132,24 +140,25 @@ if __name__ == '__main__':
     print(x.shape, output.shape)
 
     print('=================================')
-    h = 128
-    w = 128
-    channels = 32
+    h = 28
+    w = 28
+    channels = 1
     sample = jnp.ones([4, h, w, channels])
     cond = jnp.ones([4, 12])
     diff_step = jnp.array([1, 2, 3, 4])
 
-    model = CondUnet2D(64, 64, (3, 3), basic_channel=channels, channel_scale_factor=(1, 2, 4, 8), num_groups=4)
+    model = CondUnet2D(64, 64, in_channel=channels, kernel_size=(3, 3), 
+                       basic_channel=16, channel_scale_factor=(2, 4), num_groups=8)
 
-    print(sample.shape)
+    print('input_shape:', sample.shape)
     print('---')
     tc = time.time()
     output, variables = model.init_with_output({'params': jax.random.PRNGKey(0)}, 
                                                 sample, diff_step, cond, False)
-    e_t = time.time() - tc
-    print(e_t)
+    et = time.time() - tc
     print('---')
-    print(output.shape)
+    print('output_shape:', output.shape)
+    print(et)
 
 
     jitted_apply = jax.jit(model.apply)

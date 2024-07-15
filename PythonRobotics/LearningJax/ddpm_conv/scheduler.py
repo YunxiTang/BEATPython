@@ -6,8 +6,8 @@ import jax
 @jax.jit
 def forward_noising(xs, noises, ts, sqrt_alpha_bar, one_minus_sqrt_alpha_bar):
     flatten_ts = ts
-    reshaped_sqrt_alpha_bar_t = jnp.expand_dims(jnp.take(sqrt_alpha_bar, flatten_ts), [1, 2])
-    reshaped_one_minus_sqrt_alpha_bar_t = jnp.expand_dims(jnp.take(one_minus_sqrt_alpha_bar, flatten_ts), [1, 2])
+    reshaped_sqrt_alpha_bar_t = jnp.expand_dims(jnp.take(sqrt_alpha_bar, flatten_ts), [1, 2, 3])
+    reshaped_one_minus_sqrt_alpha_bar_t = jnp.expand_dims(jnp.take(one_minus_sqrt_alpha_bar, flatten_ts), [1, 2, 3])
     noisy_xs = reshaped_sqrt_alpha_bar_t  * xs + reshaped_one_minus_sqrt_alpha_bar_t  * noises
     return noisy_xs
 
@@ -30,7 +30,8 @@ class DDPMScheduler:
 
 
     def add_noise(self, xs, noises, steps):
-        noisy_xs = forward_noising(xs, noises, steps, self.sqrt_alpha_bar, self.one_minus_sqrt_alpha_bar)
+        noisy_xs = forward_noising(xs, noises, steps, 
+                                   self.sqrt_alpha_bar, self.one_minus_sqrt_alpha_bar)
         return noisy_xs
     
 
@@ -44,7 +45,7 @@ class DDPMScheduler:
         
         z = random.normal(key=self.key, shape=x_t.shape)
         _, self.key = random.split(self.key)
-        if t [0]> 0:
+        if t [0] > 0:
             return mean + (var ** 0.5) * z
         else:
             return mean
