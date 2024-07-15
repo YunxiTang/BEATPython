@@ -65,6 +65,8 @@ class FlaxTrainer:
         opt_state = optimizer.init(params)
         print('========= Optimizer Initialization Done =========')
 
+        total_param_count = sum(x.size for x in jax.tree_util.tree_leaves(params))
+        print(f"**** Number of Params: {total_param_count} ****")
         # ============= assemble the train state =============
         train_state = TrainState(
             step=0,

@@ -97,7 +97,6 @@ class CondUnet2D(nn.Module):
             x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
             x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
             x = DownSample2D(down_channel)(x)
-            print( x.shape )
             pre_downsampling.append(x)
 
         # middle block

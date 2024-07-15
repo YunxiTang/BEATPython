@@ -47,10 +47,10 @@ if __name__ == '__main__':
 
     model = CondUnet2D(64, 64, 
                        in_channel=1, 
+                       kernel_size=(3, 3),
                        basic_channel=16, 
-                       channel_scale_factor=(2, 4), 
+                       channel_scale_factor=(4, 8), 
                        num_groups=8)
-    print(noisy_sample.shape)
     trainer = FlaxTrainer(model, noisy_sample, timesteps, label_conds, False)
     trainer.train()
     
