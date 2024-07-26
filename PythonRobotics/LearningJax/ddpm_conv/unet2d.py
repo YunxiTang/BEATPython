@@ -4,7 +4,8 @@ import flax.linen as nn
 import jax.numpy as jnp
 from conv2d_models import Conv2DBlock, Mish, DownSample2D, UpSample2D
 from positional_embedding import SinusoidalEmbedding
-import math
+from mhsa import MHSA
+import einops
 
 
 class CondResConv2D(nn.Module):
@@ -58,6 +59,30 @@ class CondResConv2D(nn.Module):
         return out
     
 
+class PatchEmbedding(nn.Module):
+    img_size: int
+    patch_size: int
+    num_hiddens: int
+
+    def setup(self):
+        def _make_tuple(x):
+            if not isinstance(x, (list, tuple)):
+                return (x, x)
+            return x
+        img_size, patch_size = _make_tuple(self.img_size), _make_tuple(self.patch_size)
+        self.conv = nn.Conv(self.num_hiddens, 
+                            kernel_size=patch_size,
+                            strides=patch_size, padding=0)
+        self.num_patches = (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1])
+
+    def __call__(self, x):
+        # output shape: (batch size, no. of patches, no. of channels)
+        x = self.conv(x)
+        x = x.reshape((x.shape[0], self.num_patches, x.shape[3]))
+        return x
+
+
+
 class CondUnet2D(nn.Module):
     diffusion_step_embed_dim: int
     condition_embed_dim: int
@@ -96,6 +121,7 @@ class CondUnet2D(nn.Module):
         for down_index, down_channel in enumerate(channels):
             x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
             x = CondResConv2D(down_channel, self.kernel_size, self.num_groups)(x, global_cond_embed)
+
             x = DownSample2D(down_channel)(x)
             pre_downsampling.append(x)
 
@@ -170,4 +196,10 @@ if __name__ == '__main__':
     output = jitted_apply(variables, sample, diff_step, cond, False)
     e_t = time.time() - tc
     print(e_t)
+
+    print('=====================')
+    pe = PatchEmbedding(28, 7, 64)
+    outputs, variables = pe.init_with_output({'params': jax.random.PRNGKey(0)}, x)
+    print('output_shape:', outputs.shape)
+
     
