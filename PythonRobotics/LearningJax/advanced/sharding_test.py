@@ -1,11 +1,20 @@
-import jax
-import jax.experimental
-from jax.sharding import Mesh, NamedSharding, PartitionSpec
-from jax.experimental import mesh_utils
-import jax.numpy as jnp
+import os
 import numpy as np
 
+import jax
+import jax.numpy as jnp
+
+from jax.sharding import Mesh
+from jax.sharding import PositionalSharding
+from jax.sharding import NamedSharding
+from jax.sharding import PartitionSpec
+
+import jax.experimental
+from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
+
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8" 
 
 
 def matmul_fn(x: jax.Array, w: jax.Array, b: jax.Array) -> jax.Array:
@@ -43,16 +52,16 @@ if __name__ == '__main__':
     res = jax.jit(jax.nn.relu)(a_sharded)
     jax.debug.visualize_array_sharding(res)
     
-
+    print('+'*20)
     # =========== multiple axis sharding =================
-    devices = np.asanyarray(jax.local_devices()).reshape(4, 2)
-    print(type(devices), type(devices[0,0]))
+    # 0. get device
+    devices = mesh_utils.create_device_mesh((4, 2), jax.local_devices())
     planar_mesh = Mesh(devices, axis_names=('i', 'j'))
     print(planar_mesh)
 
-    batch_size = 192
-    input_dim = 64
-    output_dim = 128
+    batch_size = 8
+    input_dim = 2
+    output_dim = 2
 
     x = jax.random.normal(jax.random.PRNGKey(0), (batch_size, input_dim))
     w = jax.random.normal(jax.random.PRNGKey(1), (input_dim, output_dim))
@@ -69,11 +78,14 @@ if __name__ == '__main__':
     print("Output shape", out.shape)
     jax.debug.visualize_array_sharding(out)
 
-    matmul_sharded = shard_map(matmul_fn, 
-                               planar_mesh, 
+    matmul_sharded = shard_map(matmul_fn, planar_mesh, 
                                in_specs=(PartitionSpec("i", None), PartitionSpec(None, "j"), PartitionSpec("j")), 
                                out_specs=PartitionSpec("i", "j"))
-    
-    y = matmul_sharded(x_sharded, w_sharded, b_sharded)
+    matmul_jitted = jax.jit(matmul_fn)
+    # y = matmul_sharded(x_sharded, w_sharded, b_sharded)
+    y = matmul_sharded(x, w, b)
+    y2 = matmul_jitted(x_sharded, w_sharded, b_sharded)
     print("Output shape", y.shape)
     jax.debug.visualize_array_sharding(y)
+    print('=================================================================')
+    jax.debug.visualize_array_sharding(y2)
