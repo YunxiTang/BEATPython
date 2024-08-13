@@ -79,13 +79,15 @@ class LKTracker:
 
 
 if __name__ == '__main__':
-    device = 'cuda:0'
+    device = 'cpu' #'cuda:0'
 
     video_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/CoTracker/sample2.mp4'
-    frames = read_video_from_path(video_path)[180:280]    
-    video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float()  # B T C H W
-
+    raw_frames = read_video_from_path(video_path)[100:-1]
+    frames = np.array([cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in raw_frames]) 
+    print(frames.shape)
     
+    video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float()  # B T C H W
+    print(video.shape)
     ckpt_path2 = '/home/yxtang/CodeBase/co-tracker/checkpoints/cotracker2.pth'
     checkpoint = os.path.join(ckpt_path2)
     model = CoTrackerPredictor(checkpoint)
@@ -95,17 +97,18 @@ if __name__ == '__main__':
     queries = torch.tensor([[0., p[0], p[1]] for p in selected_particlses])
     
     if torch.cuda.is_available():
-        video = video.cuda()
-        model = model.cuda()
-        queries = queries.cuda()
+        video = video.to(device)
+        model = model.to(device)
+        queries = queries.to(device)
 
     pred_tracks, pred_visibility = model(video, queries=queries[None], backward_tracking=True)
     vis = Visualizer(save_dir='./saved_videos',
-                     grayscale=True,
-                     linewidth=3,
+                     grayscale=False,
+                     linewidth=2,
                      mode='rainbow',
+                     fps=15,
                      tracks_leave_trace=-1)
     vis.visualize(video=video,
                   tracks=pred_tracks,
                   visibility=pred_visibility,
-                  filename='queries');
+                  filename='queries_6');
