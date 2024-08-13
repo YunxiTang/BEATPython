@@ -4,12 +4,11 @@ import jax.numpy as jnp
 from jax import random
 from flax import linen as nn
 from typing import Any
-from flax.training import train_state, checkpoints
+from flax.training import train_state, checkpoints, prefetch_iterator
 import optax
-from datasets import Dataset, load_dataset
-import orbax
-from scheduler import DDPMScheduler
-import einops
+
+from tqdm import tqdm
+
 
 
 class TrainState(train_state.TrainState):
@@ -21,7 +20,7 @@ class FlaxTrainer:
     '''
         A trainer class for flax model
     '''
-    def __init__(self, model, *inp_sample):
+    def __init__(self, model, scheduler, *inp_sample):
         # create a rng_key for random streaming
         self.rng_key = jax.random.PRNGKey(seed=1200)
 
@@ -34,9 +33,10 @@ class FlaxTrainer:
 
         # init the model & train state
         self.train_state = self._init_train_state(*inp_sample)
+        del *inp_sample
         
         # scheduler
-        self.scheduler = DDPMScheduler(timesteps=500, seed=0)
+        self.scheduler = scheduler
         
         self.log_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/LearningJax/ddpm_conv/res/checkpoints'
 
@@ -82,8 +82,7 @@ class FlaxTrainer:
     def create_function(self):
         # loss function
         def loss_fn(params, state: TrainState, 
-                    noises,
-                    noisy_sample, timesteps, label_conds, train: bool):
+                    noises, noisy_sample, timesteps, label_conds, train: bool):
             model_variables = {'params': params, 'batch_stats': state.batch_stats}
             output = state.apply_fn(model_variables,
                                     noisy_sample, timesteps, label_conds, train,
@@ -118,8 +117,8 @@ class FlaxTrainer:
         def eval_step(state: TrainState, 
                       noises,
                       noisy_sample, timesteps, label_conds):
-            loss_val, updated_model_state = loss_fn( state.params, state, noises,
-                       noisy_sample, timesteps, label_conds, train=False)
+            loss_val, updated_model_state = loss_fn(state.params, state, noises,
+                                                    noisy_sample, timesteps, label_conds, train=False)
             
             return {'loss': loss_val}
         return train_step, eval_step
@@ -133,19 +132,15 @@ class FlaxTrainer:
                                     keep=4,
                                     overwrite=True)
    
-    def train(self):
+    def train(self, train_ds, eval_ds=None, test_ds=None):
         '''
             train
         '''
         assert self.train_state is not None, 'Train state is None!'
         # ========= configure the dataset ==========
-        ds = load_dataset("ylecun/mnist", cache_dir='/home/yxtang/CodeBase/PythonCourse/dataset')
-        ds.set_format('jax', device=str(jax.devices()[0]))
-        train_ds = ds['train'].shuffle(12)
-        test_ds = ds['test']
         train_dataset = train_ds.with_format('jax')
-        test_dataset = test_ds.with_format('jax')
-        # ========= configure the dataloader ========
+        if test_ds is not None:
+            test_dataset = test_ds.with_format('jax')
 
         # create the functions
         train_step, eval_step = self.create_function()
@@ -156,7 +151,7 @@ class FlaxTrainer:
         step = 0
         for epoch in range(50):
             Loss = 0
-            for batch in train_dataset.iter(256):
+            for batch in train_dataset.iter(32):
                 sample_img = batch['image'][...,None] / 127.5 - 1.0
 
                 sample_label = batch['label']
@@ -184,4 +179,5 @@ class FlaxTrainer:
             print(f'Epoch: {epoch} || Train Loss: {Loss}')
             if epoch % 2 == 0:
                 self.save_model(epoch)
-        return Loss
+        trained_state = self.train_state
+        return trained_state

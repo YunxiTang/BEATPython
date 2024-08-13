@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from daxbench.core.utils.util import get_expert_start_end_mpm
 from daxbench.core.engine.mpm_simulator import MPMState
 import time
-
+from PIL import Image
 import zarr
 import os
 import pathlib
@@ -198,7 +198,7 @@ def test1():
     num_feat = 20
     # create the environments
     batch_size = 1
-    dlo_len = 0.21
+    dlo_len = 0.25
     env_cfg = DefaultConf()
     env_cfg.rope_hardness = 0.1
     env_cfg.rope_width = [dlo_len, 0.005, 0.005]
@@ -228,15 +228,17 @@ def test1():
 
     for it in range(N):
         print(f'====== {it} =========')
-        acts = random_policy(batch_size, state=state, radius=0.4)
+        acts = random_policy(batch_size, state=state, radius=0.5)
         acts[0, 1] = 0
         acts[0, 4] = 0
 
         obs, reward, done, info = env.step_with_render(acts, state)
         # obs, reward, done, info = env.step_diff(acts, state)
         next_state = info["state"]
-        # image = env.render(next_state, visualize=True)
-
+        image = env.render(next_state, visualize=True)
+        
+        img = Image.fromarray(image[0])
+        img.save(f'./imgs/dax_rope_{it}.jpg')
         # [batch_size(1), num_paticle, 3]
         shape = np.array(next_state[0])[0, 0:num_particle:stride, :]
         print(shape.shape)
@@ -250,7 +252,7 @@ def test1():
 
         # state = info["state"]
         
-    logger.save_data()
+    # logger.save_data()
 
     fig = plt.figure(figsize=plt.figaspect(0.5))
     ax = fig.add_subplot(projection='3d')

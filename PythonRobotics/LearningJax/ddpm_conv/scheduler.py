@@ -45,7 +45,7 @@ class DDPMScheduler:
         
         z = random.normal(key=self.key, shape=x_t.shape)
         _, self.key = random.split(self.key)
-        if t [0] > 0:
+        if t[0] > 1:
             return mean + (var ** 0.5) * z
         else:
             return mean
