@@ -19,7 +19,7 @@ from rerun.blueprint import (
 import open3d as o3d
 
 
-num = 2009
+num = 2010
 video_path = f'/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/dom_dataset/episode_{num}/camera.zarr'
 js_path = f'/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/dom_dataset/episode_{num}/js.zarr'
 kp_tracked_path = f'/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/dom_dataset/episode_{num}/kp_track.zarr'
