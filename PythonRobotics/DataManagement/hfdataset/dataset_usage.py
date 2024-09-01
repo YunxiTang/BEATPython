@@ -5,6 +5,7 @@ from datasets import get_dataset_split_names
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
+from pprint import pprint
 
 
 def test1():
@@ -34,5 +35,15 @@ def test2():
     ds.save_to_disk('../../dataset/hf_ds')
     ds.to_parquet('../../dataset/hf_ds/tmp.parquet')
 
+
+def test3():
+    data = load_dataset('YXTang/private_gdm_mj', token=True, 
+                        cache_dir='/home/yxtang/CodeBase/PythonCourse/PythonRobotics/DataManagement/dataset',
+                        split='train')
+    pprint(data.features)
+    pprint(data[0])
+
+
 if __name__ == '__main__':
-    test2()
+    # test2()
+    test3()
