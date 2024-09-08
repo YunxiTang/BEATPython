@@ -6,4 +6,4 @@ import numpy as np
 
 
 if __name__ == '__main__':
-    checkpointer = ocp.Checkpointer(ocp.
+    ckpt_path = ocp.test_utils.erase_and_create_empty('/tmp/my-checkpoints/')
