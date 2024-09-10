@@ -16,6 +16,16 @@ class LinearNormalizer(nn.Module):
         return (x - min_val) / (max_val - min_val) * 2 - 1
     
 
+class GaussianNormalizer(nn.Module):
+    mean_stats: jnp.ndarray
+    std_stats: jnp.ndarray
+
+    def __call__(self, x: jnp.ndarray) -> jnp.ndarray:
+        mean_val = self.mean_stats
+        std_val = self.std_stats
+        return (x - mean_val) / std_val 
+    
+
 if __name__ == '__main__':
     from pprint import pprint
     data_stats = {
