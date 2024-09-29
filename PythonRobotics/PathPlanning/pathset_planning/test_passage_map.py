@@ -12,7 +12,7 @@ import jax.numpy as jnp
 from world_map import CityMap, Block
 from cost_map import CityCostMapLayer
 from rrt_star import RRTStar
-from visualizer import Visualizer
+from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
 
 
 if __name__ == '__main__':
