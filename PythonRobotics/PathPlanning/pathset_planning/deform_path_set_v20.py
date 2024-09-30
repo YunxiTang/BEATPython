@@ -27,7 +27,7 @@ if __name__ == "__main__":
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
 
-from visualizer import Visualizer
+from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
 from world_map import CityMap, Block
 from cost_map import CityCostMapLayer
 from rrt import SimpleNode
@@ -89,13 +89,13 @@ pivot_path[1].set_state(jnp.array([pivot_path[1].state[0],
                                    pivot_path[1].state[1]-2.0,
                                    pivot_path[1].state[2]]))
 
-pivot_path[4].set_state(jnp.array([pivot_path[4].state[0]+1.0, 
-                                   pivot_path[4].state[1]+1.0,
-                                   pivot_path[4].state[2]]))
+# pivot_path[4].set_state(jnp.array([pivot_path[4].state[0]+1.0, 
+#                                    pivot_path[4].state[1]+1.0,
+#                                    pivot_path[4].state[2]]))
 
-pivot_path[5].set_state(jnp.array([pivot_path[5].state[0]-1.0, 
-                                   pivot_path[5].state[1]+2.0,
-                                   pivot_path[5].state[2]]))
+# pivot_path[5].set_state(jnp.array([pivot_path[5].state[0]-1.0, 
+#                                    pivot_path[5].state[1]+2.0,
+#                                    pivot_path[5].state[2]]))
 
 pivot_path[6].set_state(jnp.array([pivot_path[6].state[0], 
                                    pivot_path[6].state[1]+2.0, #2
@@ -152,15 +152,6 @@ for i in range(transferred_start.shape[0]):
 
 print(len(transfered_path_list))
 # ======================= deformable the path ====================== #
-transfered_path_list[1][5].set_state(jnp.array([transfered_path_list[1][5].state[0], 
-                                                transfered_path_list[1][5].state[1]+0.5,
-                                                transfered_path_list[1][5].state[2]]))
-transfered_path_list[1][6].set_state(jnp.array([transfered_path_list[1][6].state[0], 
-                                                transfered_path_list[1][6].state[1]+1.5,
-                                                transfered_path_list[1][6].state[2]]))
-transfered_path_list[1][7].set_state(jnp.array([transfered_path_list[1][7].state[0], 
-                                                transfered_path_list[1][7].state[1]+1.5,
-                                                transfered_path_list[1][7].state[2]]))
 
 # ===================== plot ===============================
 fig, ax = plt.subplots(1, 1, figsize=(5, 5))

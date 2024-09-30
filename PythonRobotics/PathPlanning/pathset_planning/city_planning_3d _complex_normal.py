@@ -14,96 +14,82 @@ from world_map import CityMap, Block
 from rrt_star import CityRRTStar
 import numpy as np
 import jax.numpy as jnp
-from visualizer import Visualizer
+from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
 from cost_map import CityCostMapLayer
-import pickle
 import matplotlib.pyplot as plt
-import random
-
-def setup_seed(seed):
-    """set all the seed
-
-    Args:
-        seed (int): seed
-    """
-    np.random.seed(seed)
-    random.seed(seed)
-    
 
 
 if __name__ == '__main__':
-    seed = 695
-    setup_seed(seed)
-    print(seed)
-    start = np.array([0., 100., 30.])
-    goal = jnp.array([150., 70., 120.])
+    start = np.array([0., 100., 61.])
+    goal = jnp.array([150., 70., 74.])
 
     city_map = CityMap(start=start,
                        goal=goal,
                        resolution=0.05)
     city_map._zmin = start[2]
     city_map._zmax = goal[2]
-
     # add some obstacles
-    n = 10
-    pos_xs = np.linspace(10, 190, n)
-    pos_ys = np.linspace(10, 190, n)
+    obs1 = Block(22., 15., 83., 
+                 88., 75., clr=[0.4, 0.5, 0.4])
     
-    for i in range(10):
-        x_idx = random.choice(range(n))
-        y_idx = random.choice(range(n))
-        pos_x = pos_xs[x_idx]
-        pos_y = pos_ys[y_idx]
-
-        size_x = np.random.uniform(10, 25)
-        size_y = np.random.uniform(10, 25)
-        size_z = np.random.uniform(40, 180)
-        c = 0.5 + 0.5 * np.random.random(3)
-        city_map.add_obstacle(Block(size_x, size_y, size_z, 
-                                    pos_x, pos_y, 
-                                    clr=c))
+    obs2 = Block(17., 15., 93., 
+                 63.5, 45.5, clr=[0.5, 0.5, 0.6])
     
+    obs3 = Block(32., 30., 21., 
+                 102., 45.5,  clr=[0.3, 0.3, 0.4])
+    
+    city_map.add_obstacle(obs1)
+    city_map.add_obstacle(obs2)
+    city_map.add_obstacle(obs3)
+    city_map.add_obstacle(Block(40., 43., 75., 
+                                156., 33.5, clr=[0.3, 0.5, 0.4]))
+    city_map.add_obstacle(Block(26., 15., 60., 
+                                29., 27., clr=[0.3, 0.3, 0.4]))
+    city_map.add_obstacle(Block(30., 12., 20., 
+                                52., 72., clr=[0.6, 0.3, 0.4]))
+    city_map.add_obstacle(Block(24., 15., 97., 
+                                97., 100., clr=[0.2, 0.6, 0.4]))
+    city_map.add_obstacle(Block(20., 40., 88., 
+                                39., 132., clr=[0.6, 0.6, 0.8]))
+    city_map.add_obstacle(Block(22., 22., 117., 
+                                106., 181., clr=[0.6, 0.2, 0.4]))
+    city_map.add_obstacle(Block(28., 15., 50., 
+                                161., 81., clr=[0.6, 0.1, 0.4]))
     city_map.finalize()
     city_map.visualize_map()
-
-    
-    seed = int(time.time())
-    setup_seed(seed)
+    plt.show()
+    exit()
     planner = CityRRTStar(
         connect_range=25.,
         start_config=start,
         goal_config=goal,
         map=city_map,
-        step_size=1.,
-        goal_sample_rate=1.,
-        max_iter=100,
-        seed=seed
+        step_size=8.,
+        goal_sample_rate=10.,
+        max_iter=600,
+        seed=int(time.time())#333 #230 #33
     )
 
-    with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v2/node_list_with_kp_s6.pkl", "rb") as fp:
+    with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/node_list_without_kp.pkl", "rb") as fp:
         planner._node_list = pickle.load(fp)
 
-    with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v2/final_node_s6.pkl", "rb") as fp:
+    with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/final_node_without_kp.pkl", "rb") as fp:
         planner._potential_final_node = pickle.load(fp)
 
-    passage_cost_layer = CityCostMapLayer(city_map, k=-100.0)
+    passage_cost_layer = CityCostMapLayer(city_map, k=-0.0)
     passage_cost_layer.visualize(instant_show=True)
     planner.add_cost_layer(passage_cost_layer)
     
     path_sol = planner.plan(early_stop=False, interval=50, animation=bool(0))
-    
     if path_sol is not None:
         passage_info = [node_passage.min_dist for node_passage in path_sol[1]]
         print(passage_info)
-        planner.save_result(path_sol[0], 
-                            '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v2/with_kp_s7.pkl')
-        planner.save_result(planner._node_list, 
-                            '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v2/node_list_with_kp_s7.pkl')
-        planner.save_result(planner._potential_final_node, 
-                            '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v2/final_node_s7.pkl')
+        planner.save_result(path_sol[0], '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/without_kp_2.pkl')
+        planner.save_result(planner._node_list, '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/node_list_without_kp.pkl')
+        planner.save_result(planner._potential_final_node, '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/final_node_without_kp.pkl')
         
 
-    replay = ['plt', 'rviz'] #
+    replay = ['plt', 'rviz'] # 'rviz'
     if 'plt' in replay:
         if path_sol is not None:
             path_solution = path_sol[0]
@@ -116,7 +102,7 @@ if __name__ == '__main__':
                 ax.scatter(node.state[0], node.state[1], c='k', s=0.5)
                 if node.parent is not None:
                     ax.plot([node.state[0], node.parent.state[0]],
-                            [node.state[1], node.parent.state[1]], 
+                             [node.state[1], node.parent.state[1]], 
                             'k-.', linewidth=0.5)
             
             for i in range(len(path_solution)-1):

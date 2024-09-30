@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import numpy as np
 import jax.random as random
 import matplotlib.pyplot as plt
-
 import fcl
 from typing import Tuple
 from abc import abstractmethod, ABCMeta

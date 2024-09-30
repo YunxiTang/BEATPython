@@ -15,13 +15,13 @@ if __name__ == "__main__":
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
 
-from visualizer import Visualizer
+from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
 from world_map import CityMap, Block
 from cost_map import CityCostMapLayer
 from rrt import SimpleNode
 from utils import transfer_path
 
-with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/v1/with_kp_s3.pkl", "rb") as fp:
+with open("/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/result/with_kp_s3.pkl", "rb") as fp:
     path_solution = pickle.load(fp)
 
 path_solution.reverse()
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
 
-from visualizer import Visualizer
+from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
 from world_map import CityMap, Block
 from cost_map import CityCostMapLayer
 from rrt import SimpleNode
