@@ -14,12 +14,12 @@ from rrt import Node, RRT
 from components import CostMap
 
 
-class ModalRRTStar(RRT):
+class ModalRRTStar:
     """
         RRT star implementation
     """
-    def __init__(self, connect_range, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, connect_range, start_state, goal_state,
+                 ) -> None:
         self._connect_range = connect_range
         self._potential_final_node = self._start
         self._costMap = CostMap()

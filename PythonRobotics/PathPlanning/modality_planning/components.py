@@ -118,14 +118,51 @@ class CostMap:
             aux_infos.append(aux_info)
         return cost, aux_infos
 
+from abc import abstractmethod, ABCMeta
 
-class WorldMap:
+
+class ABCMap(metaclass=ABCMeta):
+    '''
+        abstract map
+    '''
+    @abstractmethod
+    def update_start(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def update_goal(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def update_start(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def sample_free_pos(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def check_pos_collision(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def check_line_collision(self):
+        return NotImplemented
+    
+    @abstractmethod
+    def finalize(self):
+        return NotImplemented
+
+
+class WorldMap(ABCMap):
     def __init__(self):
         self.desc = {
             Terrian.EvenTerrain: [0, 10.],
             Terrian.UnEvenTerrain: [10., 20.],
             Terrian.Obstacle: [20, 25.]
         }  
+        self._resolution = 0.2
+        self._dim = 1
         
     def get_terrain(self, x):
         if 0. <= x and x < 10.:
