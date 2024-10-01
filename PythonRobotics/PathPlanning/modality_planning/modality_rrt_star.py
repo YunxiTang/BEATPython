@@ -11,39 +11,7 @@ from itertools import combinations
 import jax.numpy as jnp
 from components import ABCCostMapLayer
 from rrt import Node, RRT
-    
-    
-class EuclideanCostMapLayer(ABCCostMapLayer):
-    '''
-        Eulidean cost map layer
-    '''
-    def __init__(self, name: str = 'euclidean'):
-        super().__init__()
-        self.name = name
-
-    def compute_edge_cost(self, parent_node: Node, child_node: Node):
-        cost = jnp.linalg.norm(parent_node._state - child_node._state)
-        return (cost, None)
-
-
-class CostMap:
-    '''
-        Cost map interface
-    '''
-    def __init__(self):
-        self._cost_layers = []
-
-    def add_cost_layer(self, cost_layer):
-        self._cost_layers.append(cost_layer)
-    
-    def compute_edge_cost(self, parent_node: Node, child_node: Node):
-        cost = 0.0
-        aux_infos = []
-        for cost_layer in self._cost_layers:
-            sub_cost, aux_info = cost_layer.compute_edge_cost(parent_node, child_node)
-            cost += sub_cost
-            aux_infos.append(aux_info)
-        return cost, aux_infos
+from components import CostMap
 
 
 class ModalRRTStar(RRT):

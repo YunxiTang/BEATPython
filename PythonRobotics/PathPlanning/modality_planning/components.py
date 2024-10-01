@@ -71,6 +71,73 @@ class ABCCostMapLayer(metaclass=ABCMeta):
         return NotImplemented
     
     
+class EuclideanCostMapLayer(ABCCostMapLayer):
+    '''
+        Eulidean cost map layer
+    '''
+    def __init__(self, name: str = 'euclidean'):
+        super().__init__()
+        self.name = name
+
+    def compute_edge_cost(self, parent_node: Node, child_node: Node):
+        cost = 0
+        if parent_node.state.mode == None:
+            pass
+        return (cost, None)
+    
+
+class ModalityCostMap(ABCCostMapLayer):
+    '''
+        modality-related cost map
+    '''
+    def __init__(self, name: str = 'modality'):
+        super().__init__()
+        self.name = name
+
+    def compute_edge_cost(self, parent_node: Node, child_node: Node):
+        cost = np.linalg.norm(parent_node._state - child_node._state)
+        return (cost, None)
+
+
+class CostMap:
+    '''
+        Cost map interface
+    '''
+    def __init__(self):
+        self._cost_layers = []
+
+    def add_cost_layer(self, cost_layer):
+        self._cost_layers.append(cost_layer)
+    
+    def compute_edge_cost(self, parent_node: Node, child_node: Node):
+        cost = 0.0
+        aux_infos = []
+        for cost_layer in self._cost_layers:
+            sub_cost, aux_info = cost_layer.compute_edge_cost(parent_node, child_node)
+            cost += sub_cost
+            aux_infos.append(aux_info)
+        return cost, aux_infos
+
+
+class WorldMap:
+    def __init__(self):
+        self.desc = {
+            Terrian.EvenTerrain: [0, 10.],
+            Terrian.UnEvenTerrain: [10., 20.],
+            Terrian.Obstacle: [20, 25.]
+        }  
+        
+    def get_terrain(self, x):
+        if 0. <= x and x < 10.:
+            return Terrian.EvenTerrain
+        elif 10 <= x and x < 20.:
+            return Terrian.UnEvenTerrain
+        elif 20. <= x and x < 25.:
+            return Terrian.Obstacle
+        else:
+            return Terrian.EvenTerrain
+
+    
 if __name__ == '__main__':
     from pprint import pprint
     mode = Modality.Rolling
@@ -82,3 +149,6 @@ if __name__ == '__main__':
     node = Node(state)
     node2 = Node(state2)
     pprint(node == node2)
+    
+    map = WorldMap()
+    print(map.get_terrain(12))

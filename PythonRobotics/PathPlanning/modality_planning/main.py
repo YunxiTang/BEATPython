@@ -9,6 +9,8 @@ if __name__ == "__main__":
     os.chdir(ROOT_DIR)
 
 from components import Node, State, Modality, Terrian
+from modality_rrt_star import ModalRRTStar
+
 if __name__ == '__main__':
     print('modality planning')
     print(Modality.Rolling)
