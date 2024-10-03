@@ -1,0 +1,12 @@
+meta:
+  author: tyx
+model:
+  inp_dim: 1
+  out_dim: 1
+train:
+  seed: 0
+checkpoint:
+  save_ckpt: true
+  ckpt_dir: ./tmp
+logging:
+  output_dir: ./tmp

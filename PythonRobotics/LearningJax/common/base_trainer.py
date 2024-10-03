@@ -37,23 +37,24 @@ class BaseTrainer:
         self._ckpt_dir = cfg.checkpoint.ckpt_dir
         self._output_dir = cfg.logging.output_dir
         
-        # create a rng_key for random streaming
+        # rng_key for random key streaming
         self.rng_key = jax.random.PRNGKey(seed=cfg.train.seed)
         
-        # create a model
+        # model
         self.model: nn.Module
         self.model = None
         
-        # init the train_state
+        # train_state
         self.train_state : TrainState
-        self.train_state = self._init_train_state(*inp_sample) 
-        del *inp_sample
+        self.train_state = None
         
         # lr scheduler
         self.lr_scheduler = None
         
         # checkpointer
-        self.checkpoint_manager = ocp.CheckpointManager(self._ckpt_dir, ocp.PyTreeCheckpointHandler())
+        ckpt_path = ocp.test_utils.erase_and_create_empty(os.path.join(self._ckpt_dir, 'checkpoints'))
+        checkpoint_option = ocp.CheckpointManagerOptions(max_to_keep=5, save_interval_steps=10, create=True)
+        self.checkpoint_manager = ocp.CheckpointManager(directory=ckpt_path, options=checkpoint_option)
     
     def _init_train_state(self, *inp_sample):
         '''
@@ -65,7 +66,7 @@ class BaseTrainer:
         # ============= model initialization ================
         print('========= Model Initialization ==============')
         params_key, dropout_key, self.rng_key = jax.random.split(self.rng_key, 3)
-        variables = self.model.init({'params': params_key, 'droput_rng': dropout_key}, *inp_sample)
+        variables = self.model.init({'params': params_key, 'dropout': dropout_key}, *inp_sample)
         params = variables.get('params')
         batch_stats = variables.get('batch_stats', {})
         print('========= Model Initialization Done =========')
@@ -106,6 +107,11 @@ class BaseTrainer:
         '''
             main body of training/evaluation and so on
         '''
+        # 1. save **_cfg.yaml once
+        
+        # 2. setup the train and eval dataset
+        
+        # initialize the train state firstly
         raise NotImplementedError
         
     
@@ -165,8 +171,9 @@ class BaseTrainer:
         payload = {
             'cfg': self._cfg,
             'train_state': self.train_state,
-            'pickles': dict()
+            'pickles': dict({'rng_key': self.rng_key})
         }
+        
         step = self.state.step
         if use_thread:
             self._saving_thread = threading.Thread(
@@ -191,6 +198,13 @@ class BaseTrainer:
         with open('snapshot_path', 'rb') as f:
             restored_trainer = dill.load(f)
         return restored_trainer
+    
+    @classmethod
+    def create_from_checkpoint(cls, checkpoint_path):
+        '''
+            class method: create a trainer from a previous checkpoint
+        '''
+        
     
     @property
     def output_dir(self):

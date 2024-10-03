@@ -33,7 +33,7 @@ class FlaxTrainer:
 
         # init the model & train state
         self.train_state = self._init_train_state(*inp_sample)
-        del *inp_sample
+        # del *inp_sample
         
         # scheduler
         self.scheduler = scheduler
@@ -50,7 +50,7 @@ class FlaxTrainer:
         print('========= Model Initialization ==========')
         params_key, dropout_key, self.rng_key = jax.random.split(self.rng_key, 3)
         variables = self.model.init({'params': params_key,
-                                     'droput_rng': dropout_key}, *inp_sample)
+                                     'dropout': dropout_key}, *inp_sample)
         params = variables.get('params')
         batch_stats = variables.get('batch_stats', {})
         print('========= Model Initialization Done =========')
@@ -86,7 +86,7 @@ class FlaxTrainer:
             model_variables = {'params': params, 'batch_stats': state.batch_stats}
             output = state.apply_fn(model_variables,
                                     noisy_sample, timesteps, label_conds, train,
-                                    rngs={'dropout_rng': state.dropout_rng} if train else None,
+                                    rngs={'dropout': state.dropout_rng} if train else None,
                                     mutable=['batch_stats'] if train else False)
             
             if train:
