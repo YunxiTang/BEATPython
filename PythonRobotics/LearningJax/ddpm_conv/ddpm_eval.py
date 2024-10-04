@@ -37,7 +37,7 @@ if __name__ == '__main__':
                        kernel_size=(5, 5), basic_channel=16, 
                        channel_scale_factor=(4, 8), num_groups=8)
     
-    log_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/LearningJax/ddpm_conv/res/checkpoints/checkpoint_48'
+    log_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/LearningJax/ddpm_conv/res/checkpoints/checkpoint_18'
     state_dict = checkpoints.restore_checkpoint(ckpt_dir=log_dir, target=None)
     variables = {'params': state_dict['params']}
     jitted_model_apply = jax.jit(model.apply)

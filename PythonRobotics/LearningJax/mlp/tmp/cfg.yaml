@@ -5,6 +5,12 @@ model:
   out_dim: 1
 train:
   seed: 0
+  debug: false
+  optimizer: adamw
+  lr: 0.001
+  grad_norm_clip: 1.0
+  batch_size: 128
+  max_epoch: 50
 checkpoint:
   save_ckpt: true
   ckpt_dir: ./tmp
