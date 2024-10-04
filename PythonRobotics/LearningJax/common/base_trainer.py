@@ -2,12 +2,14 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from jax import random
+import flax
 from flax import linen as nn
 from typing import Any
 from flax.training import train_state, prefetch_iterator
 import orbax.checkpoint as ocp
 import optax
-from  omegaconf import OmegaConf
+from omegaconf import OmegaConf
+import omegaconf
 from tqdm import tqdm
 
 import copy
@@ -19,6 +21,13 @@ import threading
 
 import dill
 
+
+def build_optimizer(type: str, lr:float):
+    if type == 'adamw':
+        return optax.adamw(learning_rate=lr)
+    elif type == 'adamw':
+        return optax.sgd(learning_rate=lr)
+
 class TrainState(train_state.TrainState):
     batch_stats: Any = None
     dropout_rng: Any = None
@@ -28,8 +37,8 @@ class BaseTrainer:
     '''
         A base trainer class for flax model
     '''
-    include_keys = tuple()
-    exclude_keys = tuple()
+    include_keys = tuple(['epoch', 'rng_key'])
+    exclude_keys = tuple(['_saving_thread'])
     
     def __init__(self, cfg: OmegaConf):
         self._cfg = cfg
@@ -51,10 +60,10 @@ class BaseTrainer:
         # lr scheduler
         self.lr_scheduler = None
         
+        self.epoch = 0
+        
         # checkpointer
-        ckpt_path = ocp.test_utils.erase_and_create_empty(os.path.join(self._ckpt_dir, 'checkpoints'))
-        checkpoint_option = ocp.CheckpointManagerOptions(max_to_keep=5, save_interval_steps=10, create=True)
-        self.checkpoint_manager = ocp.CheckpointManager(directory=ckpt_path, options=checkpoint_option)
+        # use dill here. TODO: use more adavanced tool
     
     def _init_train_state(self, *inp_sample):
         '''
@@ -73,9 +82,10 @@ class BaseTrainer:
 
         # ============= optimizer initialization =============
         print('========= Optimizer Initialization =========')
-        optimizer_ = optax.adamw(learning_rate=0.001)
+        optimizer_ = build_optimizer(self._cfg.train.optimizer, self._cfg.train.lr)
+        
         optimizer = optax.chain(
-            optax.clip_by_global_norm(1.0),
+            optax.clip_by_global_norm(self._cfg.train.grad_norm_clip),
             optimizer_
         )
         opt_state = optimizer.init(params)
@@ -111,7 +121,7 @@ class BaseTrainer:
         
         # 2. setup the train and eval dataset
         
-        # initialize the train state firstly
+        # initialize the train state if self.train_state is None
         raise NotImplementedError
         
     
@@ -153,11 +163,11 @@ class BaseTrainer:
         return data_stats_path.absolute()
     
     def get_checkpoint_path(self, tag='latest'):
-        return pathlib.Path(self._ckpt_dir).joinpath(f'{tag}'.ckpt)
+        ckpt_path = pathlib.Path(self._ckpt_dir).joinpath('checkpoints', f'epoch_{tag}.pkl')
+        ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+        return ckpt_path.absolute()
     
-    def save_checkpoint(self, tag='latest', ckpt_path=None,
-                        exclude_keys=None, include_keys=None, 
-                        use_thread=True):
+    def save_checkpoint(self, tag: str = 'latest', exclude_keys=None, include_keys=None, use_thread=True):
         '''
             save checkpoint
         '''
@@ -171,15 +181,23 @@ class BaseTrainer:
         payload = {
             'cfg': self._cfg,
             'train_state': self.train_state,
-            'pickles': dict({'rng_key': self.rng_key})
+            'pickles': dict()
         }
         
-        step = self.state.step
+        for key, val in self.__dict__.items():
+            if key in self.include_keys:
+                payload['pickles'][key] = val
+        
+        ckpt_path = self.get_checkpoint_path(f'{tag}')
         if use_thread:
-            self._saving_thread = threading.Thread(
-                target=self.checkpoint_manager.save, kargs={'step': step, 'items': payload}
-            )
+            f = open(ckpt_path,'wb')
+            self._saving_thread = threading.Thread(target=dill.dump, kwargs={'file': f, 'obj': payload})
             self._saving_thread.start()
+            self._saving_thread.join()
+            f.close()
+        else:
+            with open(ckpt_path,'wb') as f:
+                dill.dump(payload, f)
         return None
     
     def save_snapshot(self, tag='latest'):
@@ -204,8 +222,9 @@ class BaseTrainer:
         '''
             class method: create a trainer from a previous checkpoint
         '''
+        with open(checkpoint_path, 'rb') as f:
+            payload = dill.load(f)
         
-    
     @property
     def output_dir(self):
         return self._output_dir

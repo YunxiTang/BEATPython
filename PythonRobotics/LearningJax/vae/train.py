@@ -181,7 +181,7 @@ class FlaxTrainer:
        
         # eval step function
         def eval_step(state: TrainState, batch):
-            loss_value, _ = loss_fn( state.params, state, batch, train=True )
+            loss_value, _ = loss_fn( state.params, state, batch, train=False )
             return {'loss': loss_value}
         return train_step, eval_step
    
