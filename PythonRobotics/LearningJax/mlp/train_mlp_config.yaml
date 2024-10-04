@@ -7,6 +7,17 @@ model:
 
 train:
   seed: 0
+  debug: false #True
+  # optimizer
+  optimizer: 'adamw'
+  lr: 0.001
+  grad_norm_clip: 1.0
+
+  # dataloader
+  batch_size: 128
+
+  # loop control
+  max_epoch: 50
 
 checkpoint:
   save_ckpt: True
