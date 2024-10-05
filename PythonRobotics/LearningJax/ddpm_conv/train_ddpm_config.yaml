@@ -1,9 +1,6 @@
 meta:
   author: 'tyx'
 
-model:
-  inp_dim: 1
-  out_dim: 1
 
 train:
   seed: 10

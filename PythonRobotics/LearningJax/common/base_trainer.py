@@ -1,18 +1,13 @@
-import numpy as np
 import jax
-import jax.numpy as jnp
 from jax import random
 import flax
 from flax import linen as nn
 from typing import Any
-from flax.training import train_state, prefetch_iterator
+from flax.training import train_state, orbax_utils
 import orbax.checkpoint as ocp
 import optax
 from omegaconf import OmegaConf
-import omegaconf
 from tqdm import tqdm
-
-import copy
 
 import os
 import pathlib
@@ -21,11 +16,12 @@ import threading
 
 import dill
 
-
-def build_optimizer(type: str, lr:float):
-    if type == 'adamw':
+def build_optimizer(opt_type: str, lr:float):
+    if opt_type == 'adamw':
         return optax.adamw(learning_rate=lr)
-    elif type == 'adamw':
+    elif opt_type == 'adam':
+        return optax.adam(learning_rate=lr)
+    else:
         return optax.sgd(learning_rate=lr)
 
 class TrainState(train_state.TrainState):
@@ -37,7 +33,7 @@ class BaseTrainer:
     '''
         A base trainer class for flax model
     '''
-    include_keys = tuple(['epoch', 'rng_key'])
+    include_keys = tuple(['model', 'epoch', 'rng_key', 'lr_scheduler'])
     exclude_keys = tuple(['_saving_thread'])
     
     def __init__(self, cfg: OmegaConf):
@@ -47,7 +43,7 @@ class BaseTrainer:
         self._output_dir = cfg.logging.output_dir
         
         # rng_key for random key streaming
-        self.rng_key = jax.random.PRNGKey(seed=cfg.train.seed)
+        self.rng_key = random.PRNGKey(seed=cfg.train.seed)
         
         # model
         self.model: nn.Module
@@ -59,11 +55,12 @@ class BaseTrainer:
         
         # lr scheduler
         self.lr_scheduler = None
-        
         self.epoch = 0
         
         # checkpointer
         # use dill here. TODO: use more adavanced tool
+        # self.checkpointer = ocp.PyTreeCheckpointer()
+
     
     def _init_train_state(self, *inp_sample):
         '''
@@ -82,17 +79,21 @@ class BaseTrainer:
 
         # ============= optimizer initialization =============
         print('========= Optimizer Initialization =========')
-        optimizer_ = build_optimizer(self._cfg.train.optimizer, self._cfg.train.lr)
+        if self.lr_scheduler is None:
+            lr = self._cfg.train.lr
+        else:
+            lr = self.lr_scheduler
+        optimizer_ = build_optimizer(self._cfg.train.optimizer, lr)
         
         optimizer = optax.chain(
             optax.clip_by_global_norm(self._cfg.train.grad_norm_clip),
-            optimizer_
+            optimizer_,
         )
         opt_state = optimizer.init(params)
         print('========= Optimizer Initialization Done =========')
         
         total_param_count = sum(x.size for x in jax.tree_util.tree_leaves(params))
-        print(f"**** Number of Params: {total_param_count} ****")
+        print(f"=== Number of Params: {total_param_count} ===")
         # ============= assemble the train state =============
         train_state = TrainState(
             step=0,
@@ -113,7 +114,7 @@ class BaseTrainer:
         '''
         raise NotImplementedError
     
-    def run(self, cfg=None):
+    def run(self):
         '''
             main body of training/evaluation and so on
         '''
@@ -164,7 +165,7 @@ class BaseTrainer:
     
     def get_checkpoint_path(self, tag='latest'):
         ckpt_path = pathlib.Path(self._ckpt_dir).joinpath('checkpoints', f'epoch_{tag}.pkl')
-        ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+        ckpt_path.parent.mkdir(parents=False, exist_ok=True)
         return ckpt_path.absolute()
     
     def save_checkpoint(self, tag: str = 'latest', exclude_keys=None, include_keys=None, use_thread=True):
@@ -198,7 +199,7 @@ class BaseTrainer:
         else:
             with open(ckpt_path,'wb') as f:
                 dill.dump(payload, f)
-        return None
+        return ckpt_path
     
     def save_snapshot(self, tag='latest'):
         '''
@@ -211,19 +212,33 @@ class BaseTrainer:
             dill.dump(self, f)
         return snapshot_path.absolute()
     
+    def load_checkpoint(self, ckpt_path):
+        ckpt_path = pathlib.Path(ckpt_path)
+        with open(ckpt_path, 'rb') as f:
+            payload = dill.load(f)
+            
+        self._cfg = payload['cfg']
+        self.train_state = payload['train_state']
+        for key in payload['pickles'].keys():
+            self.__dict__[key] = payload['pickles'][key]
+    
     @classmethod
     def create_from_snapshot(cls, snapshot_path):
-        with open('snapshot_path', 'rb') as f:
+        with open(snapshot_path, 'rb') as f:
             restored_trainer = dill.load(f)
         return restored_trainer
     
     @classmethod
-    def create_from_checkpoint(cls, checkpoint_path):
+    def create_from_checkpoint(cls, ckpt_path):
         '''
             class method: create a trainer from a previous checkpoint
         '''
-        with open(checkpoint_path, 'rb') as f:
+        with open(ckpt_path, 'rb') as f:
             payload = dill.load(f)
+        instance = cls(payload['cfg'])
+        # load checkpoint
+        instance.load_checkpoint(ckpt_path)
+        return instance
         
     @property
     def output_dir(self):
