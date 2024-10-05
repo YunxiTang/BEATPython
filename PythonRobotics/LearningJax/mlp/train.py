@@ -17,6 +17,7 @@ if __name__ == '__main__':
     # pprint(cfg)
     trainer = MLPTrainer(cfg)
     
+    print(trainer.include_keys)
     trainer.run()
     
     

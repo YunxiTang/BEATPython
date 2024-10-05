@@ -3,6 +3,7 @@ from common.base_trainer import BaseTrainer, TrainState
 import copy
 import jax.numpy as jnp
 import jax
+from jax import random
 import optax
 
 from model import MLP
@@ -13,7 +14,12 @@ class MLPTrainer(BaseTrainer):
     def __init__(self, cfg: OmegaConf):
         super().__init__(cfg)
         self.model = MLP(cfg.model.inp_dim, cfg.model.out_dim)
-        
+        self.lr_scheduler = optax.exponential_decay(
+                            init_value=self._cfg.train.lr,  # Initial learning rate
+                            transition_steps=1000,          # Number of steps before decay begins
+                            decay_rate=0.99,                # Factor by which the learning rate decays
+                            end_value=0.0001                # Minimum learning rate
+                        )
     
     def create_function(self):
         def loss_fn(params, state: TrainState, batch, train: bool):
@@ -36,7 +42,7 @@ class MLPTrainer(BaseTrainer):
             loss_val_grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
             (loss_value, updated_model_state), grads = loss_val_grad_fn(state.params, state, batch, train=True)
             # remember to update the dropout rng!
-            dropout_rng = jax.random.fold_in(state.dropout_rng, data=state.step)
+            dropout_rng = random.fold_in(state.dropout_rng, data=state.step)
             updated_state = state.apply_gradients(
                 grads=grads,
                 batch_stats=updated_model_state['batch_stats'],
@@ -64,10 +70,14 @@ class MLPTrainer(BaseTrainer):
         y = 2 * x + jax.random.normal(jax.random.PRNGKey(0), (1000, 1)) * 0.01
         train_dataloader = FlaxDataloader(x, y, cfg.train.batch_size, jax.random.PRNGKey(12))
         if self.train_state is None:
+            print('****** Creating TrainState ********')
             input_sample = {'x': x[0:2]}
             self.train_state = self._init_train_state(input_sample['x'], False)
+            print('****** Creating TrainState Done ********')
         
+        print('****** Creating Function ********')
         loss_fn, train_step, eval_step = self.create_function()
+        print('****** Creating Function Done ********')
         
         if not cfg.train.debug:
             train_step = jax.jit(train_step)
@@ -82,9 +92,12 @@ class MLPTrainer(BaseTrainer):
                 metric, self.train_state = train_step(self.train_state, train_batch)
                 loss = metric['loss']
                 Loss += jax.device_get(loss)
-            print(f'Epoch {epoch}: Loss {Loss}')
+            print(f'Epoch {self.epoch}: Loss {Loss}')
             
-            if epoch % 10 == 0:
-                self.save_checkpoint(tag=f'{epoch}', use_thread=True)
+            if epoch % cfg.checkpoint.ckpt_interval == 0:
+                self.save_checkpoint(tag=f'{self.epoch}', use_thread=True)
             self.epoch += 1
+        
+        # save last snapshot
+        self.save_snapshot()
             
