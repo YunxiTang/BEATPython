@@ -18,6 +18,8 @@ if __name__ == '__main__':
     trainer = MLPTrainer(cfg)
     
     print(trainer.include_keys)
-    trainer.run()
+    
+    print(trainer.train_state)
+    # trainer.run()
     
     
