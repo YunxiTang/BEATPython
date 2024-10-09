@@ -35,10 +35,10 @@ def resume_train():
     from mlp_trainer import MLPTrainer
     
     trainer = MLPTrainer.create_from_checkpoint('./tmp/checkpoints/epoch_90.pkl')
-    # pprint(trainer.include_keys)
-    trainer.run()
+    pprint(trainer.train_state)
+    # trainer.run()
     
 if __name__ == '__main__':
-    eval()
-    # resume_train()
+    # eval()
+    resume_train()
     
