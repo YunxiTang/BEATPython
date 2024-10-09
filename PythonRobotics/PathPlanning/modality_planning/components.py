@@ -74,7 +74,7 @@ class WorldMap:
         self._dim = 1
         self.x_min = x_min
         self.x_max = x_max
-        num = int((x_max - x_min) / resolution)
+        num = int((x_max - x_min) / resolution) + 1
         self.points = np.linspace(x_min, x_max, num=num, endpoint=True).tolist()
         
     def get_terrain(self, x):
@@ -82,8 +82,10 @@ class WorldMap:
             return Terrian.EvenTerrain
         elif 10 <= x and x < 20.:
             return Terrian.UnEvenTerrain
-        elif 20. <= x and x <= 25.:
-            return Terrian.Obstacle
+        # elif 20 <= x and x < 30:
+        #     return Terrian.EvenTerrain
+        # elif 30. <= x and x < 35.:
+        #     return Terrian.Obstacle
         else:
             return Terrian.EvenTerrain
     
@@ -130,7 +132,8 @@ class WorldMap:
         if not toward_goal:
             x = jax.random.uniform(rng_key, shape=(1,), 
                                    minval=self.x_min,
-                                   maxval=self.x_max) #np.random.uniform(low=self.x_min, high=self.x_max, size=(1,))
+                                   maxval=self.x_max) 
+            # x = jnp.array( [random.choice(self.points)] )
         else:
             x = jnp.array([self.x_max])
         terrrian = self.get_terrain(x)

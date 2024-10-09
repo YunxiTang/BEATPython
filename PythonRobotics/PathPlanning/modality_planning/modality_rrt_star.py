@@ -231,6 +231,6 @@ class ModalityRRTStar:
         near_last_node_idxs = self._find_near_node_idx(last_node)
         last_node = self._choose_parent(near_last_node_idxs, last_node)
         sol = self._generate_final_course(last_node)
-        print(f'Find a path with {len(sol)} nodes due to max_iter. Goal cost: {last_node.path_cost}')
+        print(f'Find a path with {len(sol)} nodes due to max_iter. Goal cost: {last_node.path_cost * self._step_size}')
         
         return sol

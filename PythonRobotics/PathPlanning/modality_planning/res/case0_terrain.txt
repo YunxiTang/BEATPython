@@ -1,0 +1,11 @@
+def get_terrain(self, x):
+        if 0. <= x and x < 10.:
+            return Terrian.EvenTerrain
+        elif 10 <= x and x < 20.:
+            return Terrian.UnEvenTerrain
+        # elif 20 <= x and x < 30:
+        #     return Terrian.EvenTerrain
+        # elif 30. <= x and x < 35.:
+        #     return Terrian.Obstacle
+        else:
+            return Terrian.EvenTerrain
