@@ -1,5 +1,11 @@
 from openai import OpenAI
+import openai
 client = OpenAI()
+
+usage = openai.api_usage()
+
+# Output the usage details
+print(usage)
 
 completion = client.chat.completions.create(
     model="gpt-3.5-turbo", #"gpt-4o-mini",
