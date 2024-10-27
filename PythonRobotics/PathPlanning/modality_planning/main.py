@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     result_path = pathlib.Path('./res/case0_res.pkl')
     with open(result_path, 'wb') as f:
-        dill.dump({'xs': xs, 'modes': modes}, f)
+        dill.dump({'xs': X, 'modes': modes}, f)
     
     plt.figure()
     plt.step(X, modes)

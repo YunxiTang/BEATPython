@@ -56,7 +56,44 @@ def test2():
     print( tmp )
     return tmp
 
+def test3():
+    tokens = torch.randn(3, 5, 4)
+    # Index tensor (batch_size x num_indices), containing the indices to gather
+    selected_indices = torch.tensor([[0, 2], 
+                                     [1, 3], 
+                                     [0, 4]])
+    # We need to unsqueeze the indices to match the dimensions of `tokens`
+    # indices shape should match tokens in all dimensions except dim=1
+    # (batch_size x num_indices x embedding_dim)
+    indices = selected_indices.unsqueeze(-1).expand(-1, -1, tokens.size(-1))
+    
+    # Use torch.gather to select the tokens at the specified indices
+    selected_tokens = torch.gather(tokens, dim=1, index=indices)
+
+    print("Original Tokens Tensor:")
+    print(tokens)
+    print("\nSelected Tokens Tensor:")
+    print(selected_tokens)
+    
+def test4():
+    # Example input tensor (batch_size x seq_len x embedding_dim)
+    tokens = torch.randn(3, 5, 4)  # 3 sequences, each of length 5, embedding dimension of 4
+
+    # Index tensor (batch_size x num_indices), containing the indices to gather
+    indices = torch.tensor([[0, 2], [1, 3], [0, 4]])  # Select 2 tokens for each sequence
+
+    # Use advanced indexing to directly select the tokens
+    batch_indices = torch.arange(tokens.size(0)).unsqueeze(1)  # Create batch indices (batch_size x 1)
+
+    # Advanced indexing to select specific tokens
+    selected_tokens = tokens[batch_indices, indices]
+
+    print("Original Tokens Tensor:")
+    print(tokens)
+    print("\nSelected Tokens Tensor:")
+    print(selected_tokens)
+
 
 if __name__ == '__main__':
-    test2()
+    test4()
     
