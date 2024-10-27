@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pygal as pgl
 
 plt.rcParams['axes.unicode_minus'] = False
 
@@ -30,8 +31,8 @@ values = np.concatenate((values,[values[0]]))
 ax.plot(angles, values, 'o-', color='k', linewidth=2)
 ax.fill(angles, values, 'k', alpha=0.25)
 
-ax.set_thetagrids(angles * 180/np.pi, feature)
+ax.set_thetagrids(angles * 180 / np.pi, feature)
 ax.set_ylim(0, 100)
 ax.grid(True)
-plt.savefig('./lidar_map.jpg', dpi=1500)
+# plt.savefig('./lidar_map.jpg', dpi=1500)
 plt.show()

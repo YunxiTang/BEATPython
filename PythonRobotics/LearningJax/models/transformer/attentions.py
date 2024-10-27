@@ -5,7 +5,7 @@ from typing import Optional
 from einops.einops import rearrange
 
 
-class MultiHeadCrossAttention(nn.Module):
+class MultiheadAttention(nn.Module):
     nhead: int
     embed_dim: int
     dropout_rate: float
@@ -25,7 +25,7 @@ class MultiHeadCrossAttention(nn.Module):
         # dropout layer
         self.dropout = nn.Dropout(self.dropout_rate)
         
-    def _spli_heads(self, x:jnp.ndarray):
+    def _split_heads(self, x:jnp.ndarray):
         """
             Split the last dimension into (num_heads, head_dim) and transpose.
         """
@@ -40,14 +40,14 @@ class MultiHeadCrossAttention(nn.Module):
         V = self.v_proj(value)
         
         # Split heads for multi-head attention
-        Q = self.split_heads(Q)
-        K = self.split_heads(K)
-        V = self.split_heads(V)
+        Q = self._split_heads(Q)
+        K = self._split_heads(K)
+        V = self._split_heads(V)
         
         
 if __name__ == '__main__':
     from pprint import pprint
-    model = MultiHeadCrossAttention(4, 64, 0.1)
+    model = MultiheadAttention(4, 64, 0.1)
     model2 = nn.MultiHeadAttention(4, qkv_features=16, out_features=16)
     
     datas = jax.random.uniform(jax.random.PRNGKey(0), (3, 2, 3, 3))
