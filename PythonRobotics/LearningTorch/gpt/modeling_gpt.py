@@ -70,6 +70,9 @@ class MultiheadAttention(nn.Module):
         self.use_flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
         
     def forward(self, q, k, v, attn_mask=None):
+        '''
+            attn_mask: position with 0 will be masked out in attention weight matrix
+        '''
         batch_size, seq_length, embed_dim = q.size()
         
         # project query, key, and value
@@ -120,6 +123,9 @@ class CausalMultiheadSelfAttention(nn.Module):
 
     
 class Block(nn.Module):
+    '''
+        attention block with pre-norm
+    '''
     def __init__(self, config: GPTConfig):
         super().__init__()
         self.ln_1 = nn.LayerNorm(config.n_embd)
