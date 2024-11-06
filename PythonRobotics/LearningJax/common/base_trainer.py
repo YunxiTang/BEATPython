@@ -3,8 +3,8 @@ from jax import random
 import flax
 from flax import linen as nn
 from typing import Any
-from flax.training import train_state, orbax_utils
-import orbax.checkpoint as ocp
+from flax.training import train_state
+
 import optax
 from omegaconf import OmegaConf
 from tqdm import tqdm

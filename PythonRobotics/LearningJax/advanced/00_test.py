@@ -8,6 +8,7 @@ from jax.sharding import PartitionSpec
 import flax.linen as nn
 import matplotlib as mpl
 import numpy as np
+from functools import partial
 
 
 def matmul_fn(x: jax.Array, w: jax.Array, b: jax.Array) -> jax.Array:
@@ -73,3 +74,48 @@ matmul_fn_shard = shard_map(
 y = matmul_fn_shard(x_sharded, w_sharded, b_sharded)
 print(y.shape, y.sharding)
 jax.debug.visualize_array_sharding(y)
+
+
+# ============ #
+from typing import Callable
+print('=' * 40)
+
+def check_vmap(f:Callable, xs):
+    ans = jax.vmap(f, in_axes=[0], out_axes=0)(xs)
+    expected = jnp.stack([f(x) for x in xs])
+    print(jnp.allclose(ans, expected))
+    return ans, expected
+
+xs = jnp.arange(12).reshape(4, 3)
+res1, res2 = check_vmap(lambda x: 2 * x, xs)
+print(res1.shape, res2.shape)
+
+print( xs )
+print(res1)
+
+def check_shard_map(f: Callable, y):
+    ans = shard_map(f, mesh, 
+                    in_specs=PartitionSpec('i'), 
+                    out_specs=PartitionSpec('i'))(y)
+    expected = jnp.concatenate(
+        [f(y_blk) for y_blk in jnp.split(y, mesh.shape['i'])]
+        )
+    print(jnp.allclose(ans, expected))
+    return ans, expected
+
+y = jnp.arange(32).reshape(8, 4)
+res1, res2 = check_shard_map(lambda x: x.T @ x, y)
+print(res1.shape, res1.sharding)
+
+print('=' * 40)
+x = jnp.arange(128 * 10 * 3).reshape(128, 10, 3)
+mesh = Mesh(jax.devices(), axis_names=['i',])
+
+@partial(shard_map, mesh=mesh, in_specs=PartitionSpec('i'), out_specs=PartitionSpec('i'))
+def f1(x_block):
+  y = nn.tanh(jnp.sum(x_block, axis=0, keepdims=True))
+  print(x_block.shape, y.shape)
+  return y
+
+y = f1(x)
+print(y.shape, y.sharding)

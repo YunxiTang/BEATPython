@@ -20,7 +20,7 @@ train:
   max_epoch: 100
 
 checkpoint:
-  save_ckpt: True
+  save_ckpt: false
   ckpt_dir: './tmp'
   ckpt_interval: 10
 
