@@ -31,12 +31,11 @@ class LayerNorm(nn.Module):
     
     
 class MLP(nn.Module):
-    def __init__(self, config: GPTConfig):
+    def __init__(self, embed_dim:int):
         super().__init__()
-        self.config = config
-        self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd)
+        self.c_fc = nn.Linear(embed_dim, 4 * embed_dim)
         self.gelu = nn.GELU(approximate='tanh')
-        self.c_proj = nn.Linear(4*config.n_embd, config.n_embd)
+        self.c_proj = nn.Linear(4*embed_dim, embed_dim)
         
     def forward(self, x):
         x = self.c_fc(x)
@@ -71,6 +70,9 @@ class MultiheadAttention(nn.Module):
         self.use_flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
         
     def forward(self, q, k, v, attn_mask=None):
+        '''
+            attn_mask: position with 0 will be masked out in attention weight matrix
+        '''
         batch_size, seq_length, embed_dim = q.size()
         
         # project query, key, and value
@@ -88,7 +90,8 @@ class MultiheadAttention(nn.Module):
             # using Flash Attention (FA) implementation
             if attn_mask is not None:
                 attn_mask = attn_mask.masked_fill(attn_mask == 0., float('-inf'))
-            y = torch.nn.functional.scaled_dot_product_attention(Q, K, V, attn_mask=attn_mask)
+            y = torch.nn.functional.scaled_dot_product_attention(Q, K, V, attn_mask=attn_mask,
+                                                                 dropout_p=self.dropout if self.training else 0)
             
         else:
             # using Native Attention (NA) implementation
@@ -104,36 +107,31 @@ class MultiheadAttention(nn.Module):
         return output
     
     
-class CausalSelfAttention(nn.Module):
-    def __init__(self, config: GPTConfig):
+class CausalMultiheadSelfAttention(nn.Module):
+    def __init__(self, embed_dim:int, nhead:int, dropout: float=0., bias: bool=True):
         super().__init__()
-        assert config.n_embd % config.n_head == 0
-        # key, query, value projections for all heads, but in a batch
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
-        # output projection
-        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-        # regularization
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
-        self.n_head = config.n_head
-        self.n_embd = config.n_embd
-        self.dropout = config.dropout
-        # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0
-        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-        if not self.flash:
-            print("WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0")
-            # causal mask to ensure that attention is only applied to the left in the input sequence
-            self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
-                                        .view(1, 1, config.block_size, config.block_size))
+        assert embed_dim % nhead == 0
+        self.attn_layer = MultiheadAttention(
+            embed_dim, nhead, dropout, bias
+        )
+        
+    def forward(self, x):
+        _, seq_len, _ = x.size()
+        caual_mask = torch.tril(torch.ones(seq_len, seq_len)).view(1, 1, seq_len, seq_len)
+        y = self.attn_layer(x, x, x, caual_mask)
+        return y
 
     
 class Block(nn.Module):
+    '''
+        attention block with pre-norm
+    '''
     def __init__(self, config: GPTConfig):
         super().__init__()
         self.ln_1 = nn.LayerNorm(config.n_embd)
-        self.attn = CausalSelfAttention(config)
+        self.attn = CausalMultiheadSelfAttention(config.n_embd, config.n_head)
         self.ln_2 = nn.LayerNorm(config.n_embd)
-        self.mlp = MLP(config)
+        self.mlp = MLP(config.n_embd)
         
     def forward(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -158,11 +156,13 @@ class GPT(nn.Module):
 if __name__ == '__main__':
     import time
     att_layer = MultiheadAttention(512, 4, dropout=0.0)
+    for key, val in att_layer.named_parameters():
+        print(key, val.shape)
     # att_layer.eval()
     
-    x = torch.randn([1024, 10, 512])
+    x = torch.randn([1024, 5, 512])
     q = k = v = x
-    attn_mask = torch.tril(torch.ones(10, 10), diagonal=4).view(1, 1, 10, 10) # zero to masked out
+    attn_mask = torch.tril(torch.ones(5, 5), diagonal=0).view(1, 1, 5, 5) # zero to masked out
     
     tc = time.time()
     y = att_layer(q, k, v, attn_mask)
@@ -172,5 +172,31 @@ if __name__ == '__main__':
     tc = time.time()
     y2 = att_layer(q, k, v, attn_mask)
     print(time.time() - tc)
-
+    
+    causual_attn_layer = CausalMultiheadSelfAttention(512, 4, dropout=0.0)
+    
+    causual_attn_layer.attn_layer.load_state_dict(att_layer.state_dict())
+    y3 = causual_attn_layer(x)
+    
     print( torch.allclose(y, y2, atol=1e-5) )
+    print( torch.allclose(y, y3, atol=1e-5) )
+    
+    print('='*20)
+    config = GPTConfig()
+    block1 = Block(config)
+    for key, val in block1.state_dict().items():
+        print(key, ':', val.size())
+    x = torch.randn([512, config.block_size, config.n_embd])
+    res = block1(x)
+    print(x.shape, res.shape)
+    
+    
+    print('='*20)
+    gpt_model = GPT(config)
+    
+    for key, val in gpt_model.state_dict().items():
+        print(key, ':', val.size())
+    
+    print('='*20)
+    for name, param in gpt_model.named_parameters():
+        print(name, ':', param.size())
