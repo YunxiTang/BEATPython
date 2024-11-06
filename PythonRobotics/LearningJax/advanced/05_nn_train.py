@@ -65,11 +65,10 @@ model_sharding = NamedSharding(mesh, spec=PartitionSpec())
 
 model = RegModel()
 params = model.init( jax.random.PRNGKey(0), jnp.arange(2 * 1).reshape(2, 1) )
+params_dp = jax.device_put(params, model_sharding)
 
 optimizer = optax.adamw(learning_rate=0.0001)
-opt_state = optimizer.init(params)
-
-params_dp = jax.device_put(params, model_sharding)
+opt_state = optimizer.init(params_dp)
 
 apply_fn = jax.jit(model.apply)
 train_state = TrainState(
@@ -104,7 +103,7 @@ grad_fn = jax.jit(
 
 batch_size = 512
 dataloader = DataLoader(DummyDataset(10000), batch_size=batch_size, shuffle=True, collate_fn=jnp_collate_fn)
-for i in range(50):
+for i in range(20):
     loss_epoch = 0
     for batch in dataloader:
         batch_dp = jax.device_put(batch, data_sharding)
@@ -113,3 +112,7 @@ for i in range(50):
         loss = shard_loss_fn(train_state.params, batch_dp)
     loss_epoch += loss
     print(f'epoch {i}: {loss_epoch}')
+    
+jax.tree_util.tree_map(
+    lambda x: jax.debug.visualize_array_sharding(x), train_state.params
+)
