@@ -249,7 +249,7 @@ if __name__ == '__main__':
         print(f'Path Length: {len(path_solution)}')
         path = jnp.array(path_solution)
         
-        sns.set()
+        sns.set_theme('notebook')
         for obs in world_map._obstacle:
             plot_circle(obs[0], obs[1], obs[2])
             

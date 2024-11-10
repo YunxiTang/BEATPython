@@ -18,8 +18,10 @@ class SimpleModel(nn.Module):
     features: int
 
     @nn.compact
-    def __call__(self, x):
-        return nn.Dense(self.features)(x)
+    def __call__(self, x, training: bool = True):
+        x = nn.Dense(self.features)(x)
+        x = nn.BatchNorm()(x, use_running_average=training)
+        return x
 
 # Initialize the model and optimizer
 model = SimpleModel(features=10)
@@ -50,6 +52,7 @@ out_shardings = (jax.sharding.PartitionSpec(), jax.sharding.PartitionSpec())
 
 shard_val_grad = shard_map.shard_map(shard_fn, mesh, in_specs=in_shardings, out_specs=out_shardings, check_rep=False)
 # Step 4: Training Step with `shard_map`
+@jax.jit
 def train_step(state, batch):
     # Use `shard_map` to compute loss and gradients in parallel
     loss, grads = shard_val_grad(state, batch)
