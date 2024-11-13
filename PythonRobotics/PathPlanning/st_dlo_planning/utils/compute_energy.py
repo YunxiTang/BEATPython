@@ -16,9 +16,12 @@ def compute_enery(dlo_shape, k1, k2, segment_len):
 
 if __name__ == '__main__':
     import numpy as np
-    x = np.linspace(0., 0.05 * 11, 10)[None] #np.random.uniform(0, 1.0, (10, 3))
-    x = np.repeat(x, 3, axis=0).T
+    seg_len = 0.05
+    x = np.array([[0.0, seg_len, 0.0],
+                  [0.0, 2*seg_len, 0.0],
+                  [0.0, 3*seg_len, 0.0]])
+    
     print(x.shape)
     # exit()
-    u = compute_enery(x, 1.0, 0.5, 0.05)
+    u = compute_enery(x, 1.0, 0.5, seg_len)
     print(u)

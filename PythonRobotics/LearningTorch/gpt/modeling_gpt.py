@@ -117,7 +117,7 @@ class CausalMultiheadSelfAttention(nn.Module):
         
     def forward(self, x):
         _, seq_len, _ = x.size()
-        caual_mask = torch.tril(torch.ones(seq_len, seq_len)).view(1, 1, seq_len, seq_len)
+        caual_mask = torch.tril(torch.ones(seq_len, seq_len, device=x.device)).view(1, 1, seq_len, seq_len)
         y = self.attn_layer(x, x, x, caual_mask)
         return y
 

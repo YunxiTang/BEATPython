@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     # Load franka asset
     asset_root = os.path.join(os.path.dirname(os.path.realpath(__file__)),  'assets')
-
+    print('=============', asset_root, '================')
     # create table asset
     table_dims = gymapi.Vec3(1.0, 0.5, 0.4)
     asset_options = gymapi.AssetOptions()
