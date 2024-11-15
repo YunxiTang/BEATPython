@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<mujoco model="tabletop_simulation">
+    <!-- World body (default environment) -->
+    <worldbody>
+        <!-- Tabletop -->
+        <body name="table">
+            <geom type="plane" size="0.1 0.1 0.1" pos="0 0 0" material="white"/>
+            <geom type="box" size="0.5 0.5 0.05" pos="0 0 0.025" material="wood"/>
+        </body>
+
+        <!-- Obstacles -->
+        <body name="obstacle1" pos="0.2 0.2 0.05">
+            <geom type="box" size="0.1 0.1 0.1" material="red"/>
+        </body>
+
+        <body name="obstacle2" pos="-0.2 0.4 0.05">
+            <geom type="sphere" size="0.05" material="blue"/>
+        </body>
+
+        <body name="obstacle3" pos="0.3 -0.3 0.05">
+            <geom type="cylinder" size="0.05 0.1" material="green"/>
+        </body>
+
+        <body name="obstacle4" pos="-0.3 -0.2 0.05">
+            <geom type="box" size="0.05 0.15 0.1" material="yellow"/>
+        </body>
+
+        <!-- Ground -->
+        <body name="ground">
+            <geom type="plane" size="1 1 0.1" pos="0 0 -0.1" material="gray"/>
+        </body>
+
+    </worldbody>
+
+    <!-- Define Materials -->
+    <asset>
+        <material name="wood" rgba="0.8 0.52 0.25 1"/>
+        <material name="red" rgba="1 0 0 1"/>
+        <material name="blue" rgba="0 0 1 1"/>
+        <material name="green" rgba="0 1 0 1"/>
+        <material name="yellow" rgba="1 1 0 1"/>
+        <material name="white" rgba="1 1 1 1"/>
+        <material name="gray" rgba="0.5 0.5 0.5 1"/>
+    </asset>
+    
+    <!-- Set the default options for the simulation -->
+    <option timestep="0.002"/>
+</mujoco>

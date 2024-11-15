@@ -40,7 +40,7 @@ if __name__ == '__main__':
     
     all_path = [waypoints1, waypoints2, waypoints3, waypoints4, waypoints5, waypoints6]
 
-    pathset = PathSet(all_path, T=100, seg_len=0.2)
+    pathset = PathSet(all_path, T=100, seg_len=0.3)
 
     solver = TcDloSolver(pathset=pathset, k1=1.0, k2=5.0, max_iter=800)
     
