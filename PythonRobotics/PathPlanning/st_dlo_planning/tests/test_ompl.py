@@ -40,8 +40,7 @@ space.setTimeBounds(0.0, 10.0);
 
 si = ob.SpaceInformation(space)
 si.setMotionValidator(SpaceTimeMotionValidator(si))
-si.setStateValidityChecker(ob.StateValidityCheckerFn( \
-    partial(isStateValid, si)))
+si.setStateValidityChecker(ob.StateValidityCheckerFn( partial(isStateValid, si)) )
 
 pdef = ob.ProblemDefinition(si)
 
