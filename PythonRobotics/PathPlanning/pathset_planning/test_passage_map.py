@@ -1,18 +1,19 @@
-if __name__ == '__main__':
-    
+if __name__ == "__main__":
     import sys
     import os
     import pathlib
 
-    ROOT_DIR = str(pathlib.Path(__file__).parent)
+    ROOT_DIR = str(pathlib.Path(__file__).parent.parent)
+    print(ROOT_DIR)
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
 
+
 import jax.numpy as jnp   
 from world_map import CityMap, Block
-from cost_map import CityCostMapLayer
+from pathset_planning.cost_map import CityCostMapLayer
 from rrt_star import RRTStar
-from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
+# from pathset_planning.visualizer import Visualizer
 
 
 if __name__ == '__main__':
@@ -71,22 +72,22 @@ if __name__ == '__main__':
     path_solution = planner.plan(early_stop=False)
 
     rviz_replay = True
-    if rviz_replay:
-        try:
-            # set ROS Rviz and launchfile
-            import subprocess
-            import rospy
+    # if rviz_replay:
+    #     try:
+    #         # set ROS Rviz and launchfile
+    #         import subprocess
+    #         import rospy
 
-            subprocess.Popen(["roslaunch", ROOT_DIR + "/city_planning.launch"])
-            rospy.loginfo("visualization started.")
+    #         subprocess.Popen(["roslaunch", ROOT_DIR + "/city_planning.launch"])
+    #         rospy.loginfo("visualization started.")
         
-        except:
-            print('Failed to automatically run RVIZ. Launch it manually.')
+    #     except:
+    #         print('Failed to automatically run RVIZ. Launch it manually.')
 
-        # visualize the result in RVIZ
-        vis = Visualizer(city_map, path_solution)
-        vis.visualize()
+    #     # visualize the result in RVIZ
+    #     vis = Visualizer(city_map, path_solution)
+    #     vis.visualize()
 
-    else:
-        print("To visualize the planned, start the script with the '--replay")
+    # else:
+    #     print("To visualize the planned, start the script with the '--replay")
     

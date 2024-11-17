@@ -197,20 +197,6 @@ class ModalityRRTStar:
             # rewire the tree
             self._rewire(new_node, near_idxs)
 
-            # if self._calc_dist_to_goal(new_node) <= self._calc_dist_to_goal(self._potential_final_node):
-            #     self._potential_final_node = copy.deepcopy(new_node)
-
-            # # assemble solution due to early stop
-            # if self._calc_dist_to_goal(self._potential_final_node) <= self._step_size \
-            #     and early_stop:
-            #     self._goal.set_parent(self._potential_final_node)
-            #     self._goal.set_path_cost(
-            #         self._potential_final_node.path_cost \
-            #         + self._goal.node_cost + self._costMap.compute_edge_cost(self._potential_final_node, self._goal)[0])
-            #     sol = self._generate_final_course()
-            #     print(f'Find a path with {len(sol)} nodes due to early stop at iter {i}. Goal cost: {self._goal.path_cost}')
-            #     return sol
-
             # verbose (print information)
             if i % 10 == 0:
                 # path validation
@@ -223,10 +209,6 @@ class ModalityRRTStar:
                     print('No path can be constructed...')
                 
         # assemble solution due to max iter
-        # self._goal.set_parent(self._potential_final_node)
-        # self._goal.set_path_cost(
-        #     self._potential_final_node.path_cost \
-        #     + self._goal.node_cost + self._costMap.compute_edge_cost(self._potential_final_node, self._goal)[0])
         last_node = copy.deepcopy(self._goal)
         near_last_node_idxs = self._find_near_node_idx(last_node)
         last_node = self._choose_parent(near_last_node_idxs, last_node)
