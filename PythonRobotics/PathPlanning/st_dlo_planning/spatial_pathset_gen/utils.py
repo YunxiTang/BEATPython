@@ -16,6 +16,15 @@ class Point(NamedTuple):
         return [self.x, self.y]
     
 
+class Passage(NamedTuple):
+    '''
+        Passage in Passage Map
+    '''
+    vrtx1: list
+    vrtx2: list
+    min_dist: float
+    
+
 def line(p1: Point, p2: Point):
     A = (p1.y - p2.y)
     B = (p2.x - p1.x)
@@ -174,6 +183,27 @@ def plot_box(center, size, ax, clr='gray'):
     faces.set_edgecolor([1.,1.,1.])
     
     ax.add_collection3d(faces)
+
+
+def transfer_path(pivot_path, start, goal, delta_start=None, delta_goal=None):
+    transfered_path = []
+
+    pivot_start = pivot_path[0]
+    pivot_goal = pivot_path[-1]
+    pivot_path_num = len(pivot_path)
+
+    pivot_path_len = pivot_path[-1].path_len
+
+    if delta_start is None:
+        delta_start = start - pivot_start.state
+    if delta_goal is None:
+        delta_goal = goal - pivot_goal.state
+
+    for i in range(pivot_path_num):
+        tmp_state = pivot_path[i].state + pivot_path[i].path_len / pivot_path_len * (delta_goal - delta_start) + delta_start
+        tmp_node = SimpleNode(tmp_state, pivot_path[i].path_len)
+        transfered_path.append(tmp_node)
+    return transfered_path
 
 
 if __name__ == '__main__':

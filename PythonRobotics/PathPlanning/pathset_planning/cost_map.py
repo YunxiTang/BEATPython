@@ -148,7 +148,7 @@ class PassageMap(object):
 
     def get_path_intersection(self, path):
         '''
-            get the intersectio between the path and passage
+            get the intersection between the path and passage
         '''
         intersects = []
         path_len = path.shape[0]

@@ -10,15 +10,15 @@ if __name__ == "__main__":
 
 
 from world_map import CityMap, Block
-from rrt_star import CityRRTStar
+from pathset_planning.pro_rrtstar import PassageAwareRRTStar
 import numpy as np
 import jax.numpy as jnp
 from pathset_planning.cost_map import CityCostMapLayer
 
 
 if __name__ == '__main__':
-    start = np.array([0., 0., 100.])
-    goal = jnp.array([125., 175., 100.])
+    start = np.array([25., 25., 50.])
+    goal = jnp.array([95., 95., 50.])
 
     city_map = CityMap(start=start,
                        goal=goal,
@@ -46,22 +46,22 @@ if __name__ == '__main__':
                                 150., 140., clr=[0.3, 0.3, 0.4]))
     city_map.finalize()
 
-    planner = CityRRTStar(
-        connect_range=10.0,
-        start_config=start,
-        goal_config=goal,
-        map=city_map,
+    planner = PassageAwareRRTStar(
+        connect_range=20.0,
+        start=start,
+        goal=goal,
+        world_map=city_map,
         step_size=10.,
-        goal_sample_rate=5.,
+        goal_sample_rate=10.,
         max_iter=3000,
-        seed=333
+        seed=33
     )
 
     passage_cost_layer = CityCostMapLayer(city_map, k=-100.0)
     passage_cost_layer.visualize()
     planner.add_cost_layer(passage_cost_layer)
     
-    path_sol, path_nodes = planner.plan(early_stop=False, interval=10, animation=True)
+    path_sol, path_nodes = planner.plan(early_stop=False, interval=200, animation=True)
     print(path_sol)
     if path_sol is not None:
         passage_info = [node_passage.min_dist for node_passage in path_nodes]

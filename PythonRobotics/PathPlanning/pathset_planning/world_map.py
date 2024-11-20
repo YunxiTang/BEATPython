@@ -86,8 +86,8 @@ class CityMap(ABCMap):
         self._xmax = 200.
         self._ymin = 0.
         self._ymax = 200.
-        self._zmin = 99.9
-        self._zmax = 100.1
+        self._zmin = 50
+        self._zmax = 50
         
         self._dim = 3
 
