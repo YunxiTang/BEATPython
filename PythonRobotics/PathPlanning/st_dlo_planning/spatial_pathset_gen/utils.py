@@ -3,6 +3,7 @@ import jax.numpy as jnp
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.patches import Rectangle 
 from typing import NamedTuple
+import numpy as np
 
 
 class Point(NamedTuple):
@@ -120,12 +121,13 @@ def check_intersection(p1: Point, q1: Point, p2: Point, q2: Point):
 
 
 # =============================================================================================
-def plot_rectangle(size_x, size_y, pos_x, pos_y, ax, center=True, color='b'):
+def plot_rectangle(size_x, size_y, pos_x, pos_y, ax, angle:float=0., center=True, color='b'):
     if center:
-        ax.add_patch(Rectangle([pos_x, pos_y], size_x / 2., size_y / 2., color=color))
-        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., size_y / 2., color=color))
-        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., -size_y / 2., color=color))
-        ax.add_patch(Rectangle((pos_x, pos_y), size_x / 2., -size_y / 2., color=color))
+        angle = angle * 180 / np.pi
+        ax.add_patch(Rectangle([pos_x, pos_y], size_x / 2., size_y / 2., angle=angle, rotation_point='xy', color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., size_y / 2., angle=angle, rotation_point='xy', color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., -size_y / 2., angle=angle, rotation_point='xy', color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), size_x / 2., -size_y / 2., angle=angle, rotation_point='xy', color=color))
     else:
         pass
 
@@ -185,39 +187,23 @@ def plot_box(center, size, ax, clr='gray'):
     ax.add_collection3d(faces)
 
 
-def transfer_path(pivot_path, start, goal, delta_start=None, delta_goal=None):
-    transfered_path = []
+def transfer_path(pivolt_path, delta_start, delta_goal):
+    '''
+        transfer the pivot path
+    '''
 
-    pivot_start = pivot_path[0]
-    pivot_goal = pivot_path[-1]
-    pivot_path_num = len(pivot_path)
+    pivot_path_num = pivolt_path.shape[0]
 
-    pivot_path_len = pivot_path[-1].path_len
+    # clculate distances between consecutive waypoints
+    distances = jnp.linalg.norm( jnp.diff( pivolt_path, axis=0 ), axis=1, ord=2)
 
-    if delta_start is None:
-        delta_start = start - pivot_start.state
-    if delta_goal is None:
-        delta_goal = goal - pivot_goal.state
+    # compute chord length along the pivolt path
+    chord_distances = jnp.concatenate([jnp.array([0.0]), jnp.cumsum(distances)])
 
+    pivot_arc_len = chord_distances[-1]
+    
+    new_path = []
     for i in range(pivot_path_num):
-        tmp_state = pivot_path[i].state + pivot_path[i].path_len / pivot_path_len * (delta_goal - delta_start) + delta_start
-        tmp_node = SimpleNode(tmp_state, pivot_path[i].path_len)
-        transfered_path.append(tmp_node)
-    return transfered_path
-
-
-if __name__ == '__main__':
-    p1 = Point(0., 0.)
-    q1 = Point(0.49, 0.49)
-
-    p2 = Point(0., 1.)
-    q2 = Point(1., 0.)
-
-    print( check_intersection(p1, q1, p2, q2) )
-
-    R = get_intersection_point(Point(0.6, 0.6), Point(1, 1), 
-                               Point(0, 1), Point(1, 0))
-    if R:
-        print("Intersection detected:", R)
-    else:
-        print("No single intersection point detected")
+        tmp_state = pivolt_path[i] + chord_distances[i] / pivot_arc_len * (delta_goal - delta_start) + delta_start
+        new_path.append(tmp_state[None])
+    return np.concatenate(new_path, axis=0)

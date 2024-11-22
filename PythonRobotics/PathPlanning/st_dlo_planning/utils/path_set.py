@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+# import numpy 
 from .path_interpolation import query_point_from_path
 from functools import partial
 
@@ -28,14 +29,12 @@ class PathSet:
         dlo_shape = self.query_dlo_shape_fn(sigma, self.all_path)
         return dlo_shape
 
-    def vis_all_path(self):
+    def vis_all_path(self, ax):
         vec_smooth_traj_fn = jax.vmap(query_point_from_path, in_axes=[0, None, None])
-        # Generate smooth trajectory over normalized "time" (0 to 1 based on chord length)
         sigmas = jnp.linspace(0, 1, 100)
         for waypoints in self.all_path:   
             trajectory = vec_smooth_traj_fn(sigmas, waypoints, 30)
-            plt.plot(trajectory[:, 0], trajectory[:, 1], 'k-.', label="Smooth Path")
+            ax.plot(trajectory[:, 0], trajectory[:, 1], '-', label="Smooth Path")
             # plt.plot(waypoints[:, 0], waypoints[:, 1], 'k-.', label="Raw Path")
             # plt.scatter(waypoints[:, 0], waypoints[:, 1], color='k', label="Waypoints")
         plt.axis('equal')
-        plt.show()

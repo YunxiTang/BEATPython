@@ -18,7 +18,7 @@ class DloOmpl:
     def __init__(self, world_map: WorldMap, z: float, 
                  k_pathLen: float=1.0,
                  k_clearance: float=1.0,
-                 k_passage: float=100.,
+                 k_passage: float=10.,
                  animation: bool=False):
         '''
         Args
@@ -72,7 +72,7 @@ class DloOmpl:
                     states.append([state[0], state[1], state[2]])
                     sol_np = np.array(states)
 
-                ax = self.world_map.visualize_passage(full_passage=False)
+                _, ax = self.world_map.visualize_passage(full_passage=False)
                 for i in range(len(states)-1):
                     ax.plot([sol_np[i, 0], sol_np[i+1, 0]], 
                             [sol_np[i, 1], sol_np[i+1, 1]], 'r-')
@@ -137,9 +137,7 @@ class DloOmpl:
     def set_planner(self, planner_name: str = 'RRTstar'):
         '''
             args:
-                planner_name (str): a planner name
-            Set the planner to be used.
-            Note: you can add any customized planner here.
+                planner_name (str): a planner name, set the planner to be used.
         '''
         if planner_name == "PRM":
             self.planner = og.PRM(self.simple_setup.getSpaceInformation())
@@ -236,29 +234,58 @@ class PassageOptimizationObjective(ob.OptimizationObjective):
             motion->incCost = opt_->motionCost(nmotion->state, motion->state);
             motion->cost = opt_->combineCosts(nmotion->cost, motion->incCost);
         '''
-        state1_np = self._get_array_from_state(state1)
-        state2_np = self._get_array_from_state(state2)
-        passage = self.world_map.check_passage_intersection(state1_np, state2_np)
-        
-        if passage is not None:
-            passage_width = passage.min_dist
-            incremental_cost = 1. / (passage_width**2)
+        nd = self.space_info.getStateSpace().validSegmentCount(state1, state2)
+
+        if nd > 1:
+            test_state1 = self.space_info.allocState()
+            test_state2 = self.space_info.allocState()
+            incremental_Cost = 1e-5
+            for j in range(nd-1):
+                self.space_info.getStateSpace().interpolate(state1, state2, j / nd, test_state1)
+                self.space_info.getStateSpace().interpolate(state1, state2, (j + 1) / nd, test_state2)
+                test_state1_np = self._get_array_from_state(test_state1)
+                test_state2_np = self._get_array_from_state(test_state2)
+
+                passage = self.world_map.check_passage_intersection(test_state1_np, test_state2_np)
+                if passage is not None:
+                    passage_width = passage.min_dist
+                    in_cost = 1. / (passage_width**2)
+                else:
+                    in_cost = 1e-5
+
+                incremental_Cost = max(incremental_Cost, in_cost)
+
+            state2_np = self._get_array_from_state(state2)
+            passage = self.world_map.check_passage_intersection(test_state2_np, state2_np)
+            if passage is not None:
+                passage_width = passage.min_dist
+                in_cost = 1. / (passage_width**2)
+            else:
+                in_cost = 1e-5
+
+            incremental_Cost = max(incremental_Cost, in_cost)
+            
         else:
-            incremental_cost = 1e-5
-        return ob.Cost(incremental_cost)
+            state1_np = self._get_array_from_state(state1)
+            state2_np = self._get_array_from_state(state2)
+            passage = self.world_map.check_passage_intersection(state1_np, state2_np)
+            
+            if passage is not None:
+                passage_width = passage.min_dist
+                incremental_Cost = 1. / (passage_width**2)
+            else:
+                incremental_Cost = 1e-5
+
+        return ob.Cost(incremental_Cost)
     
     def combineCosts(self, cost1, cost2):
         '''
             cost1: parent node cost.
             cost2: the incremental cost of this motion's parent to this motion
         '''
-        if (cost1 > cost2.value()):
+        if (cost1.value() >= cost2.value()):
             return cost1
         else:
             return cost2
-        # return cost1 + cost2
-    
-    # def isCostBetterThan(self, cost1, cost2):
-    #     return cost1 < cost2 + 1e-3
 
     

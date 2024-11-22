@@ -72,15 +72,16 @@ class DloOptProblem():
         """
             objective function E = \sum^T_{t=0} U_t
         """
-        sigmas = x.reshape(self.T+1, self.num_path)
+        sigmas = jnp.reshape(x, (self.T+1, self.num_path))
         @jax.jit
         def _sigma_to_energy(carry, sigma):
             dlo_shape = self._assemble_shape(sigma)
-            u = self._compute_potential_energy(dlo_shape) + 0.001 * jnp.linalg.norm(dlo_shape-self.goal_shape)
+            u = self._compute_potential_energy(dlo_shape)# + 0.001 * jnp.linalg.norm(dlo_shape-self.goal_shape)
             new_carry = u + carry
             return new_carry, u
         loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, sigmas, length=self.T+1)
-        return loss
+        regularization = jnp.sum( jnp.diff(sigmas, axis=0) ** 2 )
+        return loss + 10. * regularization
 
 
     @partial(jax.jit, static_argnums=(0,))
@@ -161,8 +162,8 @@ class TcDloSolver:
         self.lb = np.repeat([0.], self.pathset.num_path * (self.pathset.T + 1))
         self.ub = np.repeat([1.], self.pathset.num_path * (self.pathset.T + 1))
         
-        self.cl = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.001,] * (self.T * self.num_path))
-        self.cu = np.array([0.,] * self.num_path + [0.,] * self.num_path + [3*1./self.T,] * (self.T * self.num_path))
+        self.cl = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.01,] * (self.T * self.num_path))
+        self.cu = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.5,] * (self.T * self.num_path))
         
         # initialize the decision variables
         # self.init_sigmas = np.ones((self.pathset.T + 1) * self.pathset.num_path) * 0.0

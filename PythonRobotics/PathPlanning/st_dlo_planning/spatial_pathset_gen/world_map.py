@@ -7,6 +7,7 @@ from itertools import combinations
 from typing import NamedTuple
 
 from matplotlib.patches import Rectangle 
+from scipy.spatial.transform import Rotation as R
 
 from st_dlo_planning.spatial_pathset_gen.configuration_map import MapCfg
 from st_dlo_planning.spatial_pathset_gen.utils import (check_intersection, 
@@ -20,7 +21,7 @@ class Block:
         city building block
     '''
     def __init__(self, size_x, size_y, size_z, 
-                 pos_x, pos_y, pos_z = None,
+                 pos_x, pos_y, pos_z = None, angle: float = 0.,
                  clr='gray', is_wall: bool = False):
         
         self._size_x = size_x
@@ -31,10 +32,16 @@ class Block:
         self._pos_y = pos_y
         self._pos_z = pos_z if pos_z is not None else size_z / 2.0
 
+        self.angle = angle
+        self.rotation = R.from_matrix([[np.cos(angle), -np.sin(angle), 0],
+                                       [np.sin(angle), np.cos(angle), 0],
+                                       [0, 0, 1.0]]).as_matrix()
+
         # collision property
         geom = fcl.Box(self._size_x, self._size_y, self._size_z)
         T = np.array([self._pos_x, self._pos_y, self._pos_z])
-        tf = fcl.Transform(T)
+        tf = fcl.Transform(self.rotation, T)
+        # tf = fcl.Transform(T)
         self._collision_obj = fcl.CollisionObject(geom, tf)
 
         # visualization property
@@ -294,7 +301,7 @@ class WorldMap:
             ax = fig.add_subplot()
 
         for obs in self._obstacle:
-            plot_rectangle(obs._size_x, obs._size_y, obs._pos_x, obs._pos_y, ax, color=obs._color)
+            plot_rectangle(obs._size_x, obs._size_y, obs._pos_x, obs._pos_y, ax, angle=obs.angle, color=obs._color)
         
         if full_passage:
             for passage in self._passages:
@@ -303,4 +310,4 @@ class WorldMap:
         for passage in self._filtered_passages:
             ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'r-', linewidth=1.0)
         
-        return ax
+        return fig, ax

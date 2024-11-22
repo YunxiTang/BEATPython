@@ -27,49 +27,47 @@ if __name__ == '__main__':
     world_map = WorldMap(map_cfg)
     # ============== add some obstacles =========================
     size_z = 0.02
-    world_map.add_obstacle(Block(0.12, 0.1, size_z, 
-                                 0.35, 0.25, clr=[0.3, 0.5, 0.4]))
+    world_map.add_obstacle(Block(0.05, 0.1, size_z, 
+                                 0.35, 0.25, angle=np.pi/3, clr=[0.3, 0.5, 0.4]))
     
     world_map.add_obstacle(Block(0.1, 0.1, size_z, 
-                                 0.2, 0.25, clr=[0.3, 0.1, 0.4]))
+                                 0.16, 0.25, angle=-np.pi/4, clr=[0.3, 0.1, 0.4]))
     
-    # world_map.add_obstacle(Block(0.05, 0.08, size_z, 
-    #                              0.25, 0.2, clr=[0.3, 0.6, 0.8]))
+    world_map.add_obstacle(Block(0.03, 0.12, size_z, 
+                                 0.25, 0.4, angle=np.pi/6, clr=[0.3, 0.6, 0.6]))
     
-    # world_map.add_obstacle(Block(0.1, 0.1, size_z, 
-    #                              0.3, 0.1, clr=[0.7, 0.6, 0.4]))
+    world_map.add_obstacle(Block(0.03, 0.07, size_z, 
+                                 0.2, 0.1, angle=3*np.pi/4, clr=[0.7, 0.3, 0.4]))
     
-    # world_map.add_obstacle(Block(0.15, 0.1, size_z, 
-    #                              0.38, 0.25, clr=[0.3, 0.6, 0.4]))
+    world_map.add_obstacle(Block(0.05, 0.07, size_z, 
+                                 0.38, 0.4, angle=7*np.pi/4, clr=[0.8, 0.6, 0.8]))
     
     world_map.finalize()
 
-    fig = plt.figure(figsize=plt.figaspect(0.5))
-    ax = fig.add_subplot(projection='3d')
-    world_map.visualize_map(ax, show_wall=True)
-    plt.show()
-
-    ax = world_map.visualize_passage(full_passage=True)
+    ax = world_map.visualize_passage(full_passage=False)
     plt.axis('equal')
     plt.show()
 
-    dlo_ompl = DloOmpl(world_map, size_z/2, animation=True)
+    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0., k_passage=20., animation=True)
 
-    start = [0.33, 0.1, size_z/2]
-    goal = [0.46, 0.28, size_z/2]
+    start = [0.3, 0.1, size_z/2]
+    goal = [0.3, 0.4, size_z/2]
 
     start_validate = world_map.check_pos_collision(start)
     goal_validate = world_map.check_pos_collision(goal)
     
     if start_validate and goal_validate:
-        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=120)
+        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=100)
+        result_path = pathlib.Path(__file__).parent.parent.joinpath('results', 'pivot_path_2.npy')
+        print(result_path)
+        np.save(result_path, sol_np)
         print(sol)
     else:
         print('start or goal is not validate')
         sol = None
 
     if sol_np is not None:
-        ax = world_map.visualize_passage(full_passage=False)
+        _, ax = world_map.visualize_passage(full_passage=False)
         plot_circle(start[0], start[1], 0.01, ax)
         plot_circle(goal[0], goal[1], 0.01, ax, color='-r')
 
