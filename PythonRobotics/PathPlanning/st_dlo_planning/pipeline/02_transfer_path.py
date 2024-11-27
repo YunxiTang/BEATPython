@@ -5,16 +5,17 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import numpy as np
     import jax.numpy as jnp
+    from pprint import pprint
 
     ROOT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
     
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
 
-    from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
-    from st_dlo_planning.spatial_pathset_gen.world_map import Block, WorldMap, MapCfg
-    from st_dlo_planning.spatial_pathset_gen.utils import plot_circle, transfer_path
-    from st_dlo_planning.utils import PathSet
+  
+    from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg
+    from st_dlo_planning.utils.path_set import PathSet, transfer_path_between_start_and_goal, deform_pathset
+    from st_dlo_planning.utils.world_map import plot_rectangle, plot_circle
     from st_dlo_planning.utils.path_interpolation import visualize_shape
     import jax
     jax.config.update("jax_enable_x64", True)     # enable fp64
@@ -26,9 +27,9 @@ if __name__ == '__main__':
     
     map_cfg = MapCfg(resolution=0.01,
                      map_xmin=0.0,
-                     map_xmax=0.5,
+                     map_xmax=0.8,
                      map_ymin=0.0,
-                     map_ymax=0.5,
+                     map_ymax=0.8,
                      map_zmin=0.0,
                      map_zmax=0.02,
                      robot_size=0.02,
@@ -40,11 +41,11 @@ if __name__ == '__main__':
     world_map.add_obstacle(Block(0.05, 0.1, size_z, 
                                  0.35, 0.25, angle=np.pi/3, clr=[0.3, 0.5, 0.4]))
     
-    world_map.add_obstacle(Block(0.1, 0.1, size_z, 
-                                 0.16, 0.25, angle=-np.pi/4, clr=[0.3, 0.1, 0.4]))
+    world_map.add_obstacle(Block(0.08, 0.15, size_z, 
+                                 0.17, 0.25, angle=np.pi/4, clr=[0.3, 0.1, 0.4]))
     
-    world_map.add_obstacle(Block(0.03, 0.12, size_z, 
-                                 0.25, 0.4, angle=np.pi/6, clr=[0.3, 0.6, 0.6]))
+    world_map.add_obstacle(Block(0.03, 0.08, size_z, 
+                                 0.25, 0.4, angle=np.pi/5, clr=[0.3, 0.6, 0.6]))
     
     world_map.add_obstacle(Block(0.03, 0.07, size_z, 
                                  0.2, 0.1, angle=3*np.pi/4, clr=[0.7, 0.3, 0.4]))
@@ -52,20 +53,43 @@ if __name__ == '__main__':
     world_map.add_obstacle(Block(0.05, 0.07, size_z, 
                                  0.38, 0.4, angle=7*np.pi/4, clr=[0.8, 0.6, 0.8]))
     
+    world_map.add_obstacle(Block(0.05, 0.05, size_z, 
+                                 0.1, 0.4, angle=3*np.pi/4, clr=[0.8, 0.6, 0.6]))
+    
+    world_map.add_obstacle(Block(0.12, 0.05, size_z, 
+                                 0.4, 0.1, angle=np.pi/7, clr=[0.4, 0.6, 0.6]))
+    
+    world_map.add_obstacle(Block(0.04, 0.07, size_z, 
+                                 0.09, 0.1, angle=5*np.pi/4, clr=[0.4, 0.6, 0.1]))
+    
     world_map.finalize()
 
-    result_path = pathlib.Path(__file__).parent.parent.joinpath('results', 'pivot_path_2.npy')
+    result_path = pathlib.Path(__file__).parent.parent.joinpath('results', 'pivot_path_4.npy')
     print(result_path)
     solution = np.load(result_path, mmap_mode='r')
     
     pivolt_path = solution
 
-    zarr_root = zarr.open('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/pretext_dataset/sim/dax/train/03_dax_dlo_30_train.zarr')
+    _, ax = world_map.visualize_passage(full_passage=False)
+    res = world_map.get_path_intersection(pivolt_path)
+    
+    pw = []
+    for passage in res:
+        ax.scatter(passage['point'].x, passage['point'].y)
+        pw.append(passage['passage_width'])
+        print(passage['passage_width'])
+    print(' = ' * 30)
+    print(np.min(pw))
+
+    plt.axis('equal')
+    plt.show()
+
+    zarr_root = zarr.open('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/pretext_dataset/sim/dax/train/03_dax_dlo_20_train.zarr')
 
     keypoints = zarr_root['data']['keypoints']
     num_kp = keypoints.shape[1]
-    init_dlo_shape = keypoints[18][1:num_kp-1:2]
-    goal_dlo_shape = keypoints[17][1:num_kp-1:2]
+    init_dlo_shape = keypoints[37][1:num_kp-1:4]
+    goal_dlo_shape = keypoints[19][1:num_kp-1:4]
     
     init_dlo_shape = init_dlo_shape - np.mean(init_dlo_shape, axis=0) + pivolt_path[0]
     goal_dlo_shape = goal_dlo_shape - np.mean(goal_dlo_shape, axis=0) + pivolt_path[-1]
@@ -78,28 +102,58 @@ if __name__ == '__main__':
     delta_goals = goal_dlo_shape - pivolt_path[-1]
 
     pathset = []
+    num_path = goal_dlo_shape.shape[0]
+    num_waypoints = solution.shape[0]
 
-    for k in range(goal_dlo_shape.shape[0]):
-        newpath = transfer_path(pivolt_path, delta_starts[k], delta_goals[k])
-
-        for i in range(solution.shape[0]-1):
+    for k in range(num_path):
+        newpath = transfer_path_between_start_and_goal(pivolt_path, delta_starts[k], delta_goals[k])
+        for i in range(num_waypoints-1):
             ax.plot([newpath[i, 0], newpath[i+1, 0]], 
                     [newpath[i, 1], newpath[i+1, 1]], 'k-')
         pathset.append(newpath)
     
+    # deform the pathset
+    pathset_and_passage_intersects = deform_pathset(pivolt_path, pathset, world_map)
+    
+    for passage_id, intersects in pathset_and_passage_intersects.items():
+        points = intersects[0]
+        deformed_points = intersects[1]
+        fp_idx = intersects[2]
+        for intersect in points:
+            ax.scatter(intersect.x, intersect.y, c='k')
+
+        for intersect in deformed_points:
+            ax.scatter(intersect[0], intersect[1], c='g')
+
+        ax.scatter(points[fp_idx[0]].x, points[fp_idx[0]].y, c='r')
+        ax.scatter(points[fp_idx[1]].x, points[fp_idx[1]].y, c='r')
+        
+
     plt.axis('equal')
     plt.show()
-
-    pathset = PathSet( pathset, T=40, seg_len=0.013)
+    
+    pathset = PathSet( pathset, T=80, seg_len=0.05)
 
     _, ax = world_map.visualize_passage(full_passage=False)
     pathset.vis_all_path(ax)
     visualize_shape(init_dlo_shape, ax, clr='r')
     visualize_shape(goal_dlo_shape, ax, clr='b')
-    plt.show()
+    for passage_id, intersects in pathset_and_passage_intersects.items():
+        points = intersects[0]
+        deformed_points = intersects[1]
+        fp_idx = intersects[2]
+        for intersect in points:
+            ax.scatter(intersect.x, intersect.y, c='k')
 
+        for intersect in deformed_points:
+            ax.scatter(intersect[0], intersect[1], c='g')
+
+        ax.scatter(points[fp_idx[0]].x, points[fp_idx[0]].y, c='r')
+        ax.scatter(points[fp_idx[1]].x, points[fp_idx[1]].y, c='r')
+    plt.show()
+    # exit()
     # ================================
-    solver = TcDloSolver(pathset=pathset, k1=100.0, k2=5.0, max_iter=1200)
+    solver = TcDloSolver(pathset=pathset, k1=20.0, k2=1.0, max_iter=1200)
     
     opt_sigmas, info = solver.solve()
 

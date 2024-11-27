@@ -1,19 +1,146 @@
 import os
 import numpy as np
-import numpy as np
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import fcl
 from itertools import combinations
 from typing import NamedTuple
-
+from dataclasses import dataclass
 from matplotlib.patches import Rectangle 
 from scipy.spatial.transform import Rotation as R
 
-from st_dlo_planning.spatial_pathset_gen.configuration_map import MapCfg
-from st_dlo_planning.spatial_pathset_gen.utils import (check_intersection, 
-                                                       plot_rectangle,
-                                                       get_intersection_point,
-                                                       Point, Passage)
+
+class Point(NamedTuple):
+    '''
+        2D point
+    '''
+    x: float
+    y: float
+
+    def to_list(self):
+        return [self.x, self.y]
+    
+
+class Passage(NamedTuple):
+    '''
+        Passage in Passage Map
+    '''
+    vrtx1: list
+    vrtx2: list
+    min_dist: float
+    
+
+def line(p1: Point, p2: Point):
+    A = (p1.y - p2.y)
+    B = (p2.x - p1.x)
+    C = (p1.x * p2.y - p2.x * p1.y)
+    return A, B, -C
+
+
+def get_intersection_point(p1: Point, q1: Point, p2: Point, q2: Point):
+    x1,y1 = p1.x, p1.y
+    x2,y2 = q1.x, q1.y
+    x3,y3 = p2.x, p2.y
+    x4,y4 = q2.x, q2.y
+    denom = (y4-y3)*(x2-x1) - (x4-x3)*(y2-y1)
+
+    if denom == 0: # parallel
+        return None
+    ua = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom
+    if ua < 0 or ua > 1: # out of range
+        return None
+    ub = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom
+    if ub < 0 or ub > 1: # out of range
+        return None
+    x = x1 + ua * (x2-x1)
+    y = y1 + ua * (y2-y1)
+    return Point(x, y)
+    
+
+def get_orientation(p: Point, q: Point, r: Point): 
+    '''
+        get the orientation of an ordered triplet (p, q, r) 
+        Return: 
+            0 : Collinear points 
+            1 : Clockwise points 
+            2 : Counterclockwise points
+        See https://www.geeksforgeeks.org/orientation-3-ordered-points/amp/ for details.  
+    '''
+    val = ((r.x - q.x) * (q.y - p.y)) - ((r.y - q.y) * (q.x - p.x)) 
+    if (val > 0.): 
+        # Clockwise orientation 
+        return 1
+    elif (val < 0.): 
+        # Counterclockwise orientation 
+        return 2
+    else: 
+        # Collinear orientation 
+        return 0
+    
+ 
+def check_on_segment(p: Point, q: Point, r: Point): 
+    '''
+        Given three collinear points (p, q, r), 
+        check if q lies on line segment <p, r> 
+    '''
+    if ( (q.x <= max(p.x, r.x)) and (q.x >= min(p.x, r.x)) and \
+         (q.y <= max(p.y, r.y)) and (q.y >= min(p.y, r.y)) ): 
+        return True
+    return False
+
+ 
+def check_intersection(p1: Point, q1: Point, p2: Point, q2: Point): 
+    '''
+        returns true if the line segment <p1, q1> and <p2, q2> intersect.
+        Find the four orientations required for the general and special cases 
+    '''
+    o1 = get_orientation(p1, q1, p2) 
+    o2 = get_orientation(p1, q1, q2) 
+    o3 = get_orientation(p2, q2, p1) 
+    o4 = get_orientation(p2, q2, q1) 
+  
+    # General case 
+    if ((o1 != o2) and (o3 != o4)): 
+        return True
+  
+    # Special Cases 
+    # p1 , q1 and p2 are collinear and p2 lies on segment p1q1 
+    if ((o1 == 0) and check_on_segment(p1, p2, q1)): 
+        return True
+  
+    # p1 , q1 and q2 are collinear and q2 lies on segment p1q1 
+    if ((o2 == 0) and check_on_segment(p1, q2, q1)): 
+        return True
+  
+    # p2 , q2 and p1 are collinear and p1 lies on segment p2q2 
+    if ((o3 == 0) and check_on_segment(p2, p1, q2)): 
+        return True
+  
+    # p2 , q2 and q1 are collinear and q1 lies on segment p2q2 
+    if ((o4 == 0) and check_on_segment(p2, q1, q2)): 
+        return True
+  
+    # if none of the cases 
+    return False
+
+
+def plot_rectangle(size_x, size_y, pos_x, pos_y, ax, angle:float=0., center=True, color='b'):
+    if center:
+        angle = angle * 180 / np.pi
+        ax.add_patch(Rectangle([pos_x, pos_y], size_x / 2., size_y / 2., angle=angle, rotation_point='xy', color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., size_y / 2., angle=angle, rotation_point='xy', color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), -size_x / 2., -size_y / 2., angle=angle, rotation_point='xy', color=color))
+        ax.add_patch(Rectangle((pos_x, pos_y), size_x / 2., -size_y / 2., angle=angle, rotation_point='xy', color=color))
+    else:
+        pass
+
+
+def plot_circle(x, y, radius, ax, color="-b"):
+    deg = list(range(0, 360, 5))
+    deg.append(0)
+    xl = [x + radius * jnp.cos(jnp.deg2rad(d)) for d in deg]
+    yl = [y + radius * jnp.sin(jnp.deg2rad(d)) for d in deg]
+    ax.plot(xl, yl, color)
 
 
 class Block:
@@ -48,6 +175,22 @@ class Block:
         self._color = clr
 
         self._wall = is_wall
+
+
+@dataclass
+class MapCfg:
+    resolution: float = 0.1
+    map_xmin: float = 0.
+    map_xmax: float = 200.
+    map_ymin: float = 0.
+    map_ymax: float = 200.
+    
+    map_zmin: float = 99.9
+    map_zmax: float = 100.1
+    
+    robot_size: float = 0.1
+    
+    dim: int = 3
 
 
 class WorldMap:
@@ -201,16 +344,16 @@ class WorldMap:
         return None
     
 
-    def get_path_intersection(self, path):
+    def get_path_intersection(self, sinle_path, use_extension: bool = False):
         '''
             get the intersection between the path and passage
         '''
         intersects = []
-        path_len = path.shape[0]
+        path_len = sinle_path.shape[0]
         for i in range(path_len-1):
             for passage in self._filtered_passages:
-                path_1 = Point(path[i, 0], path[i, 1])
-                path_2 = Point(path[i+1, 0], path[i+1, 1])
+                path_1 = Point(sinle_path[i, 0], sinle_path[i, 1])
+                path_2 = Point(sinle_path[i+1, 0], sinle_path[i+1, 1])
 
                 direction_p = np.array([passage.vrtx2[0] - passage.vrtx1[0], passage.vrtx2[1] - passage.vrtx1[1]])
                 direction_p = direction_p / np.linalg.norm(direction_p)
@@ -223,17 +366,16 @@ class WorldMap:
                 passage_1 = Point(passage.vrtx1[0], passage.vrtx1[1])
                 passage_2 = Point(passage.vrtx2[0], passage.vrtx2[1])
 
-                extended_passage_1 = Point(extended_vrtx1[0], extended_vrtx1[1])
-                extended_passage_2 = Point(extended_vrtx2[0], extended_vrtx2[1])
-
-                point = get_intersection_point(path_1,
-                                               path_2,
-                                               extended_passage_1,
-                                               extended_passage_2)
+                if use_extension:
+                    extended_passage_1 = Point(extended_vrtx1[0], extended_vrtx1[1])
+                    extended_passage_2 = Point(extended_vrtx2[0], extended_vrtx2[1])
+                    point = get_intersection_point(path_1, path_2, extended_passage_1, extended_passage_2)
+                else:
+                    point = get_intersection_point(path_1, path_2, passage_1, passage_2)
                 
                 if point:
                     # if check_on_segment(path_1, point, path_2) and check_on_segment(passage_1, point, passage_2):
-                    intersects.append({'passage': passage, 'point': point})
+                    intersects.append({'passage': passage, 'passage_width': passage.min_dist, 'point': point})
         return intersects
 
 
@@ -264,7 +406,7 @@ class WorldMap:
         return False
     
     def visualize_map(self, ax=None, show_wall: bool=False):
-        from .utils import plot_box
+        from ..spatial_pathset_gen.utils import plot_box
         if ax is None:
             fig = plt.figure(figsize=plt.figaspect(0.5))
             ax = fig.add_subplot(projection='3d')
@@ -308,6 +450,11 @@ class WorldMap:
                 ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--')
 
         for passage in self._filtered_passages:
-            ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'r-', linewidth=1.0)
-        
+            ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k-.', linewidth=1.0)
         return fig, ax
+    
+
+if __name__ == '__main__':
+    from pprint import pprint
+    cfg = MapCfg()
+    print(cfg.resolution)

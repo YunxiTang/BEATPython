@@ -5,7 +5,7 @@ from ompl import geometric as og
 from ompl import util as ou
 
 import numpy as np
-from st_dlo_planning.spatial_pathset_gen.world_map import WorldMap
+from st_dlo_planning.utils.world_map import WorldMap
 
 import matplotlib.pyplot as plt
 
@@ -15,14 +15,18 @@ INTERPOLATE_NUM = 40
 
 
 class DloOmpl:
-    def __init__(self, world_map: WorldMap, z: float, 
+    def __init__(self, 
+                 world_map: WorldMap, 
+                 z: float, 
                  k_pathLen: float=1.0,
-                 k_clearance: float=1.0,
-                 k_passage: float=10.,
+                 k_clearance: float=1e-12,
+                 k_passage: float=1.,
                  animation: bool=False):
         '''
         Args
             world_map: the map of the workspace with obstacles
+
+            k_pathLen: the weight for path length
         '''
 
         # world map will be used for stateValidator and so on
@@ -92,9 +96,12 @@ class DloOmpl:
         multiObjective.addObjective(clearance_obj, k_clearance)
         
         self.simple_setup.setOptimizationObjective(multiObjective)
+        # self.simple_setup.setOptimizationObjective(pathLengthObjective)
 
         # ======== step 7: set the planner ======================
         self.set_planner('RRTstar')
+
+        self.stop_criteria = ob.CostConvergenceTerminationCondition(self.problem_def, solutionsWindow = 10, epsilon = 0.1 )
 
         
     def plan(self, 
@@ -117,7 +124,7 @@ class DloOmpl:
         self.simple_setup.setStartAndGoalStates(s, g)
 
         # attempt to solve the problem within allowed planning time
-        solved = self.simple_setup.solve(allowed_time)
+        solved = self.simple_setup.solve(allowed_time) 
         if solved:
             print("Found solution.")
             sol_path_geometric = self.simple_setup.getSolutionPath()
@@ -205,7 +212,7 @@ class ClearanceObjective(ob.StateCostIntegralObjective):
 
     def stateCost(self, state):
         clearance = self.si_.getStateValidityChecker().clearance(state)
-        cost_val = 1. / (  clearance ** 2 )
+        cost_val = 1. / (  clearance * 50 )
         return ob.Cost( cost_val )
     
 

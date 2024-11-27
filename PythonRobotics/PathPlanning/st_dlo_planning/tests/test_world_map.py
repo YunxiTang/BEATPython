@@ -8,7 +8,7 @@ if __name__ == '__main__':
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
     
-    from st_dlo_planning.spatial_pathset_gen.world_map import WorldMap, Block
+    from PythonRobotics.PathPlanning.st_dlo_planning.utils.world_map import WorldMap, Block
     from st_dlo_planning.spatial_pathset_gen.configuration_map import MapCfg
     import matplotlib.pyplot as plt
     

@@ -11,7 +11,7 @@ if __name__ == '__main__':
     os.chdir(ROOT_DIR)
     
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
-    from st_dlo_planning.spatial_pathset_gen.world_map import Block, WorldMap, MapCfg
+    from PythonRobotics.PathPlanning.st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg
     
     map_cfg = MapCfg(map_zmin=0, map_zmax=100.)
     

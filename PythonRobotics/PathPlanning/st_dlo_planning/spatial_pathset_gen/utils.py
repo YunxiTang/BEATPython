@@ -4,6 +4,8 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.patches import Rectangle 
 from typing import NamedTuple
 import numpy as np
+# from st_dlo_planning.spatial_pathset_gen.world_map import WorldMap
+
 
 
 class Point(NamedTuple):
@@ -132,14 +134,6 @@ def plot_rectangle(size_x, size_y, pos_x, pos_y, ax, angle:float=0., center=True
         pass
 
 
-def plot_circle(x, y, radius, ax, color="-b"):
-    deg = list(range(0, 360, 5))
-    deg.append(0)
-    xl = [x + radius * jnp.cos(jnp.deg2rad(d)) for d in deg]
-    yl = [y + radius * jnp.sin(jnp.deg2rad(d)) for d in deg]
-    ax.plot(xl, yl, color)
-
-
 def plot_box(center, size, ax, clr='gray'):
     center_x, center_y, center_z = center
     size_x, size_y, size_z = size
@@ -187,23 +181,11 @@ def plot_box(center, size, ax, clr='gray'):
     ax.add_collection3d(faces)
 
 
-def transfer_path(pivolt_path, delta_start, delta_goal):
-    '''
-        transfer the pivot path
-    '''
 
-    pivot_path_num = pivolt_path.shape[0]
-
-    # clculate distances between consecutive waypoints
-    distances = jnp.linalg.norm( jnp.diff( pivolt_path, axis=0 ), axis=1, ord=2)
-
-    # compute chord length along the pivolt path
-    chord_distances = jnp.concatenate([jnp.array([0.0]), jnp.cumsum(distances)])
-
-    pivot_arc_len = chord_distances[-1]
+#
+# def deform_path(pathset, world_map: WorldMap):
+#     '''
+#         deform the pathset to get collision-free pathset
+#     '''
     
-    new_path = []
-    for i in range(pivot_path_num):
-        tmp_state = pivolt_path[i] + chord_distances[i] / pivot_arc_len * (delta_goal - delta_start) + delta_start
-        new_path.append(tmp_state[None])
-    return np.concatenate(new_path, axis=0)
+#     world_map.get_path_intersection( pathset )
