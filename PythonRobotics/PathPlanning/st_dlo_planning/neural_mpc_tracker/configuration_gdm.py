@@ -1,14 +1,18 @@
 from dataclasses import dataclass
-import torch.nn as nn
-import torch
+
 
 @dataclass
 class GDM_CFG:
-    embed_dim: int = 256
+    # dlo 
+    max_kp: int = 20
+    kp_dim: int = 3
+    conv1d_ngroup: int = 4
+    conv1d_kernel_size: int = 1
+    
+    embed_dim: int = 128
     num_layers: int = 2
     nhead: int = 8
     
-    
-if __name__ == '__main__':
-    gdm_cfg = GDM_CFG()
-    print(gdm_cfg)
+    # gripper eefs
+    eef_pos_dim: int = 7
+    eef_vel_dim: int = 6

@@ -21,7 +21,7 @@ if __name__ == '__main__':
     jax.config.update("jax_enable_x64", True)     # enable fp64
     jax.config.update('jax_platform_name', 'cpu') # use the CPU instead of GPU
 
-    from st_dlo_planning.temporal_config_opt.opt_solver import DloOptProblem, TcDloSolver
+    # from st_dlo_planning.temporal_config_opt.opt_solver import DloOptProblem, TcDloSolver
 
     import zarr
     
