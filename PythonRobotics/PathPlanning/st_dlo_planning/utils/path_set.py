@@ -95,7 +95,7 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
     num_path = len(pathset_list)
     z_const = pathset_list[0][0, 2]
 
-    # ============= get the related passages ============================ #
+    # ============= get the passages passed by the pivot path ============ #
     central_intersections = world_map.get_path_intersection(pivot_path)
     passages = []
     for intersects in central_intersections:
@@ -103,7 +103,7 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
 
     num_passage = len(passages)
 
-    # get the intersects between the pathset and the passages
+    # ============= group the intersects by the passages ================= #
     pathset_intersects = dict()
     
     for passage_num in range(num_passage):
@@ -138,7 +138,7 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
 
     pprint(pathset_intersects)
 
-    # ========== get the re-distributed points =================
+    # ========== Redistribute Intersects Along the Passage =================
     pathset_and_passage_intersects = dict()
     
     for passage_id, each_passage_intersects in pathset_intersects.items():
@@ -179,32 +179,25 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
         
         pathset_and_passage_intersects[passage_id] = (raw_points, redistributed_points, endpoint_indices)
 
-    # pprint( pathset_and_passage_intersects )
     # insert the new redistributed_points back into the pathset as new nodes
     for passage_id, each_passage_intersects in pathset_intersects.items():
-        
+        insertion_counter = {}
         for each_intersect in each_passage_intersects:
             passage_num = each_intersect['passage_num']
             path_num = each_intersect['path_num']
             path_waypoint_idx = each_intersect['path_waypoint_idx']
+            
+            # Default to 0 if this is the first time we're inserting for this path
+            if path_num not in insertion_counter:
+                insertion_counter[path_num] = 0
 
             new_waypoint_np = pathset_and_passage_intersects[passage_id][1][path_num]
             new_waypoint_np = np.array([new_waypoint_np[0], new_waypoint_np[1], z_const])
-            pathset_list[path_num] = np.insert(pathset_list[path_num], path_waypoint_idx+1, new_waypoint_np, axis=0)
+            pathset_list[path_num] = np.insert(pathset_list[path_num], 
+                                               path_waypoint_idx+1+insertion_counter[path_num], 
+                                               new_waypoint_np, axis=0)
 
-    # for node in path_insert_idx:
-    #     passage_num = node[0]
-    #     path_num = node[1]
-    #     path_indice = node[2]
-    #     print(passage_num, path_num, path_indice)
-        
-    #     new_waypoint_np = pathset_and_passage_intersects[f'passage_{passage_num}'][path_num][1]
-    #     new_waypoint_np = np.array([new_waypoint_np[0], new_waypoint_np[1], z_const])
-        
-    #     print(new_waypoint_np)
-    #     pathset_list[path_num] = np.insert(pathset_list[path_num], 
-    #                                        path_indice, 
-    #                                        new_waypoint_np, axis=0)
-    
+            # Increment counter for this path
+            insertion_counter[path_num] += 1
     return pathset_intersects, pathset_and_passage_intersects, pathset_list
         
