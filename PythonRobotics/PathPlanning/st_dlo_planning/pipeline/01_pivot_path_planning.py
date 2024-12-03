@@ -4,6 +4,7 @@ if __name__ == '__main__':
     import pathlib
     import matplotlib.pyplot as plt
     import numpy as np
+    from omegaconf import OmegaConf
 
     ROOT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
     
@@ -12,43 +13,49 @@ if __name__ == '__main__':
     
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
     from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
+
+    cfg_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/map_case1.yaml'
+    map_cfg_file = OmegaConf.load(cfg_path)
     
-    map_cfg = MapCfg(resolution=0.01,
-                     map_xmin=0.0,
-                     map_xmax=0.8,
-                     map_ymin=0.0,
-                     map_ymax=0.8,
-                     map_zmin=0.0,
-                     map_zmax=0.02,
-                     robot_size=0.01,
+    map_cfg = MapCfg(resolution=map_cfg_file.workspace.resolution,
+                     map_xmin=map_cfg_file.workspace.map_xmin,
+                     map_xmax=map_cfg_file.workspace.map_xmax,
+                     map_ymin=map_cfg_file.workspace.map_ymin,
+                     map_ymax=map_cfg_file.workspace.map_ymax,
+                     map_zmin=map_cfg_file.workspace.map_zmin,
+                     map_zmax=map_cfg_file.workspace.map_zmax,
+                     robot_size=map_cfg_file.workspace.robot_size,
                      dim=3)
     
     world_map = WorldMap(map_cfg)
     # ============== add some obstacles =========================
-    size_z = 0.02
-    world_map.add_obstacle(Block(0.05, 0.1, size_z, 
-                                 0.35, 0.25, angle=np.pi/3, clr=[0.3, 0.5, 0.4]))
+    size_z = map_cfg_file.workspace.map_zmax
+    obstacles = map_cfg_file.obstacle_info.obstacles
+    i = 0
+    for obstacle in obstacles:
+        world_map.add_obstacle(Block(obstacle[0], obstacle[1], size_z, 
+                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.3+0.1*i, 0.5, 0.4]))
+        i += 1
+    # world_map.add_obstacle(Block(0.08, 0.15, size_z, 
+    #                              0.17, 0.35, angle=np.pi/4, clr=[0.3, 0.1, 0.4]))
     
-    world_map.add_obstacle(Block(0.08, 0.15, size_z, 
-                                 0.17, 0.25, angle=np.pi/4, clr=[0.3, 0.1, 0.4]))
+    # world_map.add_obstacle(Block(0.03, 0.08, size_z, 
+    #                              0.35, 0.5, angle=np.pi/5, clr=[0.3, 0.6, 0.6]))
     
-    world_map.add_obstacle(Block(0.03, 0.08, size_z, 
-                                 0.25, 0.4, angle=np.pi/5, clr=[0.3, 0.6, 0.6]))
+    # world_map.add_obstacle(Block(0.03, 0.07, size_z, 
+    #                              0.3, 0.2, angle=3*np.pi/4, clr=[0.7, 0.3, 0.4]))
     
-    world_map.add_obstacle(Block(0.03, 0.07, size_z, 
-                                 0.2, 0.1, angle=3*np.pi/4, clr=[0.7, 0.3, 0.4]))
+    # world_map.add_obstacle(Block(0.05, 0.07, size_z, 
+    #                              0.58, 0.5, angle=np.pi/4, clr=[0.8, 0.6, 0.8]))
     
-    world_map.add_obstacle(Block(0.05, 0.07, size_z, 
-                                 0.38, 0.4, angle=7*np.pi/4, clr=[0.8, 0.6, 0.8]))
+    # world_map.add_obstacle(Block(0.05, 0.05, size_z, 
+    #                              0.15, 0.5, angle=3*np.pi/4, clr=[0.8, 0.6, 0.6]))
     
-    world_map.add_obstacle(Block(0.05, 0.05, size_z, 
-                                 0.1, 0.4, angle=3*np.pi/4, clr=[0.8, 0.6, 0.6]))
+    # world_map.add_obstacle(Block(0.08, 0.03, size_z, 
+    #                              0.5, 0.2, angle=np.pi/7, clr=[0.4, 0.6, 0.6]))
     
-    world_map.add_obstacle(Block(0.12, 0.05, size_z, 
-                                 0.4, 0.1, angle=np.pi/7, clr=[0.4, 0.6, 0.6]))
-    
-    world_map.add_obstacle(Block(0.04, 0.07, size_z, 
-                                 0.09, 0.1, angle=5*np.pi/4, clr=[0.4, 0.6, 0.1]))
+    # world_map.add_obstacle(Block(0.04, 0.07, size_z, 
+    #                              0.14, 0.2, angle=5*np.pi/4, clr=[0.4, 0.6, 0.1]))
     
     world_map.finalize()
 
@@ -56,18 +63,17 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0.01, k_passage=1.0, animation=False)
+    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0.05, k_passage=1.0, animation=False)
 
-    start = [0.02, 0.02, size_z/2]
-    goal = [0.45, 0.48, size_z/2]
+    start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]
+    goal = [map_cfg_file.dlo_cfg.goal[0], map_cfg_file.dlo_cfg.goal[1], size_z/2]
 
     start_validate = world_map.check_pos_collision(start)
     goal_validate = world_map.check_pos_collision(goal)
     
     if start_validate and goal_validate:
-        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=200)
-        result_path = pathlib.Path(__file__).parent.parent.joinpath('results', 'pivot_path_4.npy')
-        print(result_path)
+        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=60, num_waypoints=60)
+        result_path = pathlib.Path(__file__).parent.parent.joinpath('results', map_cfg_file.logging.save_pivot_path_name)
         np.save(result_path, sol_np)
         print(sol)
     else:

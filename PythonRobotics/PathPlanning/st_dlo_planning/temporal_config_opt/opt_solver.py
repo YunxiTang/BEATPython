@@ -81,7 +81,7 @@ class DloOptProblem():
             return new_carry, u
         loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, sigmas, length=self.T+1)
         regularization = jnp.sum( jnp.diff(sigmas, axis=0) ** 2 )
-        return loss + 1. * regularization
+        return loss + 10. * regularization
 
 
     @partial(jax.jit, static_argnums=(0,))
