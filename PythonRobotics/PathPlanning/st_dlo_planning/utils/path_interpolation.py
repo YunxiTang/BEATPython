@@ -34,7 +34,7 @@ def weight_function(t, t_i, t_next, k):
 
 # compute interpolated positions at time t with smooth transitions
 @jax.jit
-def query_point_from_path(t, waypoints, k=30):
+def query_point_from_path(t, waypoints, k=90):
     
     # Step 1: Calculate distances between consecutive waypoints
     distances = jnp.linalg.norm( jnp.diff( waypoints, axis=0 ), axis=1, ord=2)

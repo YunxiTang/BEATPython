@@ -119,7 +119,7 @@ def redistribute_points_by_scale(points,
     return result
 
 
-def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldMap, max_pw=None, ax=None):
+def deform_pathset_step1(pivot_path, pathset_list: List[np.ndarray], world_map: WorldMap, max_pw=None):
     '''
         deform the pathset to obtain feasibility
     '''
@@ -146,8 +146,8 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
         direction_n = np.array([passage.vrtx1[0] - passage.vrtx2[0], passage.vrtx1[1] - passage.vrtx2[1]])
         direction_n = direction_n / np.linalg.norm(direction_n)
 
-        extended_vrtx1 = np.array([passage.vrtx1[0], passage.vrtx1[1]]) + 250. * direction_n
-        extended_vrtx2 = np.array([passage.vrtx2[0], passage.vrtx2[1]]) + 250. * direction_p
+        extended_vrtx1 = np.array([passage.vrtx1[0], passage.vrtx1[1]]) + 0.0 * direction_n
+        extended_vrtx2 = np.array([passage.vrtx2[0], passage.vrtx2[1]]) + 0.0 * direction_p
 
         extended_passage_1 = Point(extended_vrtx1[0], extended_vrtx1[1])
         extended_passage_2 = Point(extended_vrtx2[0], extended_vrtx2[1])
@@ -171,6 +171,7 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
                                                        'path_num': path_num, 
                                                        'path_waypoint_idx': i,
                                                        'path_factor': sigma})
+                    # print(passage_num, path_num, i, sigma)
                     break
         pathset_intersects[f'passage_{passage_num}'] = intersects_on_this_passage
 
@@ -212,11 +213,6 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
         else:
             original_start = endpoint1
             original_end = endpoint2
-
-        ax.scatter(original_start[0], original_start[1], c='r', marker='h')
-        ax.scatter(original_end[0], original_end[1], c='b', marker='o')
-        ax.scatter(passage_start[0], passage_start[1], c='r', marker='h')
-        ax.scatter(passage_end[0], passage_end[1], c='b', marker='o')
 
         redistributed_points = redistribute_points_by_scale(raw_points, 
                                                             original_start, original_end, 
@@ -269,13 +265,12 @@ def deform_pathset(pivot_path, pathset_list: List[np.ndarray], world_map: WorldM
     return pathset_intersects, pathset_and_passage_intersects, pathset_list, backup_pathset_list
 
 
-def deform_pathset_pro(backup_pathset, new_pathset, world_map: WorldMap = None, pivot_path = None):
+def deform_pathset_step2(backup_pathset, new_pathset):
     num_path, backup_num_waypoint, _ = backup_pathset.shape
     num_path, new_num_waypoint, _ = new_pathset.shape
-    print(num_path, backup_num_waypoint, new_num_waypoint)
 
     polished_pathset = np.copy(new_pathset)
-
+    SegIdx = []
     for k in range(num_path):
         segment_idx = [(0, 0, np.zeros(3))]
         single_path = backup_pathset[k]
@@ -297,7 +292,11 @@ def deform_pathset_pro(backup_pathset, new_pathset, world_map: WorldMap = None, 
         for j in range(segment_idx[-2][0], segment_idx[-1][0]+1):
             ratio = (cumulative_distances[j] / total_length - segment_idx[-2][1]) / (segment_idx[-1][1] - segment_idx[-2][1])
             polished_pathset[k, j] = backup_pathset[k, j] + ratio * (segment_idx[-1][2] - segment_idx[-2][2]) + segment_idx[-2][2]
-    return polished_pathset
+        SegIdx.append(segment_idx)
+    return polished_pathset, SegIdx
+
+def deform_path_step3():
+    pass
 
 
 

@@ -13,6 +13,7 @@ if __name__ == '__main__':
     
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
     from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
+    import zarr
 
     cfg_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/map_case5.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
@@ -36,26 +37,6 @@ if __name__ == '__main__':
         world_map.add_obstacle(Block(obstacle[0], obstacle[1], size_z, 
                                      obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.3+0.1*i, 0.5, 0.4]))
         i += 1
-    # world_map.add_obstacle(Block(0.08, 0.15, size_z, 
-    #                              0.17, 0.35, angle=np.pi/4, clr=[0.3, 0.1, 0.4]))
-    
-    # world_map.add_obstacle(Block(0.03, 0.08, size_z, 
-    #                              0.35, 0.5, angle=np.pi/5, clr=[0.3, 0.6, 0.6]))
-    
-    # world_map.add_obstacle(Block(0.03, 0.07, size_z, 
-    #                              0.3, 0.2, angle=3*np.pi/4, clr=[0.7, 0.3, 0.4]))
-    
-    # world_map.add_obstacle(Block(0.05, 0.07, size_z, 
-    #                              0.58, 0.5, angle=np.pi/4, clr=[0.8, 0.6, 0.8]))
-    
-    # world_map.add_obstacle(Block(0.05, 0.05, size_z, 
-    #                              0.15, 0.5, angle=3*np.pi/4, clr=[0.8, 0.6, 0.6]))
-    
-    # world_map.add_obstacle(Block(0.08, 0.03, size_z, 
-    #                              0.5, 0.2, angle=np.pi/7, clr=[0.4, 0.6, 0.6]))
-    
-    # world_map.add_obstacle(Block(0.04, 0.07, size_z, 
-    #                              0.14, 0.2, angle=5*np.pi/4, clr=[0.4, 0.6, 0.1]))
     
     world_map.finalize()
 
@@ -63,18 +44,32 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=1.0, animation=False)
+    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0.05, k_passage=1.0, animation=False)
+
+    zarr_root = zarr.open('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/pretext_dataset/sim/dax/train/03_dax_dlo_10_train.zarr')
+
+    keypoints = zarr_root['data']['keypoints']
+    num_kp = keypoints.shape[1]
+    init_dlo_shape = keypoints[44][2:num_kp-1:2]
+    goal_dlo_shape = keypoints[46][2:num_kp-1:2]
+    num_kp = goal_dlo_shape.shape[0]
 
     start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]
     goal = [map_cfg_file.dlo_cfg.goal[0], map_cfg_file.dlo_cfg.goal[1], size_z/2]
+    
+    init_dlo_shape = init_dlo_shape - np.mean(init_dlo_shape, axis=0) + start
+    goal_dlo_shape = goal_dlo_shape - np.mean(goal_dlo_shape, axis=0)# + goal
 
-    start_validate = world_map.check_pos_collision(start)
-    goal_validate = world_map.check_pos_collision(goal)
+    print(init_dlo_shape)
+    exit()
+
+    start_validate = world_map.check_pos_collision(init_dlo_shape[0])
+    goal_validate = world_map.check_pos_collision(goal_dlo_shape[0])
     
     if start_validate and goal_validate:
-        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=60, num_waypoints=60)
+        sol, sol_np = dlo_ompl.plan(init_dlo_shape[0], goal_dlo_shape[0], allowed_time=60, num_waypoints=60)
         result_path = pathlib.Path(__file__).parent.parent.joinpath('results', map_cfg_file.logging.save_pivot_path_name)
-        np.save(result_path, sol_np)
+        # np.save(result_path, sol_np)
         print(sol)
     else:
         print( start_validate, goal_validate )
@@ -104,5 +99,5 @@ if __name__ == '__main__':
         ax.set_xlim(world_map.map_cfg.map_xmin - 0.05, world_map.map_cfg.map_xmax + 0.05)
         ax.set_ylim(world_map.map_cfg.map_ymin - 0.05, world_map.map_cfg.map_ymax + 0.05)
         
-        fig.savefig('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/pipeline/pivolt_path_0.png', dpi=2000)
+        # fig.savefig('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/pipeline/pivolt_path_0.png', dpi=2000)
 

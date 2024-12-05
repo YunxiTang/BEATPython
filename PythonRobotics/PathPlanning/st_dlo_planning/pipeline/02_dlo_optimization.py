@@ -15,9 +15,11 @@ if __name__ == '__main__':
     os.chdir(ROOT_DIR)
 
     from itertools import chain
-    from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg
-    from st_dlo_planning.utils.path_set import PathSet, transfer_path_between_start_and_goal, deform_pathset, deform_pathset_pro
-    from st_dlo_planning.utils.world_map import plot_rectangle, plot_circle
+    from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
+    from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
+    from st_dlo_planning.utils.path_set import (PathSet, transfer_path_between_start_and_goal, 
+                                                deform_pathset_step1, deform_pathset_step2)
+    from st_dlo_planning.utils.world_map import plot_circle
     from st_dlo_planning.utils.path_interpolation import visualize_shape
     import jax
     jax.config.update("jax_enable_x64", True)     # enable fp64
@@ -26,7 +28,7 @@ if __name__ == '__main__':
     from st_dlo_planning.temporal_config_opt.opt_solver import DloOptProblem, TcDloSolver
 
     import zarr
-    map_case = 'map_case1'
+    map_case = 'map_case5'
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -65,7 +67,8 @@ if __name__ == '__main__':
         ax.scatter(passage['point'].x, passage['point'].y)
         pw.append(passage['passage_width'])
         print(passage['passage_width'])
-    print(' = ' * 15, np.min(pw), ' = ' * 15)
+    min_pw = np.min(pw)
+    print(' = ' * 15, min_pw, ' = ' * 15)
 
     plt.axis('equal')
     plt.show()
@@ -85,8 +88,12 @@ if __name__ == '__main__':
     plot_circle(solution[0, 0], solution[0, 1], 0.01, ax)
     plot_circle(solution[-1, 0], solution[-1, 1], 0.01, ax, color='-r')
 
-    delta_starts = init_dlo_shape - pivolt_path[0]
-    delta_goals = goal_dlo_shape - pivolt_path[-1]
+    scale = 0.22
+    delta_starts = (init_dlo_shape - pivolt_path[0]) 
+    delta_goals = (goal_dlo_shape - pivolt_path[-1]) 
+
+    scaled_delta_starts = delta_starts * scale
+    scaled_delta_goals = delta_goals * scale
 
     pathset_list = []
     num_path = goal_dlo_shape.shape[0]
@@ -95,7 +102,7 @@ if __name__ == '__main__':
     clr = ['r', 'g', 'b', 'k', 'm', 'y']
 
     for k in range(num_path):
-        newpath = transfer_path_between_start_and_goal(pivolt_path, delta_starts[k], delta_goals[k])
+        newpath = transfer_path_between_start_and_goal(pivolt_path, scaled_delta_starts[k], scaled_delta_goals[k])
         for i in range(num_waypoints-1):
             ax.plot([newpath[i, 0], newpath[i+1, 0]], 
                     [newpath[i, 1], newpath[i+1, 1]], 'r')
@@ -104,17 +111,58 @@ if __name__ == '__main__':
     visualize_shape(goal_dlo_shape, ax, clr='b')
     plt.axis('equal')
     plt.show()
-    # deform the pathset
-    _, _, new_pathset_list, backup_pathset_list = deform_pathset(pivolt_path, 
-                                                                 pathset_list,
-                                                                 world_map, 0.013 * (num_kp-2), ax)
 
+    # ================= refine the pathset =======================================
     _, ax = world_map.visualize_passage(full_passage=False)
+    _, _, new_pathset_list, backup_pathset_list = deform_pathset_step1(pivolt_path, 
+                                                                 pathset_list,
+                                                                 world_map, min_pw - 0.02)
+    final_pathset, SegIdx = deform_pathset_step2(np.array(backup_pathset_list), np.array(new_pathset_list))
+
+    polished_pathset = np.copy(final_pathset)
     
-    final_pathset = deform_pathset_pro(np.array(backup_pathset_list), 
-                                       np.array(new_pathset_list))
+    # scale back to original shape (for the first phase and last phase)
+    for i in range(num_path):
+        single_path = final_pathset[i]
+        distances = np.linalg.norm( np.diff( single_path, axis=0 ), axis=1, ord=2)
+        cumulative_distances = np.concatenate([np.array([0.0]), np.cumsum(distances)])
+        path_length = cumulative_distances[-1]
+
+        first_phase = SegIdx[i][1]
+        last_phase = SegIdx[i][-2]
+
+        first_phase_waypoint_idx = first_phase[0]
+        last_phase_waypoint_idx = last_phase[0]
+        print(first_phase_waypoint_idx, last_phase_waypoint_idx)
+        
+        ax.scatter(single_path[first_phase_waypoint_idx, 0], single_path[first_phase_waypoint_idx, 1], c='k')
+        ax.scatter(single_path[last_phase_waypoint_idx, 0], single_path[last_phase_waypoint_idx, 1], c='b')
+        
+        first_sigma = cumulative_distances[first_phase_waypoint_idx] / path_length
+        last_sigma = cumulative_distances[last_phase_waypoint_idx] / path_length
+
+        # for last phase
+        for j in range(last_phase_waypoint_idx, single_path.shape[0]):
+            sigma = cumulative_distances[j] / path_length
+            ratio = (sigma - last_sigma) / (1.0 - last_sigma)
+            # print(i, j, sigma, ratio)
+            new_p = (delta_goals[i] - scaled_delta_goals[i]) * ratio
+            polished_pathset[i, j] = polished_pathset[i, j] + new_p
+
+        # for first phase
+        for k in range(0, first_phase_waypoint_idx):
+            sigma = cumulative_distances[k] / path_length
+            ratio = (first_sigma - sigma ) / (first_sigma - 0.0 )
+            # print(i, k, sigma, ratio)
+            new_p = (delta_starts[i] - scaled_delta_starts[i]) * ratio
+            polished_pathset[i, k] = polished_pathset[i, k] + new_p
+         
+    plt.axis('equal')
+    plt.show()
+    
+    _, ax = world_map.visualize_passage(full_passage=False)
     p = 0
-    for s_path in final_pathset:
+    for s_path in polished_pathset:
         for i in range(s_path.shape[0]-1):
             ax.plot([s_path[i, 0], s_path[i+1, 0]], 
                     [s_path[i, 1], s_path[i+1, 1]], 'r--')
@@ -124,9 +172,9 @@ if __name__ == '__main__':
     visualize_shape(goal_dlo_shape, ax, clr='b')
     plt.axis('equal')
     plt.show()
-
-    # ================================
-    pathset = PathSet( final_pathset, T=60, seg_len=0.013 * 2)
+    # exit()
+    # ================= DLO configuration optimization =============================
+    pathset = PathSet( polished_pathset, T=60, seg_len=0.013 * 2)
     solver = TcDloSolver(pathset=pathset, k1=20.0, k2=10.0, max_iter=1200)
     
     opt_sigmas, info = solver.solve()
