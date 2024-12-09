@@ -20,7 +20,7 @@ obstacle_info: # size_x, size_y, pos_x, pos_y, angle
 
 dlo_cfg:
   start: [0.08, 0.08]
-  goal: [0.65, 0.62]
+  goal: [0.68, 0.62]
 
 logging:
   save_pivot_path_name: 'map6_pivot_path.npy'

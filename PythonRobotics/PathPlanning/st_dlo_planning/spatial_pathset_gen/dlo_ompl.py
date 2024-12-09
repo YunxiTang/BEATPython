@@ -212,7 +212,7 @@ class ClearanceObjective(ob.StateCostIntegralObjective):
 
     def stateCost(self, state):
         clearance = self.si_.getStateValidityChecker().clearance(state)
-        cost_val = 1. / (  clearance * 50 )
+        cost_val = 1. / (  clearance ** 2 )
         return ob.Cost( cost_val )
     
 

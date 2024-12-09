@@ -14,7 +14,7 @@ if __name__ == '__main__':
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
     from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
 
-    cfg_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/map_case5.yaml'
+    cfg_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/map_case8.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
     map_cfg = MapCfg(resolution=map_cfg_file.workspace.resolution,
@@ -34,28 +34,8 @@ if __name__ == '__main__':
     i = 0
     for obstacle in obstacles:
         world_map.add_obstacle(Block(obstacle[0], obstacle[1], size_z, 
-                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.3+0.1*i, 0.5, 0.4]))
+                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.0+0.05*i, 0.5, 0.4]))
         i += 1
-    # world_map.add_obstacle(Block(0.08, 0.15, size_z, 
-    #                              0.17, 0.35, angle=np.pi/4, clr=[0.3, 0.1, 0.4]))
-    
-    # world_map.add_obstacle(Block(0.03, 0.08, size_z, 
-    #                              0.35, 0.5, angle=np.pi/5, clr=[0.3, 0.6, 0.6]))
-    
-    # world_map.add_obstacle(Block(0.03, 0.07, size_z, 
-    #                              0.3, 0.2, angle=3*np.pi/4, clr=[0.7, 0.3, 0.4]))
-    
-    # world_map.add_obstacle(Block(0.05, 0.07, size_z, 
-    #                              0.58, 0.5, angle=np.pi/4, clr=[0.8, 0.6, 0.8]))
-    
-    # world_map.add_obstacle(Block(0.05, 0.05, size_z, 
-    #                              0.15, 0.5, angle=3*np.pi/4, clr=[0.8, 0.6, 0.6]))
-    
-    # world_map.add_obstacle(Block(0.08, 0.03, size_z, 
-    #                              0.5, 0.2, angle=np.pi/7, clr=[0.4, 0.6, 0.6]))
-    
-    # world_map.add_obstacle(Block(0.04, 0.07, size_z, 
-    #                              0.14, 0.2, angle=5*np.pi/4, clr=[0.4, 0.6, 0.1]))
     
     world_map.finalize()
 
@@ -63,7 +43,7 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=1.0, animation=False)
+    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=1.0, k_pathLen=20., animation=False)
 
     start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]
     goal = [map_cfg_file.dlo_cfg.goal[0], map_cfg_file.dlo_cfg.goal[1], size_z/2]

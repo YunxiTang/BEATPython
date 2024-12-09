@@ -1,0 +1,187 @@
+<mujoco model="dual gripper scene">
+  <compiler angle="radian" meshdir="collision" autolimits="true"/>
+  <option integrator="implicit"  timestep="0.001" noslip_iterations="5" viscosity="0.2" gravity="0.0 0.0 -9.8">
+    <flag multiccd="enable"/>
+  </option>
+  <include file="./cable06.xml"/>
+
+  <visual>
+    <global azimuth="120" elevation="-20"/>
+    <headlight ambient="0.3 0.3 0.3" diffuse="0.6 0.6 0.6" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+  </visual>
+  <default class="main">
+    <default class="panda">
+      <material shininess="0.25"/>
+      <joint range="-2.8973 2.8973" armature="0.1" damping="5"/>
+      <general ctrlrange="-2.8973 2.8973" forcerange="-87 87" biastype="affine"/>
+      <default class="finger">
+        <joint type="slide" range="0 0.04"/>
+      </default>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <geom type="mesh" contype="3" group="3"/>
+        <default class="fingertip_pad_collision_1">
+          <geom size="0.0085 0.004 0.0085" type="box" friction="1 0.008 0.008"/>
+        </default>
+        <default class="fingertip_pad_collision_2">
+          <geom size="0.003 0.002 0.003" type="box" friction="1 0.008 0.008"/>
+        </default>
+        <default class="fingertip_pad_collision_3">
+          <geom size="0.003 0.002 0.003" type="box" friction="1 0.008 0.008"/>
+        </default>
+        <default class="fingertip_pad_collision_4">
+          <geom size="0.003 0.002 0.0035" type="box" friction="1 0.008 0.008"/>
+        </default>
+        <default class="fingertip_pad_collision_5">
+          <geom size="0.003 0.002 0.0035" type="box" friction="1 0.008 0.008"/>
+        </default>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="white" class="panda"/>
+    <material name="off_white" class="panda" rgba="0.901961 0.921569 0.929412 0.5"/>
+    <material name="black" class="panda" rgba="0.25 0.25 0.25 0.5"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    <mesh name="hand_c" file="hand.stl"/>
+    <mesh name="hand_0" file="hand_0.obj"/>
+    <mesh name="hand_1" file="hand_1.obj"/>
+    <mesh name="hand_2" file="hand_2.obj"/>
+    <mesh name="hand_3" file="hand_3.obj"/>
+    <mesh name="hand_4" file="hand_4.obj"/>
+    <mesh name="finger_0" file="finger_0.obj"/>
+    <mesh name="finger_1" file="finger_1.obj"/>
+  </asset>
+
+  <worldbody>
+    <geom name="floor" size="1 1 0.05" type="plane" material="groundplane"/>
+    <light pos="0 0 8.5" dir="0 -1 -1" directional="false"/>
+
+    <!-- <camera name="track_cable" mode="targetbodycom" target="cable0" fovy="60" pos="0.0 0.0 0.9"/> -->
+    <!-- <camera name="track_cable" mode="targetbody" target="scene" fovy="60" pos="0.0 0.0 0.9"/> -->
+    
+    <body name="left_hand" childclass="panda" pos="0 0 0.5" quat="0.000796327 0 1 0" gravcomp="1.0">
+      <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
+      <joint name="left_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
+      <joint name="left_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
+      <joint name="left_pz" pos="0 0 0" axis="0 0 1" type="slide" range="-2.5 2.5" damping="2"/>
+      <joint name="left_rx" pos="0 0 0" axis="1 0 0" type="hinge" range="-6.14 6.14" damping="2"/>
+      <joint name="left_ry" pos="0 0 0" axis="0 1 0" type="hinge" range="-6.14 6.14" damping="2"/>
+      <joint name="left_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-6.14 6.14" damping="2"/>
+      
+      <geom class="visual" material="off_white" mesh="hand_0"/>
+      <geom class="visual" material="black" mesh="hand_1"/>
+      <geom class="visual" material="black" mesh="hand_2"/>
+      <geom class="visual" material="white" mesh="hand_3"/>
+      <geom class="visual" material="off_white" mesh="hand_4"/>
+      <geom class="collision" mesh="hand_c"/>
+
+      <body name="left_left_finger" pos="0 0 0.0584" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07"/>
+        <geom class="visual" material="off_white" mesh="finger_0"/>
+        <geom class="visual" material="black" mesh="finger_1"/>
+        <geom class="collision" mesh="finger_0"/>
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445"/>
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395"/>
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395"/>
+      </body>
+      <body name="left_right_finger" pos="0 0 0.0584" quat="0 0 0 1" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07"/>
+        <geom class="visual" material="off_white" mesh="finger_0"/>
+        <geom class="visual" material="black" mesh="finger_1"/>
+        <geom class="collision" mesh="finger_0"/>
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445"/>
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395"/>
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395"/>
+      </body>
+    </body>
+
+    <body name="right_hand" childclass="panda" pos="0.6 0 0.5" quat="0.000796327 0 1 0" gravcomp="1.0">
+      <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
+      <joint name="right_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
+      <joint name="right_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
+      <joint name="right_pz" pos="0 0 0" axis="0 0 1" type="slide" range="-2.5 2.5" damping="2"/>
+      <joint name="right_rx" pos="0 0 0" axis="1 0 0" type="hinge" range="-6.14 6.14" damping="2"/>
+      <joint name="right_ry" pos="0 0 0" axis="0 1 0" type="hinge" range="-6.14 6.14" damping="2"/>
+      <joint name="right_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-6.14 6.14" damping="2"/>
+      
+      <geom class="visual" material="off_white" mesh="hand_0"/>
+      <geom class="visual" material="black" mesh="hand_1"/>
+      <geom class="visual" material="black" mesh="hand_2"/>
+      <geom class="visual" material="white" mesh="hand_3"/>
+      <geom class="visual" material="off_white" mesh="hand_4"/>
+      <geom class="collision" mesh="hand_c"/>
+      <body name="right_left_finger" pos="0 0 0.0584" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07"/>
+        <geom class="visual" material="off_white" mesh="finger_0"/>
+        <geom class="visual" material="black" mesh="finger_1"/>
+        <geom class="collision" mesh="finger_0"/>
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445"/>
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395"/>
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395"/>
+      </body>
+      <body name="right_right_finger" pos="0 0 0.0584" quat="0 0 0 1" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07"/>
+        <geom class="visual" material="off_white" mesh="finger_0"/>
+        <geom class="visual" material="black" mesh="finger_1"/>
+        <geom class="collision" mesh="finger_0"/>
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445"/>
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05"/>
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395"/>
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395"/>
+      </body>
+    </body>
+
+    <body name="scene" pos="0.125 0.05 0.4">
+      <geom name="table" size="0.001 0.001 0.001"  pos="0.0 0.0 -0.3" type="box" contype="1"  rgba="0.5 0.5 0.5 0.001"/>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="left_hand" body2="left_left_finger"/>
+    <exclude body1="left_hand" body2="left_right_finger"/>
+    <exclude body1="left_hand" body2="B_first"/>
+    <exclude body1="left_left_finger" body2="B_first"/>
+    <exclude body1="left_right_finger" body2="B_first"/>
+    <exclude body1="right_hand" body2="right_left_finger"/>
+    <exclude body1="right_hand" body2="right_right_finger"/>
+    <exclude body1="right_hand" body2="B_last"/>
+    <exclude body1="right_left_finger" body2="B_last"/>
+    <exclude body1="right_right_finger" body2="B_last"/>
+    <exclude body1="left_hand" body2="right_hand"/>
+  </contact>
+
+  <equality>
+    <weld body1="left_right_finger" body2="B_first" anchor="0 0 0.05" solref="-10000 -2000"/>
+    <weld body1="right_right_finger" body2="B_last" anchor="0 0 0.05" solref="-10000 -2000"/>
+  </equality>
+  
+  <actuator>
+    <velocity name="left_hand_vx" class="panda" joint="left_px" kv="150"/>
+    <velocity name="left_hand_vy" class="panda" joint="left_py" kv="150"/>
+    <velocity name="left_hand_vz" class="panda" joint="left_pz" kv="150"/>
+    <velocity name="left_hand_wx" class="panda" joint="left_rx" kv="150"/>
+    <velocity name="left_hand_wy" class="panda" joint="left_ry" kv="150"/>
+    <velocity name="left_hand_wz" class="panda" joint="left_rz" kv="150"/>
+    
+    <velocity name="right_hand_vx" class="panda" joint="right_px" kv="150"/>
+    <velocity name="right_hand_vy" class="panda" joint="right_py" kv="150"/>
+    <velocity name="right_hand_vz" class="panda" joint="right_pz" kv="150"/>
+    <velocity name="right_hand_wx" class="panda" joint="right_rx" kv="150"/>
+    <velocity name="right_hand_wy" class="panda" joint="right_ry" kv="150"/>
+    <velocity name="right_hand_wz" class="panda" joint="right_rz" kv="150"/>
+  </actuator>
+</mujoco>

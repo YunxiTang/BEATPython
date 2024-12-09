@@ -22,13 +22,14 @@ if __name__ == '__main__':
     from st_dlo_planning.utils.world_map import plot_circle
     from st_dlo_planning.utils.path_interpolation import visualize_shape
     import jax
-    jax.config.update("jax_enable_x64", True)     # enable fp64
+    # jax.config.update("jax_enable_x64", True)     # enable fp64
     jax.config.update('jax_platform_name', 'cpu') # use the CPU instead of GPU
 
     from st_dlo_planning.temporal_config_opt.opt_solver import DloOptProblem, TcDloSolver
+    from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
 
     import zarr
-    map_case = 'map_case5'
+    map_case = 'map_case8'
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     i = 0
     for obstacle in obstacles:
         world_map.add_obstacle(Block(obstacle[0], obstacle[1], size_z, 
-                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.3+0.1*i, 0.5, 0.4]))
+                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.3+0.01*i, 0.5, 0.4]))
         i += 1
     world_map.finalize()
 
@@ -77,8 +78,9 @@ if __name__ == '__main__':
 
     keypoints = zarr_root['data']['keypoints']
     num_kp = keypoints.shape[1]
-    init_dlo_shape = keypoints[44][2:num_kp-1:2]
-    goal_dlo_shape = keypoints[46][2:num_kp-1:2]
+    init_dlo_shape = keypoints[44][1:num_kp-1:2]
+    goal_dlo_shape = keypoints[46][1:num_kp-1:2]
+    # goal_dlo_shape = np.flip( goal_dlo_shape, axis=0)
     num_kp = goal_dlo_shape.shape[0]
     
     init_dlo_shape = init_dlo_shape - np.mean(init_dlo_shape, axis=0) + pivolt_path[0]
@@ -88,7 +90,7 @@ if __name__ == '__main__':
     plot_circle(solution[0, 0], solution[0, 1], 0.01, ax)
     plot_circle(solution[-1, 0], solution[-1, 1], 0.01, ax, color='-r')
 
-    scale = 0.22
+    scale = 0.1
     delta_starts = (init_dlo_shape - pivolt_path[0]) 
     delta_goals = (goal_dlo_shape - pivolt_path[-1]) 
 
@@ -116,7 +118,7 @@ if __name__ == '__main__':
     _, ax = world_map.visualize_passage(full_passage=False)
     _, _, new_pathset_list, backup_pathset_list = deform_pathset_step1(pivolt_path, 
                                                                  pathset_list,
-                                                                 world_map, min_pw - 0.02)
+                                                                 world_map, (num_kp - 2) * 0.013)
     final_pathset, SegIdx = deform_pathset_step2(np.array(backup_pathset_list), np.array(new_pathset_list))
 
     polished_pathset = np.copy(final_pathset)
@@ -133,7 +135,7 @@ if __name__ == '__main__':
 
         first_phase_waypoint_idx = first_phase[0]
         last_phase_waypoint_idx = last_phase[0]
-        print(first_phase_waypoint_idx, last_phase_waypoint_idx)
+        # print(first_phase_waypoint_idx, last_phase_waypoint_idx)
         
         ax.scatter(single_path[first_phase_waypoint_idx, 0], single_path[first_phase_waypoint_idx, 1], c='k')
         ax.scatter(single_path[last_phase_waypoint_idx, 0], single_path[last_phase_waypoint_idx, 1], c='b')
@@ -145,8 +147,8 @@ if __name__ == '__main__':
         for j in range(last_phase_waypoint_idx, single_path.shape[0]):
             sigma = cumulative_distances[j] / path_length
             ratio = (sigma - last_sigma) / (1.0 - last_sigma)
-            # print(i, j, sigma, ratio)
             new_p = (delta_goals[i] - scaled_delta_goals[i]) * ratio
+            # print(i, j, sigma, ratio, new_p)
             polished_pathset[i, j] = polished_pathset[i, j] + new_p
 
         # for first phase
@@ -160,41 +162,68 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
     
-    _, ax = world_map.visualize_passage(full_passage=False)
+    fig, ax = world_map.visualize_passage(full_passage=False)
     p = 0
     for s_path in polished_pathset:
         for i in range(s_path.shape[0]-1):
             ax.plot([s_path[i, 0], s_path[i+1, 0]], 
-                    [s_path[i, 1], s_path[i+1, 1]], 'r--')
+                    [s_path[i, 1], s_path[i+1, 1]], 'k-')
         p += 1
+
+    for i in range(pivolt_path.shape[0]-1):
+        ax.plot([pivolt_path[i, 0], pivolt_path[i+1, 0]], 
+                [pivolt_path[i, 1], pivolt_path[i+1, 1]], 'r-', linewidth=3)
+    visualize_shape(init_dlo_shape, ax, clr='m')
+    visualize_shape(goal_dlo_shape, ax, clr='g')
     
-    visualize_shape(init_dlo_shape, ax, clr='r')
-    visualize_shape(goal_dlo_shape, ax, clr='b')
-    plt.axis('equal')
-    plt.show()
-    # exit()
     # ================= DLO configuration optimization =============================
     pathset = PathSet( polished_pathset, T=60, seg_len=0.013 * 2)
-    solver = TcDloSolver(pathset=pathset, k1=20.0, k2=10.0, max_iter=1200)
-    
-    opt_sigmas, info = solver.solve()
+    solver = TcDloSolver(pathset=pathset, k1=200.0, k2=10.0, max_iter=1200)
+    pathset.vis_all_path(ax)
+    plt.savefig(f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/transfered_path_{map_case}.png",
+                dpi=2000)
+    plt.axis('equal')
+    plt.show()
 
+    # exit()
+    opt_sigmas, info = solver.solve()
     solution = jnp.reshape(opt_sigmas, (pathset.T + 1, pathset.num_path))
 
     clrs = np.linspace(0.0, 1.0, pathset.T+1)
     rever_clrs = np.flip(clrs)
     import matplotlib.animation as animation
-    fig, ax = world_map.visualize_passage(full_passage=False)
 
+    fig, ax = world_map.visualize_passage(full_passage=False)
+    dlo_shape = pathset.query_dlo_shape(solution[0])
+    ax.plot(dlo_shape[:, 0], dlo_shape[:, 1], color='r', linewidth=3)
+    dlo_shape = pathset.query_dlo_shape(solution[pathset.T])
+    ax.plot(dlo_shape[:, 0], dlo_shape[:, 1], color='r', linewidth=3)
+
+    polished_dlo_shapes = []
+    raw_dlo_shapes = []
     artists = []
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
+        raw_dlo_shapes.append(dlo_shape)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=20, k2=5, segment_len=0.013 * 2)
         container1 = ax.plot(dlo_shape[:, 0], dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=3)
         artists.append(container1)
-       
+        polished_dlo_shapes.append(dlo_shape)
+
     ani = animation.ArtistAnimation(fig=fig, artists=artists, interval=200)
     pathset.vis_all_path(ax)
     ani.save(filename=f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/optimized_{map_case}.gif", writer="pillow")
+
+    # =========================================
+    fig, ax = world_map.visualize_passage(full_passage=False)
+    for i in range(1, pathset.T+1, 2):
+        raw_dlo_shape = raw_dlo_shapes[i]
+        polished_dlo_shape = polished_dlo_shapes[i]
+        ax.plot(raw_dlo_shape[:, 0], raw_dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=1)
+        ax.plot(polished_dlo_shape[:, 0], polished_dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=3)
+    pathset.vis_all_path(ax)
+    plt.axis('equal')
+    plt.show()
 
     plt.figure()
     plt.plot(np.diff(solution, axis=0))

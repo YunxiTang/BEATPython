@@ -38,8 +38,8 @@ class PathSet:
         vec_smooth_traj_fn = jax.vmap(query_point_from_path, in_axes=[0, None, None])
         sigmas = jnp.linspace(0, 1, 100)
         for waypoints in self.all_path:   
-            trajectory = vec_smooth_traj_fn(sigmas, waypoints, 30)
-            ax.plot(trajectory[:, 0], trajectory[:, 1], '--', label="Smooth Path")
+            trajectory = vec_smooth_traj_fn(sigmas, waypoints, 120)
+            ax.plot(trajectory[:, 0], trajectory[:, 1], 'k--', label="Smooth Path", linewidth=0.5)
             # plt.plot(waypoints[:, 0], waypoints[:, 1], 'k-.', label="Raw Path")
             # plt.scatter(waypoints[:, 0], waypoints[:, 1], color='k', label="Waypoints")
         plt.axis('equal')
