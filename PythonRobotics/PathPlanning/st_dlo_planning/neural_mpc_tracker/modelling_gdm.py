@@ -215,16 +215,16 @@ class GDM(nn.Module):
         
         self.ca_decoder = CABlock(model_cfg.embed_dim, model_cfg.nhead)
         
-        self.vel_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
+        self.deltaKp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
                                       nn.GELU(approximate='tanh'),
                                       nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
         
     
-    def forward(self, dlo_kp, eefPos, eefVel):
+    def forward(self, dlo_kp, eefPos, delta_eefPos):
         q = self.dlo_encoder(dlo_kp)
         k = self.eefPos_proj(eefPos)
-        v = self.eefVel_proj(eefVel)
+        v = self.eefVel_proj(delta_eefPos)
         
         z = self.ca_decoder(q, k, v)
-        predicts = self.vel_head(z)
+        predicts = self.deltaKp_head(z)
         return predicts

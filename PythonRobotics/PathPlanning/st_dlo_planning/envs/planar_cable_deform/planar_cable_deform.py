@@ -34,7 +34,7 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
     |-----|---------------|-------------|-------------|
     | 0   | left-vx       | -0.3        | 0.3         |
     | 1   | left-vy       | -0.3        | 0.3         |
-    | 2   | left-rz       | -0.3        | 0.3         |
+    | 2   | left-rz       | -0.0        | 0.0         |
     | 3   | right-vx      | -0.3        | 0.3         |
     | 4   | right-vy      | -0.3        | 0.3         |
     | 5   | right-rz      | -0.3        | 0.3         |
