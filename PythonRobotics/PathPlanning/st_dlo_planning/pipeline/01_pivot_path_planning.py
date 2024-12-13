@@ -14,7 +14,9 @@ if __name__ == '__main__':
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
     from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
 
-    cfg_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/map_case8.yaml'
+    map_id = 'map_case7.yaml'
+
+    cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_id}'
     map_cfg_file = OmegaConf.load(cfg_path)
     
     map_cfg = MapCfg(resolution=map_cfg_file.workspace.resolution,
@@ -30,6 +32,7 @@ if __name__ == '__main__':
     world_map = WorldMap(map_cfg)
     # ============== add some obstacles =========================
     size_z = map_cfg_file.workspace.map_zmax
+    print(size_z)
     obstacles = map_cfg_file.obstacle_info.obstacles
     i = 0
     for obstacle in obstacles:

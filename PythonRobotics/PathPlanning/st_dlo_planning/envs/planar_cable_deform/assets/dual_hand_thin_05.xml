@@ -60,21 +60,21 @@
   </asset>
 
   <worldbody>
-    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
-    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="1 1 0.05" type="plane" material="groundplane"/>
+    <light pos="0 0 5.5" dir="0 0 -1" directional="true"/>
     
     <body name="left_hand" childclass="panda" pos="0 0 0.5" quat="0.000796327 0 1 0" gravcomp="1.0">
       <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
       <joint name="left_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
       <joint name="left_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
-      <joint name="left_pz" pos="0 0 0" axis="0 0 -1" type="slide" range="-2.5 2.5" damping="2"/>
+      <joint name="left_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-6.14 6.14" damping="2"/>
       
-      <geom class="visual" material="black" mesh="hand_0"/>
+      <!-- <geom class="visual" material="black" mesh="hand_0"/>
       <geom class="visual" material="black" mesh="hand_1"/>
       <geom class="visual" material="black" mesh="hand_2"/>
       <geom class="visual" material="black" mesh="hand_3"/>
       <geom class="visual" material="black" mesh="hand_4"/>
-      <geom class="collision" mesh="hand_c"/>
+      <geom class="collision" mesh="hand_c"/> -->
 
       <body name="left_left_finger" pos="0 0 0.0584" gravcomp="1.0">
         <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07"/>
@@ -104,14 +104,14 @@
       <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
       <joint name="right_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
       <joint name="right_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
-      <joint name="right_pz" pos="0 0 0" axis="0 0 -1" type="slide" range="-2.5 2.5" damping="2"/>
+      <joint name="right_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-6.14 6.14" damping="2"/>
       
-      <geom class="visual" material="off_white" mesh="hand_0"/>
+      <!-- <geom class="visual" material="off_white" mesh="hand_0"/>
       <geom class="visual" material="black" mesh="hand_1"/>
       <geom class="visual" material="black" mesh="hand_2"/>
       <geom class="visual" material="white" mesh="hand_3"/>
       <geom class="visual" material="off_white" mesh="hand_4"/>
-      <geom class="collision" mesh="hand_c"/>
+      <geom class="collision" mesh="hand_c"/> -->
       <body name="right_left_finger" pos="0 0 0.0584" gravcomp="1.0">
         <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07"/>
         <geom class="visual" material="off_white" mesh="finger_0"/>
@@ -161,12 +161,12 @@
   </equality>
   
   <actuator>
-    <general name="left_hand_vx" class="panda" joint="left_px" actdim="0" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 0 -50 0 0 0 0 0 0 0"/>
-    <general name="left_hand_vy" class="panda" joint="left_py" actdim="0" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 0 -50 0 0 0 0 0 0 0"/>
-    <general name="left_hand_vz" class="panda" joint="left_pz" actdim="0" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 0 -50 0 0 0 0 0 0 0"/>
+    <velocity name="left_hand_vx" class="panda" joint="left_px" kv="550"/>
+    <velocity name="left_hand_vy" class="panda" joint="left_py" kv="550"/>
+    <velocity name="left_hand_wz" class="panda" joint="left_rz" kv="550"/>
     
-    <general name="right_hand_vx" class="panda" joint="right_px" actdim="0" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 0 -50 0 0 0 0 0 0 0"/>
-    <general name="right_hand_vy" class="panda" joint="right_py" actdim="0" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 0 -50 0 0 0 0 0 0 0"/>
-    <general name="right_hand_vz" class="panda" joint="right_pz" actdim="0" gainprm="50 0 0 0 0 0 0 0 0 0" biasprm="0 0 -50 0 0 0 0 0 0 0"/>
+    <velocity name="right_hand_vx" class="panda" joint="right_px" kv="550"/>
+    <velocity name="right_hand_vy" class="panda" joint="right_py" kv="550"/>
+    <velocity name="right_hand_wz" class="panda" joint="right_rz" kv="550"/>
   </actuator>
 </mujoco>

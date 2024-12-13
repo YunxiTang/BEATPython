@@ -289,6 +289,8 @@ class RenderContext:
         self.pert = mujoco.MjvPerturb()
         self.con = mujoco.MjrContext(self.model, mujoco.mjtFontScale.mjFONTSCALE_150)
 
+        # self.vopt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = True
+
         self._markers = []
         self._overlays = {}
 

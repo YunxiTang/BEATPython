@@ -25,11 +25,11 @@ if __name__ == '__main__':
     # jax.config.update("jax_enable_x64", True)     # enable fp64
     jax.config.update('jax_platform_name', 'cpu') # use the CPU instead of GPU
 
-    from st_dlo_planning.temporal_config_opt.opt_solver import DloOptProblem, TcDloSolver
+    from st_dlo_planning.temporal_config_opt.opt_solver import TcDloSolver
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
 
     import zarr
-    map_case = 'map_case8'
+    map_case = 'map_case7'
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -74,13 +74,19 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    zarr_root = zarr.open('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/pretext_dataset/sim/dax/train/03_dax_dlo_10_train.zarr')
-
-    keypoints = zarr_root['data']['keypoints']
+    zarr_root = zarr.open('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/dlo_03_samples_2.zarr')
+    dlo_len = zarr_root['meta']['dlo_len'][0]
+    keypoints = zarr_root['data']['dlo_keypoints'][:]
+    keypoints = keypoints.reshape(100, -1, 3)
     num_kp = keypoints.shape[1]
-    init_dlo_shape = keypoints[44][1:num_kp-1:2]
-    goal_dlo_shape = keypoints[46][1:num_kp-1:2]
-    # goal_dlo_shape = np.flip( goal_dlo_shape, axis=0)
+
+    straight_shape = keypoints[0]
+    
+    init_dlo_shape = keypoints[45]
+    goal_dlo_shape = keypoints[44]
+
+    seg_len = np.linalg.norm(straight_shape[0] - straight_shape[1])
+    
     num_kp = goal_dlo_shape.shape[0]
     
     init_dlo_shape = init_dlo_shape - np.mean(init_dlo_shape, axis=0) + pivolt_path[0]
@@ -117,8 +123,8 @@ if __name__ == '__main__':
     # ================= refine the pathset =======================================
     _, ax = world_map.visualize_passage(full_passage=False)
     _, _, new_pathset_list, backup_pathset_list = deform_pathset_step1(pivolt_path, 
-                                                                 pathset_list,
-                                                                 world_map, (num_kp - 2) * 0.013)
+                                                                       pathset_list,
+                                                                       world_map, dlo_len-0.15)
     final_pathset, SegIdx = deform_pathset_step2(np.array(backup_pathset_list), np.array(new_pathset_list))
 
     polished_pathset = np.copy(final_pathset)
@@ -177,8 +183,8 @@ if __name__ == '__main__':
     visualize_shape(goal_dlo_shape, ax, clr='g')
     
     # ================= DLO configuration optimization =============================
-    pathset = PathSet( polished_pathset, T=60, seg_len=0.013 * 2)
-    solver = TcDloSolver(pathset=pathset, k1=200.0, k2=10.0, max_iter=1200)
+    pathset = PathSet( polished_pathset, T=60, seg_len=seg_len)
+    solver = TcDloSolver(pathset=pathset, k1=10.0, k2=10.0, tol=1e-6, max_iter=1200)
     pathset.vis_all_path(ax)
     plt.savefig(f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/transfered_path_{map_case}.png",
                 dpi=2000)
@@ -205,7 +211,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=20, k2=5, segment_len=0.013 * 2)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=10, k2=10, segment_len=seg_len)
         container1 = ax.plot(dlo_shape[:, 0], dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=3)
         artists.append(container1)
         polished_dlo_shapes.append(dlo_shape)
@@ -232,5 +238,10 @@ if __name__ == '__main__':
     plt.figure()
     plt.plot(np.linspace(0.0, 1.0, pathset.T+1, endpoint=True), solution)
     plt.show()
+
+    result_path = pathlib.Path(__file__).parent.parent.joinpath('results', f'{map_case}_optimal_shape_seq.npy')
+    sol = np.concatenate(polished_dlo_shapes, axis=0)
+    print(sol.shape)
+    np.save(result_path, sol)
 
 

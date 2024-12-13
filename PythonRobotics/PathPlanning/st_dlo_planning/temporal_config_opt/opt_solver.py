@@ -1,5 +1,4 @@
 import cyipopt
-from cyipopt import minimize_ipopt
 import numpy as np
 from typing import Callable
 import copy
@@ -10,7 +9,6 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from jax import jit, grad, jacfwd, jacrev
 
 jax.config.update("jax_enable_x64", True)     # enable fp64
 jax.config.update('jax_platform_name', 'cpu') # use the CPU instead of GPU
@@ -76,12 +74,13 @@ class DloOptProblem():
         @jax.jit
         def _sigma_to_energy(carry, sigma):
             dlo_shape = self._assemble_shape(sigma)
-            u = self._compute_potential_energy(dlo_shape) #+ 0.1 * jnp.linalg.norm(dlo_shape-self.goal_shape)
+            u = self._compute_potential_energy(dlo_shape) + 0.0001 * jnp.linalg.norm(
+                (dlo_shape - np.mean(dlo_shape, axis=0))-(self.goal_shape - np.mean(self.goal_shape, axis=0)))
             new_carry = u + carry
             return new_carry, u
         loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, sigmas, length=self.T+1)
         regularization = jnp.sum( jnp.diff(sigmas, axis=0) ** 2 )
-        return loss + 1.5 * regularization
+        return loss + 1. * regularization
 
 
     @partial(jax.jit, static_argnums=(0,))

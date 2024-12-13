@@ -17,8 +17,8 @@ class DiscreteModelEnv:
         Args:
             model: the approximated model to wrap.
             dlo_len: dlo length
-            num_feat: number of keypoints
-            num_grasp: number of grasps
+            nx: dim of keypoints
+            nu: dim of control input
             device: GPU/CPU device
             stats: dataset stats to normalie/unnormalize data
         """

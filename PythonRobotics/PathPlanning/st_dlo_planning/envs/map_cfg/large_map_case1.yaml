@@ -1,0 +1,24 @@
+meta:
+  author: "tyx"
+
+workspace:
+  resolution: 0.01
+  map_xmin: 0.0
+  map_xmax: 1.5
+  map_ymin: 0.0
+  map_ymax: 1.5
+  map_zmin: 0.0
+  map_zmax: 0.8
+  robot_size: 0.01
+  dim: 3
+
+obstacle_info:
+   obstacles: [[0.4, 0.3, 0.5, 0.5, 1.45]] # size_x, size_y, pos_x, pos_y, angle
+
+dlo_cfg:
+  start: [0.08, 0.08]
+  goal: [1.3, 1.3]
+
+logging:
+  save_pivot_path_name: 'large_map1_pivot_path.npy'
+

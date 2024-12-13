@@ -181,3 +181,70 @@ class GradientLMPCAgent:
             return action
         else:
             return ptu.to_numpy(action).flatten()
+        
+
+class BroydenAgent:
+    def __init__(self, input_dim, output_dim):
+        """
+            Shape Controller based on Broyden's rule
+        """
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+
+        self.jacobian_model = np.ones((output_dim, input_dim)) * 0.0
+        self.inner_n = 0
+        self.target_dlo_shape = None
+        self.weight = np.eye(output_dim)
+
+
+    def set_target_q(self, target_q):
+        """
+            set target shape
+        """
+        self.target_dlo_shape = target_q
+
+    def clamp(self, action):
+
+        return action
+    
+    def update_weight(self, new_weight):
+        """update the weight matrix for inverse kinematic controller
+
+        Args:
+            new_weight (_type_): new weight
+        """
+        self.weight = new_weight
+
+    def select_action(self, state, alpha=1.0):
+        """
+            traditional inverse kinematics controller
+        """
+        dlo_shape = state
+        # # compute Jacobian
+        # U, S, Vh = np.linalg.svd( self.jacobian_model )
+        # min_s = np.min(S)
+        jac = self.jacobian_model + 0.2 * np.eye(self.output_dim, self.input_dim) # regularization
+        jac_pesuinv = np.linalg.pinv((jac.transpose() @ self.weight @ jac)) @ jac.transpose() @ self.weight
+        delta_dlo_shape = np.clip(self.target_dlo_shape - dlo_shape, -alpha * 0.025, alpha * 0.025)
+        u_inverse = jac_pesuinv @ delta_dlo_shape
+        logpdf = None
+        return u_inverse, logpdf
+
+    def update(self, delta_s, delta_x):
+        """
+            update the kinematic model via Broyden's rule
+        """
+        self.jacobian_model += 0.1 * (delta_s - self.jacobian_model @ delta_x) / (np.sum(delta_x**2)) @ delta_x.T
+        self.inner_n += 1
+        return None
+        
+
+    def evaluate(self, state):
+        action, _ = self.select_action(state)
+        return action
+
+    def CollectBootstrapData(self):
+        """
+            bootstrap using random policy
+        """
+        pass

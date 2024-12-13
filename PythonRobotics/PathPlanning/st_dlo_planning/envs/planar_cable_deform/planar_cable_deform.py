@@ -10,6 +10,7 @@ from pathlib import Path, PureWindowsPath
 
 
 TaskSceneNames = {
+    '03': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_03.xml')), 'dlo_len':0.3, 'cable_geom_num': 39},
     '04': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_04.xml')), 'dlo_len':0.4, 'cable_geom_num': 49},
     '05': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_05.xml')), 'dlo_len':0.5, 'cable_geom_num': 39},
     '06': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_06.xml')), 'dlo_len':0.6, 'cable_geom_num': 39}
@@ -29,15 +30,22 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
     The DualGripperRopeEnv consists of two grippers and one rope.
     
     ### Action Space
+    ### Action Space
     An action represents the x-y-rz velocities of grippers.
     | Num | Action        | Control_Min | Control_Max |
     |-----|---------------|-------------|-------------|
     | 0   | left-vx       | -0.3        | 0.3         |
     | 1   | left-vy       | -0.3        | 0.3         |
-    | 2   | left-rz       | -0.0        | 0.0         |
-    | 3   | right-vx      | -0.3        | 0.3         |
-    | 4   | right-vy      | -0.3        | 0.3         |
-    | 5   | right-rz      | -0.3        | 0.3         |
+    | 2   | left-vz       | -0.0        | 0.0         |
+    | 3   | left-rx       | -0.0        | 0.0         |
+    | 4   | left-ry       | -0.0        | 0.0         |
+    | 5   | left-rz       | -0.3        | 0.3         |
+    | 6   | right-vx      | -0.3        | 0.3         |
+    | 7   | right-vy      | -0.3        | 0.3         |
+    | 8   | right-vz      | -0.0        | 0.0         |
+    | 9   | right-rx      | -0.0        | 0.0         |
+    | 10  | right-ry      | -0.0        | 0.0         |
+    | 11  | right-rz      | -0.3        | 0.3         |
     
     ### Observation Space
     Observations consist of feature points' positions onf the
@@ -62,14 +70,16 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
     }
 
     def __init__(self, task:str, feat_stride:int, **kargs):
-        if  task in TaskSceneNames:
+        if task in TaskSceneNames:
             XML_FILE = os.path.join( os.path.dirname(current_path), TaskSceneNames[task]['file'] )
         else:
             raise NotImplementedError(f"Wrong Task Name {task}. Not In {TaskName }")
+        
         self.frame_skip = 50
+        if task == '03':
+            self.frame_skip = 250
+
         self.model_path = XML_FILE
-        print(self.model_path)
-        self.max_episode_length = 1000
 
         self.dlo_len = TaskSceneNames[task]['dlo_len']
         self.cable_num_geom = TaskSceneNames[task]['cable_geom_num']
@@ -93,7 +103,7 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         self.action_high = 0.5
         self.action_space = Box(low=self.action_low, 
                                 high=self.action_high, 
-                                shape=(3*self.num_grasp,), 
+                                shape=(6*self.num_grasp,), 
                                 dtype=np.float64)
         
         super(DualGripperCableEnv, self).__init__(
@@ -107,7 +117,7 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
 
         # reset the feature point color
         material_id = self.model.mat('cable_material').id
-        # for idx in self.feat_idx:
+        
         for geom_name in self.cable_geom_names:
             geom_id = self.model.geom(geom_name).id
             self.model.geom_matid[geom_id] = material_id
@@ -117,12 +127,15 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         self.left_hand_jnt_idxs = [self._get_joint_index(joint_name) for joint_name in ['left_px', 'left_py', 'left_rz']]
         self.right_hand_jnt_idxs = [self._get_joint_index(joint_name) for joint_name in ['right_px', 'right_py', 'right_rz']]
 
+        self.actuation_matrix = np.array([[1, 0, 0],
+                                          [0, 1, 0],
+                                          [0, 0, 1],], dtype=np.float32)
 
     def _get_obs(self):
         """
             get the env state/observation
         """
-        # position of feature sites and grippers
+        # position of feature sites and  transforms of the two grippers
         # position of cable geoms
         geom_pos = [self.data.geom(geom_name).xpos.copy().ravel() for geom_name in self.cable_geom_names]
         self.geom_positions = np.concatenate(geom_pos)
@@ -130,15 +143,18 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         feat_pos = [geom_pos[idx] for idx in self.feat_idx]
         feat_positions = np.concatenate(feat_pos)
 
-        gripper_pos = []
+        gripper_transform = []
         for gripper_name in GRIPPER_NAMES:
             g_pos = self.data.body(gripper_name).xpos.copy().ravel()
-            gripper_pos.append(g_pos)
-        gripper_positions = np.concatenate(gripper_pos)
- 
-        observation = np.concatenate((feat_positions, gripper_positions)).copy().ravel()
+            g_quat = self.data.body(gripper_name).xquat.copy().ravel()
+            g_transform = np.hstack((g_pos, g_quat))
+            gripper_transform.append(g_transform)
         
-        return observation
+        gripper_transforms = np.concatenate(gripper_transform)
+        
+        obs = {'dlo_keypoints': feat_positions,
+               'eef_transforms': gripper_transforms}
+        return obs
     
 
     def compute_reward(self, obs, action):
@@ -235,8 +251,8 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
 
     def step(self, action):
         """
-            Action: in shape of (na, ) the desired twists (in the world frame) for the grippers.
-            Inverse Kinematics Controller Inside
+            Action: in shape of (na, ). The desired twists (in the world frame) for the EEFs,
+            with Inverse Kinematics (IK) Controller inside
 
                     left: [vx, vy, vz, wx, wy, wz]
                     right: [vx, vy, vz, wx, wy, wz]
@@ -253,8 +269,11 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         right_jacr = right_jacr_full[:, self.right_hand_jnt_idxs]
         right_jac = np.concatenate([right_jacp, right_jacr], axis=0)
 
-        left_act_command = np.linalg.pinv(left_jac) @ action[0:6]
-        right_act_command = np.linalg.pinv(right_jac) @ action[6:]
+        left_act_command = action[0:3]
+        right_act_command = action[3:]
+        # left_act_command = np.linalg.pinv(left_jac) @ action[0:6]
+        # right_act_command = np.linalg.pinv(right_jac) @ action[6:]
+
         act_command = np.concatenate([left_act_command, right_act_command], axis=0)
 
         self.do_simulation(act_command, self.frame_skip)
@@ -278,6 +297,7 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
 
 
     def render(self, mode: str = 'human', camera_name = None):
+        # self.viewer.vopt.frame = mujoco.mjtFrame.mjFRAME_BODY
         rendered_img = self._render(mode=mode, camera_name=camera_name)
         return rendered_img
     

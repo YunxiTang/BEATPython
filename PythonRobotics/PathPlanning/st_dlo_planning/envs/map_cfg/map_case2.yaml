@@ -8,7 +8,7 @@ workspace:
   map_ymin: 0.0
   map_ymax: 0.7
   map_zmin: 0.0
-  map_zmax: 0.02
+  map_zmax: 0.8
   robot_size: 0.01
   dim: 3
 
