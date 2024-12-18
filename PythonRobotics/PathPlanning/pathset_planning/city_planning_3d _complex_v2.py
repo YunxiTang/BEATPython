@@ -15,7 +15,7 @@ from rrt_star import CityRRTStar
 import numpy as np
 import jax.numpy as jnp
 from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
-from cost_map import CityCostMapLayer
+from PythonRobotics.PathPlanning.pathset_planning.cost_map import CityCostMapLayer
 import pickle
 import matplotlib.pyplot as plt
 import random

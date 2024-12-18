@@ -1,0 +1,40 @@
+<mujoco model="aloha_scene">
+  <compiler meshdir="mesh" texturedir="texture"/>
+  <include file="2d_case1.xml"/>
+  <include file="cable.xml"/>
+  <statistic center="0 -0.1 0.2" extent="0.6" meansize="0.05"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="90" elevation="-20"/>
+    <quality shadowsize="8192"/>
+  </visual>
+
+  <asset>
+    <material name="metal" rgba="0.517 0.529 0.537 1"/>
+    <material name="wood" rgba="0.8 0.52 0.25 1"/>
+    <material name="red" rgba="1 0 0 1"/>
+    <material name="blue" rgba="0 0 1 1"/>
+    <material name="green" rgba="0 1 0 1"/>
+    <material name="yellow" rgba="1 1 0 1"/>
+    <material name="white" rgba="1 1 1 1"/>
+    <material name="gray" rgba="0.5 0.5 0.5 1"/>
+  </asset>
+
+  <default>
+    <default class="frame">
+      <geom group="1" type="mesh" material="black"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <light pos="0 0.1 2.5"/>
+    <geom name="floor" size="2 2 0.05" type="plane" material="metal" pos="0 0 0.05"/>
+    <geom name="table" pos="0 0 0.5" size="0.6 0.6 0.02" type="box"/>
+    <camera name="overhead_cam" focal="1.93e-3 1.93e-3" resolution="1280 720" sensorsize="3896e-6 2140e-6"
+            pos="0 -0.303794 1.02524" mode="fixed" quat="0.976332 0.216277 0 0"/>
+    <camera name="worms_eye_cam" focal="1.93e-3 1.93e-3" resolution="1280 720" sensorsize="3896e-6 2140e-6"
+            pos="0 -0.377167 0.0316055" mode="fixed" quat="0.672659 0.739953 0 0"/>
+  </worldbody>
+</mujoco>

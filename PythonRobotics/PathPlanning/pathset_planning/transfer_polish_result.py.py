@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
 from PythonRobotics.PathPlanning.pathset_planning.visualizer import Visualizer
 from world_map import CityMap, Block
-from cost_map import CityCostMapLayer
+from PythonRobotics.PathPlanning.pathset_planning.cost_map import CityCostMapLayer
 from rrt import SimpleNode
 from utils import transfer_path
 

@@ -1,7 +1,27 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
+
+
+def visualize_shape(dlo: np.ndarray, ax, ld=3.0, s=25, clr=None):
+    '''
+        visualize a rope shape
+    '''
+    if clr is None:
+        clr = 0.5 + 0.5 * np.random.random(3)
+
+    num_kp = dlo.shape[0]
+
+    for i in range(num_kp):
+        ax.scatter(dlo[i][0], dlo[i][1], dlo[i][2], color=clr, marker='o')
+    for i in range(num_kp-1):
+        ax.plot([dlo[i][0], dlo[i+1][0]], 
+                [dlo[i][1], dlo[i+1][1]], color=clr, linewidth=ld)
+    ax.axis('equal')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
 
 
 # sigmoid function with control parameter k for sharpness of transition
@@ -13,7 +33,8 @@ def weight_function(t, t_i, t_next, k):
     return sigmoid(t - t_i, k) * sigmoid(-(t - t_next), k)
 
 # compute interpolated positions at time t with smooth transitions
-def query_point_from_path(t, waypoints, k=30):
+@jax.jit
+def query_point_from_path(t, waypoints, k=120):
     
     # Step 1: Calculate distances between consecutive waypoints
     distances = jnp.linalg.norm( jnp.diff( waypoints, axis=0 ), axis=1, ord=2)
