@@ -53,7 +53,7 @@ if __name__ == '__main__':
    
     agent = BroydenAgent(input_dim=3*num_grasps, output_dim=3*num_feats)
 
-    map_case = 'map_case7'
+    map_case = 'map_case10'
 
     result_path = pathlib.Path(__file__).parent.parent.joinpath('results', f'{map_case}_optimal_shape_seq.npy')
     planned_shape_seq = np.load(result_path, mmap_mode='r')
@@ -79,16 +79,17 @@ if __name__ == '__main__':
 
     # ================ move the cable to a proper shape (if neccessary) ============
     state, _ = env.reset()
-    for i in range(5):
-        action = np.array([ -0.02, 0.03, 0.3, 
-                             0.04, 0.01, -0.4]) * 0.5
+    for i in range(20):
+        action = np.array([  0.02, 0.00, -0.4, 
+                            -0.04, 0.00,  0.4]) * 1.0
         action = np.clip(action, -0.5, 0.5)
         next_state, _, _, _, _ = env.step(action)
+        env.render()
     
     N = 15000
     error_list = []
     ultra_error_list = []
-    action_list = np.zeros((N, 6))
+    action_list = []
     error_pre = 1e3
 
     i = 0
@@ -105,13 +106,15 @@ if __name__ == '__main__':
         target_shape = target_shape.flatten()
         agent.set_target_q(target_shape)
 
-        action, _ = agent.select_action(state['dlo_keypoints'], alpha=0.2)
-        action = np.clip(action, [-0.04, -0.04, -0.1, -0.04, -0.04, -0.1], 
-                                 [ 0.04,  0.04,  0.1,  0.04,  0.04,  0.1]) * 2.0
+        action, _ = agent.select_action(state['dlo_keypoints'], alpha=0.01)
+        action = np.clip(action, [-0.04, -0.04, -0.4, -0.04, -0.04, -0.4], 
+                                 [ 0.04,  0.04,  0.4,  0.04,  0.04,  0.4]) * 1.0
         
         action = 0.5 * pre_action + 0.5 * action
+        # action[2] = 0.0
+        # action[5] = 0.0
         # ================== take an env step ==================#
-        action_list[i,:] = action
+        action_list.append(action)
         next_state, reward, done, truncated, info = env.step(action)
         
         env.render(mode='human')
@@ -134,14 +137,22 @@ if __name__ == '__main__':
         if i % 20 == 0:
             print(f'Timestep: [{i} / {N}] || Inter_Err: {error} Ultra_Err: {ultra_error} Idx: {jj}')
             
-        if abs(error) < 3e-3 or (patience > 250 and jj > 1):
+
+        if abs(error) < 3e-3 or (patience > 250 and jj > 0):
             jj += 1
             jj = min(jj, planned_shape_seq.shape[0] - 1)
             dlos.append(state['dlo_keypoints'])
             target_dlos.append(target_shape.reshape(-1, 3))
             patience = 0
 
-        if ultra_error <= 3e-3:
+        elif abs(error) < 1e-2 and jj == 0:
+            jj += 1
+            jj = min(jj, planned_shape_seq.shape[0] - 1)
+            dlos.append(state['dlo_keypoints'])
+            target_dlos.append(target_shape.reshape(-1, 3))
+            patience = 0
+
+        if ultra_error <= 5e-3:
             dlos.append(state['dlo_keypoints'])
             target_dlos.append(final_target_shape.reshape(-1, 3))
             break
@@ -151,6 +162,7 @@ if __name__ == '__main__':
         pre_action = action
         i += 1
         patience += 1
+    action_list = np.array(action_list)
     # ======================= print and save result ======================== #
     print(f'residual shape error {error}')
 
@@ -159,7 +171,7 @@ if __name__ == '__main__':
     import seaborn as sns
     from st_dlo_planning.utils.path_interpolation import visualize_shape
     
-    sns.set_theme('poster')
+    sns.set_theme('notebook')
     sns.lineplot(error_list)
     sns.lineplot(ultra_error_list)
 
@@ -193,7 +205,7 @@ if __name__ == '__main__':
     world_map.finalize()
     _, ax = world_map.visualize_passage(full_passage=False)
 
-    for k in range(0, len(dlos), 2):
+    for k in range(0, len(dlos), 1):
         dlo_shape = dlos[k]
         dlo_shape = dlo_shape.reshape(-1, 3)
         visualize_shape(dlo_shape, ax, clr='k', ld=2.0)

@@ -2,11 +2,23 @@
 import mujoco
 import numpy as np
 import os
+from scipy.spatial.transform import Rotation as sciR
 from gym import utils
 from gym.spaces import Box
 import seaborn as sns
 from st_dlo_planning.envs.mujoco_base_env import MujocoEnv
 from pathlib import Path, PureWindowsPath
+
+
+def wrap_angle(theta):
+    if theta <= 0:
+        theta = 2*np.pi + theta
+    elif theta > 2*np.pi:
+        theta = theta - 2*np.pi
+    else:
+        theta = theta
+    return theta
+
 
 
 TaskSceneNames = {
@@ -36,16 +48,10 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
     |-----|---------------|-------------|-------------|
     | 0   | left-vx       | -0.3        | 0.3         |
     | 1   | left-vy       | -0.3        | 0.3         |
-    | 2   | left-vz       | -0.0        | 0.0         |
-    | 3   | left-rx       | -0.0        | 0.0         |
-    | 4   | left-ry       | -0.0        | 0.0         |
-    | 5   | left-rz       | -0.3        | 0.3         |
-    | 6   | right-vx      | -0.3        | 0.3         |
-    | 7   | right-vy      | -0.3        | 0.3         |
-    | 8   | right-vz      | -0.0        | 0.0         |
-    | 9   | right-rx      | -0.0        | 0.0         |
-    | 10  | right-ry      | -0.0        | 0.0         |
-    | 11  | right-rz      | -0.3        | 0.3         |
+    | 2   | left-rz       | -0.3        | 0.3         |
+    | 3   | right-vx      | -0.3        | 0.3         |
+    | 4   | right-vy      | -0.3        | 0.3         |
+    | 5   | right-rz      | -0.3        | 0.3         |
     
     ### Observation Space
     Observations consist of feature points' positions onf the
@@ -127,10 +133,6 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         self.left_hand_jnt_idxs = [self._get_joint_index(joint_name) for joint_name in ['left_px', 'left_py', 'left_rz']]
         self.right_hand_jnt_idxs = [self._get_joint_index(joint_name) for joint_name in ['right_px', 'right_py', 'right_rz']]
 
-        self.actuation_matrix = np.array([[1, 0, 0],
-                                          [0, 1, 0],
-                                          [0, 0, 1],], dtype=np.float32)
-
     def _get_obs(self):
         """
             get the env state/observation
@@ -151,9 +153,11 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
             gripper_transform.append(g_transform)
         
         gripper_transforms = np.concatenate(gripper_transform)
-        
+
+        lowdim_eef_transforms = self.get_lowdim_eef_state(eef_transforms=gripper_transforms)
         obs = {'dlo_keypoints': feat_positions,
-               'eef_transforms': gripper_transforms}
+               'eef_transforms': gripper_transforms,
+               'lowdim_eef_transforms': lowdim_eef_transforms}
         return obs
     
 
@@ -203,59 +207,91 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
 
         return left_eef_twsit, right_eef_twist
     
+
+    def get_lowdim_eef_state(self, obs=None, eef_transforms=None):
+        if obs is not None:
+            eef_transforms = obs['eef_transforms']
+        elif eef_transforms is not None:
+            eef_transforms = eef_transforms
+        else:
+            raise NotImplementedError
+
+        l_eef_pos = eef_transforms[0:3]
+        l_eef_quat = eef_transforms[3:7]
+
+        r_eef_pos = eef_transforms[7:10]
+        r_eef_quat = eef_transforms[10:]
+
+        left_R = sciR.from_quat([l_eef_quat[1],l_eef_quat[2],l_eef_quat[3],l_eef_quat[0]])
+        left_euler = left_R.as_euler('xyz', degrees=False)
+        
+        right_R = sciR.from_quat([r_eef_quat[1],r_eef_quat[2],r_eef_quat[3],r_eef_quat[0]])
+        right_euler = right_R.as_euler('xyz', degrees=False)
+
+        left_euler_z = wrap_angle(left_euler[2])
+        right_euler_z = wrap_angle(right_euler[2])
+        
+        L_pose = np.array([l_eef_pos[0], l_eef_pos[1], left_euler_z])
+        R_pose = np.array([r_eef_pos[0], r_eef_pos[1], right_euler_z])
+
+        return L_pose, R_pose
     
-    def step_relative_ee(self, delta_left_ee_pos, delta_right_ee_pos, render=False):
+    
+    def step_relative_eef(self, 
+                          delta_left_eef_pose, 
+                          delta_right_eef_pose, 
+                          num_steps: int=100,
+                          return_traj: bool=False,
+                          render_mode: str='human'):
         '''
-            move ee incrementally (the relative ee pos shoul be given in the world frame, not the ee frame)
+            move eef incrementally (the relative eef pose should be given in the world frame, not the eef frame)
         '''
         obs = self._get_obs()
-        gripper_pos = obs[3*self.num_feat:3*(self.num_feat+self.num_grasp)]
-        L_pos = gripper_pos[0:3]
-        R_pos = gripper_pos[3:6]
+        L_pose, R_pose = self.get_lowdim_eef_state(obs)
 
-        L_pos_0 = L_pos 
-        R_pos_0 = R_pos 
+        L_target = L_pose + delta_left_eef_pose
+        R_target = R_pose + delta_right_eef_pose
 
-        L_target = L_pos + delta_left_ee_pos
-        R_target = R_pos + delta_right_ee_pos
+        if return_traj:
+            states = []
+            actions = []
+            imgs = []
 
-        for i in range(100):
-            left_jacp_full, left_jacr_full = self._compute_ee_jac('left_hand')
-            right_jacp_full, right_jacr_full = self._compute_ee_jac('right_hand')
-
-            left_jacp = left_jacp_full[:, self.left_hand_jnt_idxs]
-            right_jacp = right_jacp_full[:, self.right_hand_jnt_idxs]
-
-            delta_left_ee_pos = L_target - L_pos
-            delta_right_ee_pos = R_target - R_pos
-
-            delta_left_act = np.linalg.inv(left_jacp) @ delta_left_ee_pos
-            delta_right_act = np.linalg.inv(right_jacp) @ delta_right_ee_pos
+        for i in range(num_steps):
+            delta_left_act = L_target - L_pose
+            delta_right_act = R_target - R_pose
             
-            full_act = np.concatenate((delta_left_act, np.zeros(3,), delta_right_act, np.zeros(3,))) * 1.0
-            full_act = np.clip(full_act, -0.15, 0.15)
+            full_act = np.concatenate((delta_left_act, delta_right_act)) * 2.0
+            full_act = np.clip(full_act, [-0.04, -0.04, -0.4, -0.04, -0.04, -0.4], 
+                                         [ 0.04,  0.04,  0.4,  0.04,  0.04,  0.4])
             
             obs, reward, done, info, truncated = self.step(full_act)
-            if render:
-                self.render('human')
+            
+            imgs.append(self.render(mode=render_mode))
 
-            gripper_pos = obs[3*self.num_feat:3*(self.num_feat+self.num_grasp)]
-            L_pos = gripper_pos[0:3]
-            R_pos = gripper_pos[3:6]
-            error = (np.linalg.norm(L_target-L_pos) + np.linalg.norm(R_target-R_pos))
-            if error < 1e-2 and i > 1:
+            if return_traj:
+                states.append(obs)
+                actions.append(full_act)
+
+            L_pose, R_pose = self.get_lowdim_eef_state(obs)
+            error = np.linalg.norm(L_target-L_pose) + np.linalg.norm(R_target-R_pose)
+            if error < 1e-3 and i > 1:
                 break
-        print(L_target-L_pos_0, R_target-R_pos_0)
-        return obs, reward, done, info, truncated
+        if return_traj:
+            ep_len = i + 1
+            return states, actions, imgs, ep_len
+        else:
+            return obs, reward, done, info, truncated
 
 
     def step(self, action):
         """
             Action: in shape of (na, ). The desired twists (in the world frame) for the EEFs,
-            with Inverse Kinematics (IK) Controller inside
+            with Inverse Kinematics (IK) Controller inside.
 
-                    left: [vx, vy, vz, wx, wy, wz]
-                    right: [vx, vy, vz, wx, wy, wz]
+            Env Action In World Frame: 
+                action[0:3]: [left_vx, left_vy, left_wz]
+                action[3:6]: [right_vx, right_vy, right_wz]
         """
         # compute the jacobian firstly
         left_jacp_full, left_jacr_full = self._compute_ee_jac('left_hand')
@@ -269,10 +305,15 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         right_jacr = right_jacr_full[:, self.right_hand_jnt_idxs]
         right_jac = np.concatenate([right_jacp, right_jacr], axis=0)
 
-        left_act_command = action[0:3]
-        right_act_command = action[3:]
-        # left_act_command = np.linalg.pinv(left_jac) @ action[0:6]
-        # right_act_command = np.linalg.pinv(right_jac) @ action[6:]
+        # assemble twist command
+        left_desired_twist = np.array([action[0], action[1], 0, 0, 0, action[2]])
+        right_desired_twist = np.array([action[3], action[4], 0, 0, 0, action[5]])
+        left_act_command = np.linalg.pinv(left_jac) @ left_desired_twist
+        right_act_command = np.linalg.pinv(right_jac) @ right_desired_twist
+
+        # left_act_command = action[0:3]
+        # right_act_command = action[3:]
+        # print( left_act_command.shape, right_act_command.shape )
 
         act_command = np.concatenate([left_act_command, right_act_command], axis=0)
 

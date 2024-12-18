@@ -34,7 +34,7 @@ def elastic_enery(intermediate_points, init_intermediate_points, end_point1, end
         U5 = U5 + k2/2. * (jnp.linalg.norm(dlo_shape[j+5] - dlo_shape[j]) - 5 * segment_len) ** 2
         
     reg = 0.01 * jnp.mean((intermediate_points - init_intermediate_points)**2)
-    return U1 + U2 #+ U3 + U4 + U5 + reg
+    return U1 + U2 + U3# + U4 + U5
 
 
 val_and_grad_fn = jax.value_and_grad(elastic_enery)
@@ -49,8 +49,8 @@ def polish_dlo_shape(raw_shape, k1, k2, segment_len):
 
     for i in range(200):
         energy, grads = val_and_grad_fn(intermidiate_points, init_intermediate_points, endpoint1, endpoint2, k1, k2, segment_len)
-        intermidiate_points = intermidiate_points - 0.001 * grads
-        if i % 1 == 0:
+        intermidiate_points = intermidiate_points - 0.005 * grads
+        if i % 20 == 0:
             print(f'{i}: {energy}')
         if energy_pre - energy <= 1e-5:
             break

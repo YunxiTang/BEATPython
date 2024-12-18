@@ -40,7 +40,7 @@ class DloOptProblem():
         self.decision_variable_dim = (self.T + 1) * self.num_path
         
         # constraint dim
-        self.num_constraint = self.num_path * 2 + self.num_path * self.T
+        self.num_constraint = self.num_path * 2 + self.num_path * self.T 
 
         self.seg_len = pathset.seg_len
 
@@ -71,16 +71,23 @@ class DloOptProblem():
             objective function E = \sum^T_{t=0} U_t
         """
         sigmas = jnp.reshape(x, (self.T+1, self.num_path))
+        diff_sigmas = jnp.concatenate([jnp.diff(sigmas, axis=0), jnp.zeros([1, self.num_path])], axis=0)
+
+        Sigmas = jnp.concatenate([sigmas, diff_sigmas], axis=1)
+
         @jax.jit
-        def _sigma_to_energy(carry, sigma):
+        def _sigma_to_energy(carry, Sigma):
+            sigma = Sigma[0:self.num_path]
+            delta_sigma = jnp.sum( Sigma[self.num_path:] )
             dlo_shape = self._assemble_shape(sigma)
-            u = self._compute_potential_energy(dlo_shape) + 0.0001 * jnp.linalg.norm(
-                (dlo_shape - np.mean(dlo_shape, axis=0))-(self.goal_shape - np.mean(self.goal_shape, axis=0)))
+            u = self._compute_potential_energy(dlo_shape) * delta_sigma #+ 1.1 * delta_sigma**2# + 1e-4 * jnp.linalg.norm((dlo_shape - np.mean(dlo_shape, axis=0))-(self.goal_shape - np.mean(self.goal_shape, axis=0)))
             new_carry = u + carry
             return new_carry, u
-        loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, sigmas, length=self.T+1)
-        regularization = jnp.sum( jnp.diff(sigmas, axis=0) ** 2 )
-        return loss + 1. * regularization
+        loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, Sigmas, length=self.T+1)
+
+        diff2_sigmas = jnp.diff(jnp.diff(sigmas, axis=0), axis=0)
+        reg = jnp.sum(  diff2_sigmas ** 2 )
+        return loss + 20.0 * reg
 
 
     @partial(jax.jit, static_argnums=(0,))
@@ -100,6 +107,7 @@ class DloOptProblem():
         # for each path, we force that: sigma_T > sigma_{T-1} > ... > sigma_1 > sigma_0 
         path_ineq = jnp.diff(sigma, axis=0)          
         path_ineq = jnp.reshape(path_ineq, (self.T) * self.num_path)            
+        
         constraints = jnp.concatenate([init_eq, term_eq, path_ineq])
         return constraints
 
@@ -155,12 +163,12 @@ class TcDloSolver:
         self.lb = np.repeat([0.], self.pathset.num_path * (self.pathset.T + 1))
         self.ub = np.repeat([1.], self.pathset.num_path * (self.pathset.T + 1))
         
-        self.cl = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.002,] * (self.T * self.num_path))
-        self.cu = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.05,] * (self.T * self.num_path))
+        self.cl = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.0,] * (self.T * self.num_path))
+        self.cu = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.03,] * (self.T * self.num_path))
         
         # initialize the decision variables
-        # self.init_sigmas = np.ones((self.pathset.T + 1) * self.pathset.num_path) * 0.0
-        self.init_sigmas = np.repeat( np.linspace(0.0, 1.0, self.pathset.T + 1, endpoint=True), self.pathset.num_path)
+        self.init_sigmas = np.ones((self.pathset.T + 1) * self.pathset.num_path) * 1.0
+        # self.init_sigmas = np.repeat( np.linspace(0.0, 1.0, self.pathset.T + 1, endpoint=True), self.pathset.num_path)
         
     def solve(self):
         """ 
@@ -184,7 +192,7 @@ class TcDloSolver:
         nlp.add_option('max_iter', self._max_iter)
         nlp.add_option('print_level', 0)
         # nlp.add_option('hessian_approximation', 'limited-memory')
-        # nlp.add_option('max_cpu_time', 0.5)
+        # nlp.add_option('max_cpu_time', 60)
         # nlp.addOption('derivative_test', 'second-order')
         # nlp.add_option('gradient_approximation', 'finite-difference-values')
         # nlp.add_option('jacobian_approximation', 'finite-difference-values')

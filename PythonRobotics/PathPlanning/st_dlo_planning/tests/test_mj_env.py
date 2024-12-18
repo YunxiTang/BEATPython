@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
     mode = 'human' #'rgb_array' #'depth_array' #
     camera = 'topview'
-    env = DualGripperCableEnv(task='06', feat_stride=4, render_mode=mode, camera_name=camera)
+    env = DualGripperCableEnv(task='03', feat_stride=3, render_mode=mode, camera_name=camera)
     num_feats = env.num_feat
     print(env.num_feat, env.na, env.dt)
     obs, _ = env.reset()
@@ -87,11 +87,19 @@ if __name__ == '__main__':
     desired_twists = []
     ts = []
 
+    pre_left_euler_z = 0.
     for i in range(80):
         ts.append(i)
-        action = np.array([0.02, 0.0, 0.00, 0.00, 0.0, 0.2, 
-                          -0.02, 0.0, 0.00, 0.00, 0.0, -0.2]) * 1.5
+        action = np.array([0.02, 0.0, 0.2, 
+                           -0.02, 0.0, 0.2])
         obs, _, done, _, _ = env.step(action)
+
+        gripper_transforms = obs['eef_transforms']
+
+        l_eef_quat = gripper_transforms[3:7]
+        left_R = sciR.from_quat([l_eef_quat[1],l_eef_quat[2],l_eef_quat[3],l_eef_quat[0]])
+        left_euler = left_R.as_euler('xyz', degrees=False)
+        print('left_euler_z_rate: ', left_euler[2], 'left_euler_z_rate: ', (left_euler[2] - pre_left_euler_z) / env.dt)
 
         left_eef_twist, right_eef_twist = env.get_eef_twist()
         
@@ -102,6 +110,8 @@ if __name__ == '__main__':
         desired_twists.append(action[None])
 
         imgs.append(env.render(mode=mode, camera_name=camera))
+
+        pre_left_euler_z = left_euler[2]
     
     fig = plt.figure(figsize=plt.figaspect(0.5))
     ax = fig.add_subplot(projection='3d')
@@ -151,10 +161,10 @@ if __name__ == '__main__':
 
     plt.show()
 
-    # exit()
+    exit()
     # ============================================= #
     target_shape = dlo_keypoints_hist[-1]
-    agent = BroydenAgent(input_dim=12, output_dim=num_feats*3)
+    agent = BroydenAgent(input_dim=6, output_dim=num_feats*3)
     agent.set_target_q(target_shape)
 
     # ================ move the cable to a proper shape (if neccessary) ============
@@ -170,7 +180,7 @@ if __name__ == '__main__':
     N = 5000
     obs = next_obs
     error_list = []
-    action_list = np.zeros((N, 12))
+    action_list = np.zeros((N, 6))
     error_pre = 1e3
 
     i = 0
@@ -185,7 +195,8 @@ if __name__ == '__main__':
         left_eef_pos.append(eef_transforms[0:3])
 
         raw_action, _ = agent.select_action(dlo_keypoints, alpha=0.2)
-        raw_action = np.clip(raw_action, -0.02, 0.02)
+        action = np.clip(action, [-0.04, -0.04, -0.1, -0.04, -0.04, -0.1], 
+                                 [ 0.04,  0.04,  0.1,  0.04,  0.04,  0.1]) * 2.0
 
         action_list[i,:] = raw_action
         
@@ -207,7 +218,7 @@ if __name__ == '__main__':
         delta_s = next_dlo_keypoints - dlo_keypoints
         delta_x = raw_action * env.dt
         delta_s = delta_s.reshape((3*num_feats, 1))
-        delta_x = delta_x.reshape((12, 1))
+        delta_x = delta_x.reshape((6, 1))
         if i % 3 == 0:
             agent.update(delta_s, delta_x)
                 

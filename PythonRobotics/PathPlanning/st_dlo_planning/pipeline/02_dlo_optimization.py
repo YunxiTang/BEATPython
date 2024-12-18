@@ -29,7 +29,7 @@ if __name__ == '__main__':
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
 
     import zarr
-    map_case = 'map_case7'
+    map_case = 'map_case10'
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
     straight_shape = keypoints[0]
     
-    init_dlo_shape = keypoints[45]
+    init_dlo_shape = keypoints[20]
     goal_dlo_shape = keypoints[44]
 
     seg_len = np.linalg.norm(straight_shape[0] - straight_shape[1])
@@ -183,8 +183,8 @@ if __name__ == '__main__':
     visualize_shape(goal_dlo_shape, ax, clr='g')
     
     # ================= DLO configuration optimization =============================
-    pathset = PathSet( polished_pathset, T=60, seg_len=seg_len)
-    solver = TcDloSolver(pathset=pathset, k1=10.0, k2=10.0, tol=1e-6, max_iter=1200)
+    pathset = PathSet( polished_pathset, T=70, seg_len=seg_len)
+    solver = TcDloSolver(pathset=pathset, k1=2.0, k2=2.0, tol=1e-3, max_iter=800)
     pathset.vis_all_path(ax)
     plt.savefig(f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/transfered_path_{map_case}.png",
                 dpi=2000)
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=10, k2=10, segment_len=seg_len)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=2, k2=2, segment_len=seg_len)
         container1 = ax.plot(dlo_shape[:, 0], dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=3)
         artists.append(container1)
         polished_dlo_shapes.append(dlo_shape)

@@ -46,8 +46,8 @@
     <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
     <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="white" class="panda"/>
-    <material name="off_white" class="panda" rgba="0.901961 0.921569 0.929412 0.5"/>
-    <material name="black" class="panda" rgba="0.25 0.25 0.25 0.5"/>
+    <material name="off_white" class="panda" rgba="0.901961 0.921569 0.929412 1.0"/>
+    <material name="black" class="panda" rgba="0.25 0.25 0.25 1.0"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
     <mesh name="hand_c" file="hand.stl"/>
     <mesh name="hand_0" file="hand_0.obj"/>
@@ -69,7 +69,7 @@
       <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
       <joint name="left_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
       <joint name="left_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
-      <joint name="left_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-1.5 1.5" damping="2"/>
+      <joint name="left_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-1.575 1.575" damping="2"/>
       
       <!-- <geom class="visual" material="off_white" mesh="hand_0"/>
       <geom class="visual" material="black" mesh="hand_1"/>
@@ -106,7 +106,7 @@
       <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
       <joint name="right_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
       <joint name="right_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
-      <joint name="right_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-1.5 1.5" damping="2"/>
+      <joint name="right_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-1.575 1.575" damping="2"/>
       
       <!-- <geom class="visual" material="off_white" mesh="hand_0"/>
       <geom class="visual" material="black" mesh="hand_1"/>

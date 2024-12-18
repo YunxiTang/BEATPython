@@ -4,11 +4,14 @@ from ompl import base as ob
 from ompl import geometric as og
 from ompl import util as ou
 
+import jax
 import numpy as np
+import jax.numpy as jnp
 from st_dlo_planning.utils.world_map import WorldMap
-
+from st_dlo_planning.utils.path_interpolation import query_point_from_path
 import matplotlib.pyplot as plt
 
+from functools import partial
 
 DEFAULT_PLANNING_TIME = 200.
 INTERPOLATE_NUM = 40
@@ -128,13 +131,16 @@ class DloOmpl:
         if solved:
             print("Found solution.")
             sol_path_geometric = self.simple_setup.getSolutionPath()
-            sol_path_geometric.interpolate(num_waypoints)
+            # sol_path_geometric.interpolate(num_waypoints)
 
             states = []
             for i in range(sol_path_geometric.getStateCount()):
                 state = sol_path_geometric.getState(i)
                 states.append([state[0], state[1], state[2]])
             sol_np = np.array(states)
+            vec_smooth_traj_fn = jax.vmap(query_point_from_path, in_axes=[0, None, None])
+            sigmas = jnp.linspace(0, 1, num_waypoints)
+            sol_np = vec_smooth_traj_fn(sigmas, sol_np, 50)
             return sol_path_geometric, sol_np
         else:
             print('No solution can be found')
