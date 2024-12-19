@@ -154,7 +154,8 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         
         gripper_transforms = np.concatenate(gripper_transform)
 
-        lowdim_eef_transforms = self.get_lowdim_eef_state(eef_transforms=gripper_transforms)
+        L_pose, R_pose = self.get_lowdim_eef_state(eef_transforms=gripper_transforms)
+        lowdim_eef_transforms = np.hstack((L_pose, R_pose))
         obs = {'dlo_keypoints': feat_positions,
                'eef_transforms': gripper_transforms,
                'lowdim_eef_transforms': lowdim_eef_transforms}
@@ -246,16 +247,17 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         '''
             move eef incrementally (the relative eef pose should be given in the world frame, not the eef frame)
         '''
+        if return_traj:
+            states = []
+            actions = []
+            next_states = []
+            imgs = []
+
         obs = self._get_obs()
         L_pose, R_pose = self.get_lowdim_eef_state(obs)
 
         L_target = L_pose + delta_left_eef_pose
         R_target = R_pose + delta_right_eef_pose
-
-        if return_traj:
-            states = []
-            actions = []
-            imgs = []
 
         for i in range(num_steps):
             delta_left_act = L_target - L_pose
@@ -265,21 +267,24 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
             full_act = np.clip(full_act, [-0.04, -0.04, -0.4, -0.04, -0.04, -0.4], 
                                          [ 0.04,  0.04,  0.4,  0.04,  0.04,  0.4])
             
-            obs, reward, done, info, truncated = self.step(full_act)
+            next_obs, reward, done, info, truncated = self.step(full_act)
             
-            imgs.append(self.render(mode=render_mode))
-
             if return_traj:
                 states.append(obs)
                 actions.append(full_act)
+                next_states.append(next_obs)
+                imgs.append(self.render(mode=render_mode))
+
+            obs = next_obs
 
             L_pose, R_pose = self.get_lowdim_eef_state(obs)
             error = np.linalg.norm(L_target-L_pose) + np.linalg.norm(R_target-R_pose)
             if error < 1e-3 and i > 1:
                 break
+        
         if return_traj:
             ep_len = i + 1
-            return states, actions, imgs, ep_len
+            return states, actions, next_states, imgs, ep_len
         else:
             return obs, reward, done, info, truncated
 

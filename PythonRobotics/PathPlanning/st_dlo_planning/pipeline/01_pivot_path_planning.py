@@ -65,6 +65,7 @@ if __name__ == '__main__':
         sol_np = None
 
     if sol_np is not None:
+        print(sol_np.shape)
         fig, ax = world_map.visualize_passage(full_passage=False)
         plot_circle(start[0], start[1], 0.005, ax)
         plot_circle(goal[0], goal[1], 0.005, ax, color='-r')
@@ -86,6 +87,3 @@ if __name__ == '__main__':
         plt.show()
         ax.set_xlim(world_map.map_cfg.map_xmin - 0.05, world_map.map_cfg.map_xmax + 0.05)
         ax.set_ylim(world_map.map_cfg.map_ymin - 0.05, world_map.map_cfg.map_ymax + 0.05)
-        
-        # fig.savefig('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/pipeline/pivolt_path_0.png', dpi=2000)
-

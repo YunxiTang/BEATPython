@@ -9,32 +9,43 @@ if __name__ == '__main__':
     os.chdir(ROOT_DIR)
     
     import torch
-    from st_dlo_planning.neural_mpc_tracker.modelling_gdm import DLOEncoder, GDM
+    from torch.utils.data import DataLoader
+    import torch.nn as nn
+
+    from st_dlo_planning.neural_mpc_tracker.modelling_gdm import GDM
     from st_dlo_planning.neural_mpc_tracker.configuration_gdm import GDM_CFG
+    from st_dlo_planning.neural_mpc_tracker.gdm_dataset import MultiStepGDMDataset
+    from st_dlo_planning.utils.pytorch_utils import to_numpy
     
+    data_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_data/task_03_train.zarr'
+    dataset = MultiStepGDMDataset( data_path, max_step=5 )
+
+    batch_size = 256
+    dataloader = DataLoader(dataset, batch_size=batch_size)
     
     model_cfg = GDM_CFG()
-    dlo_encoder = DLOEncoder(model_cfg)
-    
-    batch_size = 12
-    seq_len = 19
-    kp_dim = 3
-    
-    x = torch.randn(batch_size, seq_len, kp_dim)
-    y = dlo_encoder(x)
-    
-    for key, val in dlo_encoder.state_dict().items():
-        print(key, val.shape)
-        
-    print(y.shape)
-    
     gdm_model = GDM(model_cfg)
-    for key, val in gdm_model.state_dict().items():
-        print(key, val.shape)
+
+    optimizer = torch.optim.AdamW(gdm_model.parameters(), lr=1e-4)
+    loss_fn = nn.MSELoss(reduction='mean')
         
-    eefPos = torch.randn(batch_size, 2, 7)
-    eefVel = torch.randn(batch_size, 2, 6)
-    dlo_kp = x
-    
-    predict_vel = gdm_model(dlo_kp, eefPos, eefVel)
-    print(predict_vel.shape)
+    for epoch in range(50):
+        Loss = 0.0
+        for batch in dataloader:
+            dlo_keypoints = batch['dlo_keypoints']
+            eef_states = batch['eef_states']
+
+            delta_eef = batch['delta_eef']
+            delta_shape = batch['delta_shape']
+
+            predict_vel = gdm_model(dlo_keypoints, eef_states, delta_eef)
+
+            loss_val = loss_fn(predict_vel, delta_shape)
+
+            optimizer.zero_grad()
+            loss_val.backward()
+            optimizer.step()
+            
+            Loss += to_numpy(loss_val)
+        print(f'Epoch: {epoch} || Loss: {Loss}')
+        
