@@ -53,7 +53,7 @@ if __name__ == '__main__':
    
     agent = BroydenAgent(input_dim=3*num_grasps, output_dim=3*num_feats)
 
-    map_case = 'map_case10'
+    map_case = 'map_case1'
 
     result_path = pathlib.Path(__file__).parent.parent.joinpath('results', f'{map_case}_optimal_shape_seq.npy')
     planned_shape_seq = np.load(result_path, mmap_mode='r')

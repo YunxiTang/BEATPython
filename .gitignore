@@ -133,3 +133,4 @@ dmypy.json
 dataset/
 *.pkl
 *.mp4
+.ckpt

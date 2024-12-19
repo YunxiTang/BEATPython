@@ -30,9 +30,9 @@ if __name__ == '__main__':
     
 
     data_logger = ZarrLogger( path_to_save=data_path, 
-                              data_ks=['dlo_keypoints', 'eef_transforms',
-                                       'next_dlo_keypoints', 'next_eef_transforms',
-                                       'action'],
+                              data_ks=['dlo_keypoints', 'eef_states', 'eef_transforms',
+                                       'next_dlo_keypoints', 'next_eef_states', 'next_eef_transforms',
+                                       'ep_num', 'action'],
                               meta_ks=['dlo_len',])
     
     render_mode = 'human' #  'rgb_array' # 
@@ -40,4 +40,4 @@ if __name__ == '__main__':
     print(env.num_feat)
 
     CollectOfflineData(env, task, data_logger, seed, num_frame=10000, render_mode=render_mode, render=True)
-    # data_logger.save_data()
+    data_logger.save_data()

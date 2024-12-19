@@ -149,10 +149,10 @@ class KeypointEmbedding(nn.Module):
         Keypoint embedding with conv1d + group_norm
     '''
     def __init__(self, 
-                 in_channels:int = 3, 
+                 in_channels:int = 2, 
                  embed_dim:int = 64,
                  kernel_size:int = 1,
-                 ngroup:int = 8):
+                 ngroup:int = 4):
         super(KeypointEmbedding, self).__init__()
         self.in_channels = in_channels
         self.embed_dim = embed_dim
@@ -207,23 +207,26 @@ class DLOEncoder(nn.Module):
     
 class GDM(nn.Module):
     def __init__(self, model_cfg: GDM_CFG):
+        '''
+            global deformation model
+        '''
         super(GDM, self).__init__()
         self.dlo_encoder = DLOEncoder(model_cfg)
         
-        self.eefPos_proj = nn.Linear(model_cfg.eef_pos_dim, model_cfg.embed_dim)
-        self.eefVel_proj = nn.Linear(model_cfg.eef_vel_dim, model_cfg.embed_dim)
+        self.eef_proj = nn.Linear(model_cfg.eef_dim, model_cfg.embed_dim)
+        self.delta_eef_proj = nn.Linear(model_cfg.delta_eef_dim, model_cfg.embed_dim)
         
         self.ca_decoder = CABlock(model_cfg.embed_dim, model_cfg.nhead)
         
         self.deltaKp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
-                                      nn.GELU(approximate='tanh'),
-                                      nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
+                                          nn.GELU(approximate='tanh'),
+                                          nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
         
     
-    def forward(self, dlo_kp, eefPos, delta_eefPos):
+    def forward(self, dlo_kp, eef_states, delta_eef_states):
         q = self.dlo_encoder(dlo_kp)
-        k = self.eefPos_proj(eefPos)
-        v = self.eefVel_proj(delta_eefPos)
+        k = self.eef_proj(eef_states)
+        v = self.delta_eef_proj(delta_eef_states)
         
         z = self.ca_decoder(q, k, v)
         predicts = self.deltaKp_head(z)

@@ -1,0 +1,55 @@
+meta:
+  author: "tyx"
+
+train:
+  device: "cuda:0"
+  seed: 5
+
+  # optimization
+  lr_warmup_steps: 250
+  num_epochs: 3000
+
+  # training loop control in epochs
+  validation_every: 10
+
+model:
+  num_feats: 10
+  num_grasps: 2
+  decoder_units: [32,]
+  pretrained_encoder_ckpt_path: '/home/yxtang/CodeBase/DOBERT/results/checkpoints/pkm_${train.enc_type}_1505_1/encoder_epoch_${train.pretrained_encoder_num}.ckpt'
+  pretrained_encoder_cfg_path: '/home/yxtang/CodeBase/DOBERT/results/checkpoints/pkm_${train.enc_type}_1505_1/cfg.yaml'
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1.0e-4
+  betas: [0.95, 0.999]
+  eps: 1.0e-8
+  weight_decay: 1.0e-5
+
+train_dataloader:
+  data_dir: ['/home/yxtang/CodeBase/DOBERT/datasets/gdm_mj/train',]
+  batch_size: 256
+  num_workers: 1
+  shuffle: True
+  pin_memory: True
+  persistent_workers: False
+
+val_dataloader:
+  batch_size: 256
+  num_workers: 1
+  shuffle: False
+  pin_memory: True
+  persistent_workers: False
+
+logging:
+  mode: "online"
+  wandb_project: "st_dlo_project"
+  experiment_name: "gdm_seed${train.seed}"
+  output_dir: "/home/yxtang/CodeBase/DOBERT/outputs"
+  ckpt_dir: "/home/yxtang/CodeBase/DOBERT/results"
+
+checkpoint:
+  save_checkpoint: True
+  checkpoint_every: 200
+  ckpt_dir: '${logging.ckpt_dir}/checkpoints/${logging.experiment_name}_${train.seed}'
+  save_last_ckpt: True

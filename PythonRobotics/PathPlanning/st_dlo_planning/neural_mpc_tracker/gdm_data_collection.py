@@ -60,21 +60,26 @@ def CollectOfflineData(env:DualGripperCableEnv,
             left_delta = left_target - L_pose_init
             right_delta = right_target - R_pose_init
             
-            state_traj, action_traj, imgs_traj, traj_len = env.step_relative_eef(left_delta, right_delta, 
+            states, actions, next_states, imgs, traj_len = env.step_relative_eef(left_delta, right_delta, 
                                                                                  num_steps=200, return_traj=True, render_mode='human')
 
-            # data_logger.log_data( 'dlo_keypoints', state['dlo_keypoints'] )
-            # data_logger.log_data( 'eef_transforms', state['eef_transforms'] )
-            # data_logger.log_data( 'next_dlo_keypoints', next_state['dlo_keypoints'] )
-            # data_logger.log_data( 'next_eef_transforms', next_state['eef_transforms'] )
-            # data_logger.log_data( 'action', action )
+            for k in range(traj_len):
+                data_logger.log_data( 'dlo_keypoints', states[k]['dlo_keypoints'] )
+                data_logger.log_data( 'eef_states', states[k]['lowdim_eef_transforms'] )
+                data_logger.log_data( 'eef_transforms', states[k]['eef_transforms'] )
 
-            # data_logger.log_meta( 'dlo_len', env.dlo_len )
+                data_logger.log_data( 'next_dlo_keypoints', next_states[k]['dlo_keypoints'] )
+                data_logger.log_data( 'next_eef_states', next_states[k]['lowdim_eef_transforms'] )
+                data_logger.log_data( 'next_eef_transforms', next_states[k]['eef_transforms'] )
+                data_logger.log_data( 'action', actions[k] )
+                data_logger.log_data( 'ep_num', ep_num )
+
+                data_logger.log_meta( 'dlo_len', env.dlo_len )
 
             total_frame += traj_len
             ep_num += 1
 
-            state = state_traj[-1]
+            state = next_states[-1]
             L_pose, R_pose = env.get_lowdim_eef_state(obs=state)
            
             print('Final:   ', L_pose, R_pose)
