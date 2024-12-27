@@ -17,13 +17,17 @@ if __name__ == '__main__':
     from st_dlo_planning.neural_mpc_tracker.gdm_dataset import MultiStepGDMDataset
     from st_dlo_planning.utils.pytorch_utils import to_numpy
     
-    data_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_data/task_03_train.zarr'
-    dataset = MultiStepGDMDataset( data_path, max_step=5 )
+    train_data_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/train/task03_10.zarr'
+    test_data_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/test/task03_20.zarr'
+
+    train_dataset = MultiStepGDMDataset( train_data_path, max_step=5 )
+    test_dataset = MultiStepGDMDataset( test_data_path, max_step=5 )
 
     batch_size = 256
-    dataloader = DataLoader(dataset, batch_size=batch_size)
-    
-    model_cfg = GDM_CFG()
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
+
+    model_cfg = GDM_CFG(kp_dim=2)
     gdm_model = GDM(model_cfg)
 
     optimizer = torch.optim.AdamW(gdm_model.parameters(), lr=1e-4)
@@ -31,7 +35,7 @@ if __name__ == '__main__':
         
     for epoch in range(50):
         Loss = 0.0
-        for batch in dataloader:
+        for batch in train_dataloader:
             dlo_keypoints = batch['dlo_keypoints']
             eef_states = batch['eef_states']
 
@@ -47,5 +51,20 @@ if __name__ == '__main__':
             optimizer.step()
             
             Loss += to_numpy(loss_val)
-        print(f'Epoch: {epoch} || Loss: {Loss}')
+
+        for batch in test_dataloader:
+            val_Loss = 0
+            with torch.no_grad():
+                dlo_keypoints = batch['dlo_keypoints']
+                eef_states = batch['eef_states']
+
+                delta_eef = batch['delta_eef']
+                delta_shape = batch['delta_shape']
+
+                predict_vel = gdm_model(dlo_keypoints, eef_states, delta_eef)
+
+                loss_val = loss_fn(predict_vel, delta_shape)
+                val_Loss += to_numpy(loss_val)
+
+        print(f'Epoch: {epoch} || Train Loss: {Loss} Val Loss: {val_Loss}')
         

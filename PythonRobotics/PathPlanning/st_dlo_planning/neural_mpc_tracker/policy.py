@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from st_dlo_planning.neural_mpc_tracker.mpc_solver import GradientMPCSolver
+from st_dlo_planning.neural_mpc_tracker.cbf_qp_controller import MultiCBFQP
+
 from typing import Callable
 import numpy as np
 import dill
@@ -24,6 +26,8 @@ class GradientLMPCAgent:
                  dt:float,
                  path_cost_func:Callable,
                  final_cost_func:Callable,
+                 obstacle_vertixs,
+                 Q,
                  pretrained_model,
                  device,
                  umax, umin,
@@ -57,6 +61,9 @@ class GradientLMPCAgent:
         
         self.dlo_length = dlo_length
 
+        self.umin = umin
+        self.umax = umax
+
         self.mdl_ft = mdl_ft
 
         # self.logger = DataLogger(
@@ -75,17 +82,18 @@ class GradientLMPCAgent:
             param.requires_grad = mdl_ft
 
         # unfreeze the decoder
-        for param in self.gdm_model._decoder.parameters():
-            param.requires_grad = True
+        # for param in self.gdm_model._decoder.parameters():
+        #     param.requires_grad = True
             
-        if hasattr( self.gdm_model, '_cond_encoder'):
-            for param in self.gdm_model._cond_encoder.parameters():
-                param.requires_grad = True
+        # if hasattr( self.gdm_model, '_cond_encoder'):
+        #     for param in self.gdm_model._cond_encoder.parameters():
+        #         param.requires_grad = True
         
         
-        self.optimizer = optim.AdamW( filter(lambda p: p.requires_grad, self.gdm_model.parameters()),
-                                      lr=self.lr,
-                                      weight_decay=1e-5 )
+        self.model_optimizer = optim.AdamW( 
+            filter(lambda p: p.requires_grad, self.gdm_model.parameters()),
+            lr=self.lr,
+            weight_decay=1e-5 )
         
         # MPC settings
         self.traj_horizon = traj_horizon
@@ -97,18 +105,33 @@ class GradientLMPCAgent:
             path_cost_func=path_cost_func,
             final_cost_func=final_cost_func,
             dlo_len=dlo_length,
-            nx=self.nx,
-            nu=self.nu,
+            num_eef=2,
             dt=dt,
-            u_max=umax,
-            u_min=umin,
             device=device,
             discount_factor=discount_factor,
             horizon=traj_horizon,
             tol=1e-4,
-            lr=0.05,
-            max_iter=20
+            lr=0.005,
+            max_iter=50
         )
+
+        # CBF-QP settings 
+        self.obstacle_vertixs = obstacle_vertixs
+        self.Q = Q
+        
+        self.cbf_controller = MultiCBFQP(
+            int(nx // 2), 
+            int(nu // 3), 
+            obstacle_vertixs=obstacle_vertixs,
+            Q=self.Q, 
+            umax=umax,
+            umin=umin,
+            gamma=0.1,
+            use_closet_point=False
+            )
+
+        # initialize the local Jacobian
+        self.local_jacobian = np.ones((self.nx, self.nu)) * 0.5
         
         self.mpc_pointer = 0
         self.plan_count = 0
@@ -120,6 +143,20 @@ class GradientLMPCAgent:
     
     def save_model(self, model_path):
         torch.save(self.gdm_model, model_path, pickle_module=dill)
+
+
+    def update_local_Jacobian(self, state, action, next_state):
+        """
+            Update Local Model
+        """
+        delta_x = next_state['dlo_keypoints'] - state['dlo_keypoints']
+        delta_x = delta_x.reshape(-1, 3)
+        delta_x = delta_x[:, 0:2]
+
+        delta_y = next_state['lowdim_eef_transforms'] - state['lowdim_eef_transforms']
+        delta_x = delta_x.reshape((2*13, 1))
+        delta_y = delta_y.reshape((3*2, 1))
+        self.local_jacobian += 0.8 * (delta_x - self.local_jacobian @ delta_y) / (np.sum(delta_y**2)) @ delta_y.T
 
     
     def update(self, transition_dict):
@@ -162,17 +199,32 @@ class GradientLMPCAgent:
         return loss_np
         
     
-    def select_action(self, state:np.ndarray, xref: np.ndarray):
+    def select_action(self, dlo_kp:np.ndarray, eef_states:np.ndarray, dlo_kp_ref: np.ndarray, safe_mode:bool=True):
         """
-            MPC Planner
+            select action via MPC tracking controller
         """
         self.gdm_model.eval() 
         for p in self.gdm_model.parameters():
             p.requires_grad = False
 
-        self.Uref, obj_loss = self.mpc_planner.plan(state, xref)
-        u_opt = self.Uref
-        return u_opt, obj_loss
+        dlo_kp = dlo_kp.reshape(-1, 3)
+        dlo_kp_2d = dlo_kp[:, 0:2]
+
+        dlo_kp_ref = dlo_kp_ref.reshape(-1, 3)
+        dlo_kp_ref_2d = dlo_kp_ref[:, 0:2]
+
+        eef_states = eef_states.reshape(-1, 3)
+
+        self.Uref, obj_loss = self.mpc_planner.plan(dlo_kp_2d, eef_states, dlo_kp_ref_2d)
+
+        u_opt = self.Uref[0]
+        u_opt = u_opt.flatten()
+        if safe_mode:
+            u_opt, hmin = self.cbf_controller.solve_control(self.local_jacobian, dlo_kp_2d, u_opt) 
+        else:
+            hmin = 1
+        # print(hmin)
+        return u_opt, obj_loss, hmin
     
     def model_adapt(self, transition_dict):
         """

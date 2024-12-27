@@ -19,7 +19,7 @@ obstacle_info: # size_x, size_y, pos_x, pos_y, angle
                [0.04, 0.15, 0.60, 0.55, 1.28]] 
 
 dlo_cfg:
-  start: [0.08, 0.08]
+  start: [0.12, 0.04]
   goal: [0.68, 0.62]
 
 logging:

@@ -14,7 +14,7 @@ if __name__ == '__main__':
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
     from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
 
-    map_id = 'map_case10.yaml'
+    map_id = 'map_case6.yaml'
 
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_id}'
     map_cfg_file = OmegaConf.load(cfg_path)
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=0.0, k_pathLen=100., animation=False)
+    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0.01, k_passage=0.0, k_pathLen=1., animation=False)
 
     start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]
     goal = [map_cfg_file.dlo_cfg.goal[0], map_cfg_file.dlo_cfg.goal[1], size_z/2]
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     goal_validate = world_map.check_pos_collision(goal)
     
     if start_validate and goal_validate:
-        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=20, num_waypoints=50)
+        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=120, num_waypoints=50)
         result_path = pathlib.Path(__file__).parent.parent.joinpath('results', map_cfg_file.logging.save_pivot_path_name)
         np.save(result_path, sol_np)
         print(sol)

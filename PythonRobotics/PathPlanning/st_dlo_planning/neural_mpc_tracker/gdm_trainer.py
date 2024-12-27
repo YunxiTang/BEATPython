@@ -56,13 +56,15 @@ class GDMTrainer(BaseTrainer):
             train step for one batch
         '''
         self.model.train()
-        state = batch['state']
-        delta_ee_pos = batch['delta_ee_pos']
-        delta_shape = batch['delta_shape']
-        dlo_len = batch['dlo_len']
+        dlo_keypoints = batch['dlo_keypoints']
+        eef_states = batch['eef_states']
 
-        predicted_delta_shape = self.model(state, delta_ee_pos, dlo_len)
-        loss = loss_fn(delta_shape, predicted_delta_shape)
+        delta_eef = batch['delta_eef']
+        delta_shape = batch['delta_shape']
+
+        predicted_delta_shape = self.model(dlo_keypoints, eef_states, delta_eef)
+
+        loss = loss_fn(predicted_delta_shape, delta_shape)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -76,13 +78,15 @@ class GDMTrainer(BaseTrainer):
     
     def validate_step(self, loss_fn, batch):
         self.model.eval()
-        state = batch['state']
-        delta_ee_pos = batch['delta_ee_pos']
-        delta_shape = batch['delta_shape']
-        dlo_len = batch['dlo_len']
+        dlo_keypoints = batch['dlo_keypoints']
+        eef_states = batch['eef_states']
 
-        predicted_delta_shape = self.model(state, delta_ee_pos, dlo_len)
-        loss = loss_fn(delta_shape, predicted_delta_shape)
+        delta_eef = batch['delta_eef']
+        delta_shape = batch['delta_shape']
+
+        predicted_delta_shape = self.model(dlo_keypoints, eef_states, delta_eef)
+
+        loss = loss_fn(predicted_delta_shape, delta_shape)
 
         l_np = to_numpy(loss)
         
@@ -96,6 +100,7 @@ class GDMTrainer(BaseTrainer):
         device = torch.device(cfg.train.device)
         train_batch_size = cfg.train_dataloader.batch_size
         val_batch_size = cfg.val_dataloader.batch_size
+        test_batch_size = cfg.test_dataloader.batch_size
         max_epoch = cfg.train.num_epochs
 
         # device transfer
@@ -104,10 +109,11 @@ class GDMTrainer(BaseTrainer):
 
         # =================== configure train & validation dataset & test dataset ===================
         train_data_dirs = cfg.train_dataloader.data_dir
+        test_data_dirs = cfg.test_dataloader.data_dir
         
         train_datasets = []
         for sub_data_dir in train_data_dirs:
-            train_data_paths = glob.glob(os.path.join(sub_data_dir, '*_train.zarr'))
+            train_data_paths = glob.glob(os.path.join(sub_data_dir, 'task*.zarr'))
             for train_data_path in train_data_paths:
                 sub_dataset = MultiStepGDMDataset(data_path=train_data_path)
                 train_datasets.append(sub_dataset)
@@ -119,10 +125,20 @@ class GDMTrainer(BaseTrainer):
         print(f'Training Data Size: {train_size} Validation Datasize: {val_size}')
         train_dataset, val_dataset = random_split(data, [train_size, val_size])
 
+        test_data_dirs = cfg.test_dataloader.data_dir
+        test_datasets = []
+        for sub_data_dir in test_data_dirs:
+            test_data_paths = glob.glob(os.path.join(sub_data_dir, 'task*.zarr'))
+            for test_data_path in test_data_paths:
+                sub_dataset = MultiStepGDMDataset(data_path=test_data_path, max_step=0)
+                test_datasets.append(sub_dataset)
+        test_dataset = ConcatDataset(test_datasets)
+        print('Test Data Size:', test_dataset.cumulative_sizes[-1])
+
         # =================== configure train & validation & test dataloader ===================
         train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
-        
         val_dataloader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False)
+        test_dataloader = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False)
         
         # configure logging
         wandb_logger = DataLogger(
@@ -143,7 +159,7 @@ class GDMTrainer(BaseTrainer):
                 ele = dict_apply(ele, func= lambda x: x.to(device))
                 l_np = self.train_step(loss_fn, ele)
                 train_loss += l_np
-                total_samples += ele['dlo_len'].shape[0]
+                total_samples += ele['dlo_keypoints'].shape[0]
             wandb_logger.log("train_loss", train_loss, self.epoch)
             wandb_logger.log("ave_train_loss", train_loss / total_samples, self.epoch)
             wandb_logger.log("lr", self.scheduler.get_lr()[0], self.epoch)
@@ -157,13 +173,26 @@ class GDMTrainer(BaseTrainer):
                         ele = dict_apply(ele, func= lambda x: x.to(device))
                         l_np = self.validate_step(loss_fn, ele)
                         val_loss += l_np
-                        total_samples += ele['dlo_len'].shape[0]
+                        total_samples += ele['dlo_keypoints'].shape[0]
                 print(f'Epoch {self.epoch}: Train Loss {train_loss} || Val Loss {val_loss}')
                 wandb_logger.log("val_loss", val_loss, self.epoch)
                 wandb_logger.log("ave_val_loss", val_loss / total_samples, self.epoch)
 
             if cfg.checkpoint.save_checkpoint and epoch_idx % cfg.checkpoint.checkpoint_every == 0:
                 self.save_checkpoint(tag=f'epoch_{self.epoch}')
+
+            # test
+            if epoch_idx % cfg.train.test_every == 0:
+                with torch.no_grad():
+                    test_loss = 0
+                    total_samples = 0
+                    for ele in test_dataloader:
+                        ele = dict_apply(ele, func= lambda x: x.to(device))
+                        l_np = self.validate_step(loss_fn, ele)
+                        test_loss += l_np
+                        total_samples += ele['dlo_keypoints'].shape[0]
+                wandb_logger.log("test_loss", test_loss, self.epoch)
+                wandb_logger.log("ave_test_loss", test_loss / total_samples, self.epoch)
 
             self.scheduler.step()
             self.epoch += 1

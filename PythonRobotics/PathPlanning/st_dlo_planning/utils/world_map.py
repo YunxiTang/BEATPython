@@ -3,11 +3,22 @@ import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import fcl
+from typing import Callable
 from itertools import combinations
 from typing import NamedTuple
 from dataclasses import dataclass
 from matplotlib.patches import Rectangle 
 from scipy.spatial.transform import Rotation as R
+
+import torch
+from st_dlo_planning.utils.pytorch_utils import from_numpy
+
+
+def lse_fn(x, beta=1.):
+    exp_tmp = np.exp( beta * x )
+    sum_tmp = np.sum( exp_tmp )
+    log_tmp = np.log( sum_tmp )
+    return 1. / beta * log_tmp
 
 
 class Point(NamedTuple):
@@ -168,16 +179,59 @@ class Block:
                                        [0, 0, 1.0]]).as_matrix()
 
         # collision property
-        geom = fcl.Box(self._size_x, self._size_y, self._size_z)
+        self.geom = fcl.Box(self._size_x, self._size_y, self._size_z)
         T = np.array([self._pos_x, self._pos_y, self._pos_z])
-        tf = fcl.Transform(self.rotation, T)
+        self.tf = fcl.Transform(self.rotation, T)
         # tf = fcl.Transform(T)
-        self._collision_obj = fcl.CollisionObject(geom, tf)
+        self._collision_obj = fcl.CollisionObject(self.geom, self.tf)
 
         # visualization property
         self._color = clr
 
         self._wall = is_wall
+
+
+    @staticmethod
+    def get_normal_vector(p1, p2):
+        delta = p2 - p1
+        return np.array([-delta[1], delta[0]])
+
+
+    def get_2d_sdf_val(self, query_point):
+        # get vertices of the box in x-y plane in clockwise order.
+        tf = self.rotation
+        obs_center = np.array([self._pos_x, self._pos_y, 0.])
+        vertex1_o = np.array([-self._size_x / 2, self._size_y / 2, 0.])
+        vertex2_o= np.array([self._size_x / 2, self._size_y / 2, 0.])
+        vertex3_o= np.array([self._size_x / 2, -self._size_y / 2, 0.])
+        vertex4_o = np.array([-self._size_x / 2, -self._size_y / 2, 0.])
+        
+        vertex1 = obs_center + tf @ vertex1_o
+        vertex2 = obs_center + tf @ vertex2_o
+        vertex3 = obs_center + tf @ vertex3_o
+        vertex4 = obs_center + tf @ vertex4_o
+
+        vertex1 = vertex1[0:2]
+        vertex2 = vertex2[0:2]
+        vertex3 = vertex3[0:2]
+        vertex4 = vertex4[0:2]
+
+        # compute the normal direction vector
+        n12 = self.get_normal_vector(vertex1, vertex2)
+        n23 = self.get_normal_vector(vertex2, vertex3)
+        n34 = self.get_normal_vector(vertex3, vertex4)
+        n41 = self.get_normal_vector(vertex4, vertex1)
+
+        sdf1 = np.dot(query_point - vertex1, n12 / np.linalg.norm(n12))
+        sdf2 = np.dot(query_point - vertex2, n23 / np.linalg.norm(n23))
+        sdf3 = np.dot(query_point - vertex3, n34 / np.linalg.norm(n34))
+        sdf4 = np.dot(query_point - vertex4, n41 / np.linalg.norm(n41))
+
+        # print(np.max([sdf1, sdf2, sdf3, sdf4]))
+
+        sdf_val = np.max([sdf1, sdf2, sdf3, sdf4])#lse_fn(np.array([sdf1, sdf2, sdf3, sdf4]), beta=500.)
+
+        return sdf_val, [vertex1, vertex2, vertex3, vertex4]
 
 
 @dataclass
@@ -247,6 +301,68 @@ class WorldMap:
         self.filter_passage()
         
         return None
+    
+
+    def get_obs_vertixs(self):
+        obs_vrtxs = []
+        for obs in self._obstacle:
+            tf = obs.rotation
+            obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
+            vertex1_o = np.array([-obs._size_x / 2, obs._size_y / 2, 0.])
+            vertex2_o= np.array([obs._size_x / 2, obs._size_y / 2, 0.])
+            vertex3_o= np.array([obs._size_x / 2, -obs._size_y / 2, 0.])
+            vertex4_o = np.array([-obs._size_x / 2, -obs._size_y / 2, 0.])
+            
+            vertex1 = obs_center + tf @ vertex1_o
+            vertex2 = obs_center + tf @ vertex2_o
+            vertex3 = obs_center + tf @ vertex3_o
+            vertex4 = obs_center + tf @ vertex4_o
+
+            vertex1 = vertex1[0:2][None]
+            vertex2 = vertex2[0:2][None]
+            vertex3 = vertex3[0:2][None]
+            vertex4 = vertex4[0:2][None]
+
+            obs_vrtxs.append( np.concatenate([vertex1, vertex2, vertex3, vertex4], axis=0) )
+        return obs_vrtxs
+    
+
+    def get_obs_tensor_info(self, device):
+        obs_info = []
+        for obs in self._obstacle:
+            tf = obs.rotation
+            obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
+            vertex1_o = np.array([-obs._size_x / 2, obs._size_y / 2, 0.])
+            vertex2_o= np.array([obs._size_x / 2, obs._size_y / 2, 0.])
+            vertex3_o= np.array([obs._size_x / 2, -obs._size_y / 2, 0.])
+            vertex4_o = np.array([-obs._size_x / 2, -obs._size_y / 2, 0.])
+            
+            vertex1 = obs_center + tf @ vertex1_o
+            vertex2 = obs_center + tf @ vertex2_o
+            vertex3 = obs_center + tf @ vertex3_o
+            vertex4 = obs_center + tf @ vertex4_o
+
+            vertex1 = vertex1[0:2]
+            vertex2 = vertex2[0:2]
+            vertex3 = vertex3[0:2]
+            vertex4 = vertex4[0:2]
+
+            # compute the normal direction vector
+            n12 = from_numpy(obs.get_normal_vector(vertex1, vertex2), device)
+            n23 = from_numpy(obs.get_normal_vector(vertex2, vertex3), device)
+            n34 = from_numpy(obs.get_normal_vector(vertex3, vertex4), device)
+            n41 = from_numpy(obs.get_normal_vector(vertex4, vertex1), device)
+
+            vertex1 = from_numpy(vertex1[0:2], device)
+            vertex2 = from_numpy(vertex2[0:2], device)
+            vertex3 = from_numpy(vertex3[0:2], device)
+            vertex4 = from_numpy(vertex4[0:2], device)
+
+            obs_info.append(
+                {'normal_vec': [n12, n23, n34, n41],
+                 'vertex': [vertex1, vertex2, vertex3, vertex4]}
+            )
+        return obs_info
     
 
     def construct_passage(self):

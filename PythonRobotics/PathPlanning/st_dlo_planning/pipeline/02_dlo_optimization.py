@@ -14,7 +14,6 @@ if __name__ == '__main__':
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
 
-    from itertools import chain
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
     from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
     from st_dlo_planning.utils.path_set import (PathSet, transfer_path_between_start_and_goal, 
@@ -22,14 +21,14 @@ if __name__ == '__main__':
     from st_dlo_planning.utils.world_map import plot_circle
     from st_dlo_planning.utils.path_interpolation import visualize_shape
     import jax
-    # jax.config.update("jax_enable_x64", True)     # enable fp64
+    jax.config.update("jax_enable_x64", True)     # enable fp64
     jax.config.update('jax_platform_name', 'cpu') # use the CPU instead of GPU
 
     from st_dlo_planning.temporal_config_opt.opt_solver import TcDloSolver
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
 
     import zarr
-    map_case = 'map_case10'
+    map_case = 'map_case8'
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -74,16 +73,16 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    zarr_root = zarr.open('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/dlo_03_samples_2.zarr')
+    zarr_root = zarr.open('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/train/task03_10.zarr')
     dlo_len = zarr_root['meta']['dlo_len'][0]
     keypoints = zarr_root['data']['dlo_keypoints'][:]
-    keypoints = keypoints.reshape(100, -1, 3)
+    keypoints = keypoints.reshape(-1, 13, 3)
     num_kp = keypoints.shape[1]
 
     straight_shape = keypoints[0]
     
-    init_dlo_shape = keypoints[20]
-    goal_dlo_shape = keypoints[44]
+    init_dlo_shape = keypoints[15]
+    goal_dlo_shape = keypoints[25]
 
     seg_len = np.linalg.norm(straight_shape[0] - straight_shape[1])
     
@@ -182,9 +181,10 @@ if __name__ == '__main__':
     visualize_shape(init_dlo_shape, ax, clr='m')
     visualize_shape(goal_dlo_shape, ax, clr='g')
     
+
     # ================= DLO configuration optimization =============================
-    pathset = PathSet( polished_pathset, T=70, seg_len=seg_len)
-    solver = TcDloSolver(pathset=pathset, k1=2.0, k2=2.0, tol=1e-3, max_iter=800)
+    pathset = PathSet( polished_pathset, T=40, seg_len=seg_len)
+    solver = TcDloSolver(pathset=pathset, k1=10.0, k2=2.0, tol=1e-5, max_iter=2000)
     pathset.vis_all_path(ax)
     plt.savefig(f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/transfered_path_{map_case}.png",
                 dpi=2000)
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=2, k2=2, segment_len=seg_len)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=4, k2=2, segment_len=seg_len)
         container1 = ax.plot(dlo_shape[:, 0], dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=3)
         artists.append(container1)
         polished_dlo_shapes.append(dlo_shape)

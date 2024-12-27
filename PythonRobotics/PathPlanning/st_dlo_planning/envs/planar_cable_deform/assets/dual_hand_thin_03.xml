@@ -22,7 +22,7 @@
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
       </default>
       <default class="collision">
-        <geom type="mesh" contype="3" group="3"/>
+        <geom type="mesh" contype="0" group="3"/>
         <default class="fingertip_pad_collision_1">
           <geom size="0.0085 0.004 0.0085" type="box" friction="1 0.008 0.008"/>
         </default>
@@ -66,7 +66,7 @@
     </body>
     
     <!-- <camera name="track_cable" mode="targetbodycom" target="cable0" fovy="35" pos="0.125 0.05 1.2"/> -->
-    <camera name="top_camera" mode="targetbodycom" target="table" fovy="55" pos="0.0 0.0 2.0"/>
+    <camera name="top_camera" mode="targetbodycom" target="table" fovy="55" pos="0.0 0.0 1.0"/>
     
     <body name="left_hand" childclass="panda" pos="0 0 0.5" quat="0.000796327 0 1 0" gravcomp="1.0">
       <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>

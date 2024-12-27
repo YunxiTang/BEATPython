@@ -14,13 +14,12 @@ workspace:
 
 obstacle_info: # size_x, size_y, pos_x, pos_y, angle
    obstacles: [[0.05, 0.15, 0.4, 0.30, -0.1],
-               [0.03, 0.15, 0.2, 0.15, 0.0],
-               [0.08, 0.15, 0.35, 0.55, 0.78],
-               [0.04, 0.15, 0.60, 0.55, 1.28]] 
+               [0.03, 0.25, 0.3, 0.18, 0.2],
+               [0.08, 0.15, 0.35, 0.55, 0.78]] 
 
 dlo_cfg:
-  start: [0.08, 0.08]
-  goal: [0.65, 0.62]
+  start: [0.1, 0.1]
+  goal: [0.6, 0.6]
 
 logging:
   save_pivot_path_name: 'map5_pivot_path.npy'

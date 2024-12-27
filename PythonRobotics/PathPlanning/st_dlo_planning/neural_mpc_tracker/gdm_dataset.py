@@ -103,7 +103,7 @@ def unnormalize_data(stats, normalized_delta_shape=None, normalized_delta_ee_pos
 
 
 class MultiStepGDMDataset(Dataset):
-    def __init__(self, data_path:str, max_step:int=5):
+    def __init__(self, data_path:str, max_step:int=10):
         super(MultiStepGDMDataset, self).__init__()
         self.data_path = data_path
 
@@ -130,7 +130,7 @@ class MultiStepGDMDataset(Dataset):
         self.capacity = self.dlo_lens.shape[0] - max_step
 
         if max_step > 0:
-            self.steps = np.random.randint(0, self.max_step, size=[self.capacity,], dtype=int)
+            self.steps = np.random.randint(0, self.max_step, size=[self.capacity,])
         else:
             self.steps = [0,] * self.capacity
 
@@ -146,24 +146,31 @@ class MultiStepGDMDataset(Dataset):
                 next_idx = next_idx - 1
             else:
                 break
-
-        dlo_keypoints = self.dlo_keypoints[idx]
-        eef_states = self.eef_states[idx]
         
-        delta_shape = self.next_dlo_keypoints[next_idx] - self.dlo_keypoints[idx]
-        delta_eef = self.next_eef_states[next_idx] - self.eef_states[idx]
+        # system configuration
+        dlo_keypoints = self.dlo_keypoints[idx].reshape(self.num_feats, -1)
+        dlo_keypoints = dlo_keypoints[:, 0:2]
 
-        dlo_len = self.dlo_lens[idx]
+        next_dlo_keypoints = self.next_dlo_keypoints[next_idx].reshape(self.num_feats, -1)
+        next_dlo_keypoints = next_dlo_keypoints[:, 0:2]
+
+        eef_states = self.eef_states[idx].reshape(self.num_grasps, -1)
+
+        # movement of eefs
+        delta_eef = self.next_eef_states[next_idx] - self.eef_states[idx]
+        delta_eef =  delta_eef.reshape(self.num_grasps, -1)
+        
+        delta_shape = next_dlo_keypoints - dlo_keypoints
 
         eef_transforms = self.eef_transforms[idx]
         next_eef_transforms = self.next_eef_transforms[next_idx]
 
         output = {
-            'dlo_keypoints': dlo_keypoints.reshape(self.num_feats, 3),
-            'eef_states': eef_states.reshape(self.num_grasps, -1),
-            'delta_shape': delta_shape.reshape(self.num_feats, 3),
-            'delta_eef': delta_eef.reshape(self.num_grasps, -1),
-            'dlo_len': dlo_len,
+            'dlo_keypoints': dlo_keypoints,
+            'eef_states': eef_states,
+            'delta_shape': delta_shape,
+            'delta_eef': delta_eef,
+            'next_dlo_keypoints': next_dlo_keypoints,
             'eef_transforms': eef_transforms,
             'next_eef_transforms': next_eef_transforms,
         }
@@ -174,12 +181,63 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import numpy as np
     from scipy.spatial.transform import Rotation as sciR
+    from torch.utils.data import DataLoader
 
-    data_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_data/task_03_train.zarr'
+    def local_transform(dlo_kp, eef_states):
+        batch_size = dlo_kp.shape[0]
+        
+        dlo_kp_center = torch.mean(dlo_kp, dim=1, keepdim=True)
+        local_dlo_kp = dlo_kp - dlo_kp_center
+
+        tmp = torch.concatenate([dlo_kp_center, torch.zeros(batch_size, 1, 1)], dim=2)
+        local_eef_states = eef_states - tmp
+
+        return local_dlo_kp, local_eef_states, dlo_kp_center 
+
+    data_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/train/task03_10.zarr'
     dataset = MultiStepGDMDataset( data_path, max_step=5 )
     for key, val in dataset[0].items():
         print(key, ': ', val.shape)
 
+    batch_size = 2
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    for batch in dataloader:
+        dlo_keypoints = batch['dlo_keypoints']
+        next_dlo_keypoints_gt = batch['next_dlo_keypoints']
+
+        eef_states = batch['eef_states']
+        dlo_kp, eef_states, dlo_kp_center = local_transform(dlo_keypoints, eef_states)
+
+        delta_shape = batch['delta_shape']
+
+        dlo_keypoints_np = dlo_kp.to('cpu').detach().numpy()
+        delta_shape_np = delta_shape.to('cpu').detach().numpy()
+
+        fig = plt.figure(figsize=plt.figaspect(0.5))
+        ax = fig.add_subplot(projection='3d')
+
+        next_dlo_keypoints_np = dlo_keypoints_np + delta_shape_np
+        next_dlo_keypoints_gt = next_dlo_keypoints_gt - dlo_kp_center
+        next_dlo_keypoints_gt_np = next_dlo_keypoints_gt.to('cpu').detach().numpy()
+
+        for i in range(batch_size):
+            # lifted_dlo_kp = np.concatenate((dlo_keypoints_np[i], np.zeros((dataset.num_feats, 1))), axis=1)
+            # visualize_shape(lifted_dlo_kp, ax, clr='r', ld=1)
+
+            lifted_next_dlo_kp = np.concatenate((next_dlo_keypoints_np[i], np.zeros((dataset.num_feats, 1))), axis=1)
+            visualize_shape(lifted_next_dlo_kp, ax, clr='g', ld=1)
+
+            lifted_next_dlo_gt_kp = np.concatenate((next_dlo_keypoints_gt_np[i], np.zeros((dataset.num_feats, 1))), axis=1)
+            visualize_shape(lifted_next_dlo_gt_kp, ax, clr='b', ld=1)
+
+            ax.scatter(eef_states[i, 0, 0], eef_states[i, 0, 1], 0.0, color='k',  marker='o', s=15)
+            ax.scatter(eef_states[i, 1, 0], eef_states[i, 1, 1], 0.0, color='k',  marker='o', s=15)
+            
+        plt.show()
+        # break
+    
+    exit()
     
     for _ in range(100):
         i = random.randint(0, dataset.capacity)
@@ -194,10 +252,13 @@ if __name__ == '__main__':
         print( np.linalg.norm(delta_shape), np.linalg.norm(delta_eef) )
         print( '=======================' )
         
-        # fig = plt.figure(figsize=plt.figaspect(0.5))
-        # ax = fig.add_subplot(projection='3d')
+        fig = plt.figure(figsize=plt.figaspect(0.5))
+        ax = fig.add_subplot(projection='3d')
 
-        # visualize_shape(dlo_keypoints.reshape(-1, 3), ax, clr='r', ld=1)
+        lifted_dlo_kp = np.concatenate((dlo_keypoints, np.zeros((dlo_keypoints.shape[0], 1))), axis=1)
+        lifted_next_dlo_kp = np.concatenate((next_dlo_keypoints, np.zeros((dlo_keypoints.shape[0], 1))), axis=1)
+        visualize_shape(lifted_dlo_kp, ax, clr='r', ld=1)
+        visualize_shape(lifted_next_dlo_kp, ax, clr='k', ld=1)
         # l_eef_pos = sample['eef_transforms'][0:3]
         # l_eef_quat = sample['eef_transforms'][3:7]
 
@@ -238,4 +299,4 @@ if __name__ == '__main__':
 
         # right_Tm= np.concatenate((right_Rm_tmp, right_Pm), axis=1)
         # plotCoordinateFrame(ax, right_Tm, size=0.1)
-        # plt.show()
+        plt.show() 

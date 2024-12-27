@@ -14,14 +14,14 @@ if __name__ == '__main__':
     import st_dlo_planning.utils.misc_utils as misu
     import st_dlo_planning.utils.pytorch_utils as ptu
 
-    seed = 800
+    seed = 60
     misu.setup_seed(seed)
     device = ptu.init_gpu()
 
     task = '03'
 
-    dataset_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_data'
-    dataset_name = f'task_{task}_train.zarr'
+    dataset_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/train'
+    dataset_name = f'task{task}_{seed}.zarr'
 
     if not (os.path.exists(dataset_dir)):
         os.makedirs(dataset_dir)

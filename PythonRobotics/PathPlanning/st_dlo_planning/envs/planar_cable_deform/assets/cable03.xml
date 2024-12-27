@@ -7,7 +7,7 @@
   </custom>
 
   <asset>
-    <texture name="cable_texture" type="cube" file="rope3.png"/>
+    <texture name="cable_texture" type="cube" file="rope5.png"/>
     <material name="cable_material" texture="cable_texture" texrepeat="1 1" shininess="1.0"/>
   </asset>
   <worldbody>
