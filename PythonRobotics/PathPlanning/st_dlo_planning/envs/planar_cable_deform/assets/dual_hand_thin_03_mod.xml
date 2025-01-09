@@ -1,0 +1,174 @@
+<mujoco model="dual gripper scene">
+  <compiler angle="radian" meshdir="collision" autolimits="true" />
+  <option integrator="implicit" timestep="0.0002" noslip_iterations="5" viscosity="0.2" gravity="0.0 0.0 0.0">
+    <flag multiccd="enable" />
+  </option>
+  <include file="./cable03.xml" />
+
+  <visual>
+    <global azimuth="120" elevation="-20" />
+    <headlight ambient="0.3 0.3 0.3" diffuse="0.6 0.6 0.6" specular="0 0 0" />
+    <rgba haze="0.15 0.25 0.35 1" />
+  </visual>
+  <default class="main">
+    <default class="panda">
+      <material shininess="0.25" />
+      <joint range="-2.8973 2.8973" armature="0.1" damping="5" />
+      <general ctrlrange="-2.8973 2.8973" forcerange="-87 87" biastype="affine" />
+      <default class="finger">
+        <joint type="slide" range="0 0.04" />
+      </default>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2" />
+      </default>
+      <default class="collision">
+        <geom type="mesh" contype="0" group="3" />
+        <default class="fingertip_pad_collision_1">
+          <geom size="0.0085 0.004 0.0085" type="box" friction="1 0.008 0.008" />
+        </default>
+        <default class="fingertip_pad_collision_2">
+          <geom size="0.003 0.002 0.003" type="box" friction="1 0.008 0.008" />
+        </default>
+        <default class="fingertip_pad_collision_3">
+          <geom size="0.003 0.002 0.003" type="box" friction="1 0.008 0.008" />
+        </default>
+        <default class="fingertip_pad_collision_4">
+          <geom size="0.003 0.002 0.0035" type="box" friction="1 0.008 0.008" />
+        </default>
+        <default class="fingertip_pad_collision_5">
+          <geom size="0.003 0.002 0.0035" type="box" friction="1 0.008 0.008" />
+        </default>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072" />
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300" />
+    <material name="white" class="panda" />
+    <material name="off_white" class="panda" rgba="0.901961 0.921569 0.929412 0.1" />
+    <material name="black" class="panda" rgba="0.25 0.25 0.25 0.1" />
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2" />
+    <mesh name="hand_c" file="hand.stl" />
+    <mesh name="hand_0" file="hand_0.obj" />
+    <mesh name="hand_1" file="hand_1.obj" />
+    <mesh name="hand_2" file="hand_2.obj" />
+    <mesh name="hand_3" file="hand_3.obj" />
+    <mesh name="hand_4" file="hand_4.obj" />
+    <mesh name="finger_0" file="finger_0.obj" />
+    <mesh name="finger_1" file="finger_1.obj" />
+  </asset>
+
+  <worldbody>
+    <light pos="0.35 0.35 5.5" dir="0.5 0.5 -1" directional="false" castshadow="false" />
+    <light pos="0.35 0.35 5.5" dir="-0.5 0.5 -1" directional="false" castshadow="false" />
+    <light pos="0.35 0.35 5.5" dir="0.5 -0.5 -1" directional="false" castshadow="false" />
+    <light pos="0.35 0.35 5.5" dir="-0.5 -0.5 -1" directional="false" castshadow="false" />
+    <body name="table" pos="0 0 0.2">
+      <geom name="floor" size="2 2 0.05" type="plane" /> 
+    </body>
+    
+    
+    <camera name="top_camera" mode="fixed" target="table" fovy="50" pos="0.35 0.35 1.5" />
+    
+    <body name="left_hand" childclass="panda" pos="0 0 0.5" quat="0.000796327 0 1 0" gravcomp="1.0">
+      <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017" />
+      <joint name="left_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2" />
+      <joint name="left_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2" />
+      <joint name="left_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-3.14 3.14" damping="2" />
+      
+      
+
+      <body name="left_left_finger" pos="0 0 0.0584" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07" />
+        <geom class="visual" material="black" mesh="finger_0" />
+        <geom class="visual" material="black" mesh="finger_1" />
+        <geom class="collision" mesh="finger_0" />
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445" />
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395" />
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395" />
+      </body>
+      <body name="left_right_finger" pos="0 0 0.0584" quat="0 0 0 1" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07" />
+        <geom class="visual" material="black" mesh="finger_0" />
+        <geom class="visual" material="black" mesh="finger_1" />
+        <geom class="collision" mesh="finger_0" />
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445" />
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395" />
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395" />
+      </body>
+    </body>
+
+    <body name="right_hand" childclass="panda" pos="0.3 0 0.5" quat="0.000796327 0 1 0" gravcomp="1.0">
+      <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017" />
+      <joint name="right_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2" />
+      <joint name="right_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2" />
+      <joint name="right_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-3.14 3.14" damping="2" />
+      
+      
+      <body name="right_left_finger" pos="0 0 0.0584" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07" />
+        <geom class="visual" material="off_white" mesh="finger_0" />
+        <geom class="visual" material="black" mesh="finger_1" />
+        <geom class="collision" mesh="finger_0" />
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445" />
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395" />
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395" />
+      </body>
+      <body name="right_right_finger" pos="0 0 0.0584" quat="0 0 0 1" gravcomp="1.0">
+        <inertial pos="0 0 0" mass="0.015" diaginertia="2.375e-06 2.375e-06 7.5e-07" />
+        <geom class="visual" material="off_white" mesh="finger_0" />
+        <geom class="visual" material="black" mesh="finger_1" />
+        <geom class="collision" mesh="finger_0" />
+        <geom class="fingertip_pad_collision_1" pos="0 0.0055 0.0445" />
+        <geom class="fingertip_pad_collision_2" pos="0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_3" pos="-0.0055 0.002 0.05" />
+        <geom class="fingertip_pad_collision_4" pos="0.0055 0.002 0.0395" />
+        <geom class="fingertip_pad_collision_5" pos="-0.0055 0.002 0.0395" />
+      </body>
+    </body>
+
+    
+  <body name="obstacles" mocap="true" pos="0 0 0.4"><geom type="box" name="wall_left" contype="0" conaffinity="0" size="0.005 0.35 0.02" pos="-0.005 0.35 0" rgba="0.5 0.5 0.8 1" /><geom type="box" name="wall_right" contype="0" conaffinity="0" size="0.005 0.35 0.02" pos="0.705 0.35 0" rgba="0.5 0.5 0.8 1" /><geom type="box" name="wall_down" contype="0" conaffinity="0" size="0.35 0.005 0.02" pos="0.35 -0.005 0" rgba="0.5 0.5 0.8 1" /><geom type="box" name="wall_up" contype="0" conaffinity="0" size="0.35 0.005 0.02" pos="0.35 0.705 0" rgba="0.5 0.5 0.8 1" /><geom type="box" name="obs0" contype="0" conaffinity="0" size="0.015 0.15 0.02" pos="0.35 0.55 0" euler="0 0 -0.0031415926535897933" rgba="0.12156862745098039 0.4666666666666667 0.7058823529411765 1.0" /><geom type="box" name="obs1" contype="0" conaffinity="0" size="0.015 0.15 0.02" pos="0.15 0.35 0" euler="0 0 0.0031415926535897933" rgba="1.0 0.4980392156862745 0.054901960784313725 1.0" /><geom type="box" name="obs2" contype="0" conaffinity="0" size="0.015 0.125 0.02" pos="0.35 0.15 0" euler="0 0 -0.0031415926535897933" rgba="0.17254901960784313 0.6274509803921569 0.17254901960784313 1.0" /><geom type="box" name="obs3" contype="0" conaffinity="0" size="0.015 0.15 0.02" pos="0.55 0.35 0" euler="0 0 0.0031415926535897933" rgba="0.8392156862745098 0.15294117647058825 0.1568627450980392 1.0" /><geom type="box" name="obs4" contype="0" conaffinity="0" size="0.08 0.015 0.02" pos="0.45 0.485 0" euler="0 0 -0.0031415926535897933" rgba="0.5803921568627451 0.403921568627451 0.7411764705882353 1.0" /><geom type="sphere" name="goal_kp0" contype="0" conaffinity="0" size="0.005" pos="0.39377345808936415 0.5243998296423552 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp1" contype="0" conaffinity="0" size="0.005" pos="0.4157699841622962 0.5228994725816463 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp2" contype="0" conaffinity="0" size="0.005" pos="0.43470117667525676 0.5343752817464621 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp3" contype="0" conaffinity="0" size="0.005" pos="0.4460797862808479 0.5536091369255086 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp4" contype="0" conaffinity="0" size="0.005" pos="0.45183194815291744 0.5753407157608604 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp5" contype="0" conaffinity="0" size="0.005" pos="0.45714848927890567 0.5971741879537013 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp6" contype="0" conaffinity="0" size="0.005" pos="0.4672180306518079 0.617145723443921 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp7" contype="0" conaffinity="0" size="0.005" pos="0.48450027186802264 0.6311326710079951 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp8" contype="0" conaffinity="0" size="0.005" pos="0.506332054424426 0.6346923779019544 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp9" contype="0" conaffinity="0" size="0.005" pos="0.5270498470429557 0.6276723956880739 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp10" contype="0" conaffinity="0" size="0.005" pos="0.5435949103127197 0.6145582268110472 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp11" contype="0" conaffinity="0" size="0.005" pos="0.5576073556761925 0.6001469336839601 0" rgba="0 0.5 1 0.8" /><geom type="sphere" name="goal_kp12" contype="0" conaffinity="0" size="0.005" pos="0.5734596593297333 0.5878016221683728 0" rgba="0 0.5 1 0.8" /></body></worldbody>
+
+  <contact>
+    <exclude body1="left_hand" body2="left_left_finger" />
+    <exclude body1="left_hand" body2="left_right_finger" />
+    <exclude body1="left_hand" body2="B_first" />
+    <exclude body1="left_hand" body2="B_1" />
+
+    <exclude body1="left_left_finger" body2="B_first" />
+    <exclude body1="left_right_finger" body2="B_first" />
+
+    <exclude body1="right_hand" body2="right_left_finger" />
+    <exclude body1="right_hand" body2="right_right_finger" />
+    <exclude body1="right_hand" body2="B_last" />
+    <exclude body1="right_hand" body2="B_38" />
+
+    <exclude body1="right_left_finger" body2="B_last" />
+    <exclude body1="right_right_finger" body2="B_last" />
+
+    <exclude body1="left_hand" body2="right_hand" />
+  </contact>
+
+  <equality>
+    <weld body1="left_right_finger" body2="B_first" anchor="0 0 0.05" solref="-10000 -5000" />
+    <weld body1="right_right_finger" body2="B_last" anchor="0 0 0.05" solref="-10000 -5000" />
+  </equality>
+  
+  <actuator>
+    <velocity name="left_hand_vx" class="panda" joint="left_px" kv="550" />
+    <velocity name="left_hand_vy" class="panda" joint="left_py" kv="550" />
+    <velocity name="left_hand_wz" class="panda" joint="left_rz" kv="550" />
+    
+    <velocity name="right_hand_vx" class="panda" joint="right_px" kv="550" />
+    <velocity name="right_hand_vy" class="panda" joint="right_py" kv="550" />
+    <velocity name="right_hand_wz" class="panda" joint="right_rz" kv="550" />
+  </actuator>
+</mujoco>

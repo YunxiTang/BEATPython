@@ -17,6 +17,157 @@ import copy
 import zarr
 
 
+class ReplayBuffer(Dataset):
+    def __init__(self, args=None, obs_dim=None, act_dim=None, buffer_capacity=int(1e6)):
+        """
+            Replay Buffer
+        """
+        super(ReplayBuffer, self).__init__()
+        if args is not None:
+            self.obs_dim = args.obs_dim
+            self.act_dim = args.act_dim
+            self.max_size = int(args.buffer_capacity)
+        else:
+            self.obs_dim = obs_dim
+            self.act_dim = act_dim
+            self.max_size = int(buffer_capacity)
+            
+        self.pointer = 0
+        self.size = 0
+        self.s = np.zeros((self.max_size, self.obs_dim), np.float32)
+        self.a = np.zeros((self.max_size, self.act_dim), np.float32)
+        self.r = np.zeros((self.max_size, 1), np.float32)
+        self.s_ = np.zeros((self.max_size, self.obs_dim), np.float32)
+        self.dw = np.zeros((self.max_size, 1), bool)
+
+    def dict_flatten(self, obs):
+        dlo_kp = obs['dlo_keypoints']
+        eef_states = obs['lowdim_eef_transforms']
+        s = np.hstack((dlo_kp, eef_states))
+        return s
+
+    def store(self, s, a, r, s_, dw):
+        """
+            store a tuple
+        """
+        self.s[self.pointer] = self.dict_flatten(s)
+        self.a[self.pointer] = a
+        self.r[self.pointer] = r
+        self.s_[self.pointer] = self.dict_flatten(s_)
+        self.dw[self.pointer] = dw
+        # if reaches max_size, reset pointer to 0
+        self.pointer = (self.pointer + 1) % self.max_size  
+        # count number of transitions
+        self.size = min(self.size + 1, self.max_size)  
+
+    def sample(self, batch_size):
+        """
+            Random Sample a batch size
+            return: <s, a, r, s_, done>
+        """
+        assert self.size > 0, 'Buffer is empty'
+        index =np.random.choice(self.size, size=batch_size)  
+        batch_s = self.s[index]
+        batch_a = self.a[index]
+        batch_r = self.r[index]
+        batch_s_ = self.s_[index]
+        batch_dw = self.dw[index]
+        return batch_s, batch_a, batch_r, batch_s_, batch_dw
+    
+    def reset(self):
+        """
+            Reset the whole buffer. 
+            Only call this method when training on-policy agent!!!
+        """
+        self.s.fill(0.)
+        self.a.fill(0.)
+        self.r.fill(0.)
+        self.s_.fill(0.)
+        self.dw.fill(False)
+        self.pointer = 0
+        self.size = 0
+        return None
+
+    def sample_all(self):
+        """
+            sample all the data in replay buffer
+        """
+        assert self.size > 0, 'Buffer is empty'
+            
+        index = range(self.size)
+        batch_s = self.s[index]
+        batch_a = self.a[index]
+        batch_r = self.r[index]
+        batch_s_ = self.s_[index]
+        batch_dw = self.dw[index]
+        return batch_s, batch_a, batch_r, batch_s_, batch_dw
+    
+    def sample_recent_n_transits(self, n):
+        """
+            sample recent n transitions
+        """
+        if self.size < n:
+            print(f'Buffer size is less than n ({n}). Set n as buffer size {self.size}')
+            n = self.size
+
+        if (self.pointer+1) >= n:
+            index = range(self.pointer+1-n, self.pointer+1)
+        else:
+            index_p1 = range(0, self.pointer+1)
+            index_p2 = range(self.size-(n-self.pointer-1), self.size)
+            index = list(index_p1) + list(index_p2)
+            
+        batch_s = self.s[index]
+        batch_a = self.a[index]
+        batch_r = self.r[index]
+        batch_s_ = self.s_[index]
+        batch_dw = self.dw[index]
+        return batch_s, batch_a, batch_r, batch_s_, batch_dw
+    
+    def save_data(self, path_to_save: str):
+        """save the data
+
+        Args:
+            path_to_save (str): path to save the collected data
+        """
+        np.savez(path_to_save, 
+                 state=self.s, action=self.a, 
+                 reward=self.r, next_state=self.s_, 
+                 dones=self.dw, pointer=self.pointer, size=self.size)
+        
+    def load_data(self, file_path_to_load):
+        """
+            load the stored data
+        """
+        data = np.load(file_path_to_load)
+        
+        self.pointer = data['pointer']
+        self.size = data['size']
+        self.s = data['state']
+        self.a = data['action']
+        self.r = data['reward']
+        self.s_ = data['next_state']
+        self.dw = data['dones']
+        self.max_size = self.s.shape[0]
+
+    def get_size(self): 
+        return self.size
+    
+    def __getitem__(self, index):
+        """
+            For regression training
+        """
+        batch_s = self.s[index]
+        batch_a = self.a[index]
+        batch_r = self.r[index]
+        batch_s_ = self.s_[index]
+        batch_dw = self.dw[index]
+        return (batch_s, batch_a, batch_r, batch_s_, batch_dw), (batch_s, batch_a, batch_r, batch_s_, batch_dw)
+        
+    def __len__(self):
+        return self.size
+
+
 def visualize_shape(dlo: np.ndarray, ax, ld=3.0, s=25, clr=None):
     '''
         visualize a rope shape

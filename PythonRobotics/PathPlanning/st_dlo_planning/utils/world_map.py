@@ -10,8 +10,118 @@ from dataclasses import dataclass
 from matplotlib.patches import Rectangle 
 from scipy.spatial.transform import Rotation as R
 
-import torch
 from st_dlo_planning.utils.pytorch_utils import from_numpy
+
+import seaborn as sns
+from omegaconf import OmegaConf
+import xml.etree.ElementTree as ET
+import pathlib
+
+
+def hex_to_rgba(hex_code):
+    """
+    Convert a hex color code to an RGBA tuple.
+    Supports both #RRGGBB and #RRGGBBAA formats.
+    """
+    hex_code = hex_code.lstrip("#")  # Remove the '#' if present
+
+    # Determine if the hex code includes an alpha channel
+    if len(hex_code) == 6:
+        hex_code += "FF"  # Add default alpha (fully opaque)
+
+    # Convert hex to integer values
+    r = int(hex_code[0:2], 16)  # Red
+    g = int(hex_code[2:4], 16)  # Green
+    b = int(hex_code[4:6], 16)  # Blue
+    a = int(hex_code[6:8], 16)  # Alpha
+
+    # Normalize to range [0, 1] (optional, commonly used in graphics)
+    r_norm = r / 255.0
+    g_norm = g / 255.0
+    b_norm = b / 255.0
+    a_norm = a / 255.0
+
+    return (r_norm, g_norm, b_norm, a_norm)  # Return normalized RGBA
+
+
+def load_mapCfg_to_mjcf(map_case: str, init_dlo_shape, goal_dlo_shape):
+    h = 0.4
+
+    cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
+    map_cfg = OmegaConf.load(cfg_path)
+
+    obstacles = map_cfg.obstacle_info.obstacles
+
+    print(obstacles)
+    # Load the XML file
+    file_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/planar_cable_deform/assets/'
+    raw_file = f'{file_dir}dual_hand_thin_03.xml'
+
+    tree = ET.parse(raw_file)
+    root = tree.getroot()
+
+    clrs = sns.color_palette("tab10", n_colors=max(3, len(obstacles))).as_hex()
+
+    # mocap body
+    worldbody = root.find("worldbody")
+    obstacle_body = ET.SubElement(worldbody, "body", name="obstacles", mocap="true", pos=f"0 0 {h}")
+
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_left', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0.02", 
+                  pos=f"{-map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0",
+                  rgba='0.5 0.5 0.8 1')
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_right', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0.02", 
+                  pos=f"{map_cfg.workspace.map_ymax+map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0",
+                  rgba='0.5 0.5 0.8 1')
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_down', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.robot_size/2} 0.02", 
+                  pos=f"{map_cfg.workspace.map_xmax/2} {-map_cfg.workspace.robot_size/2} 0",
+                  rgba='0.5 0.5 0.8 1')
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_up', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.robot_size/2} 0.02", 
+                  pos=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.map_ymax+map_cfg.workspace.robot_size/2} 0",
+                  rgba='0.5 0.5 0.8 1')
+    
+    k = 0
+    for obstacle in obstacles:
+        size_x = obstacle[0] / 2
+        size_y = obstacle[1] / 2
+        pos_x = obstacle[2]
+        pos_y = obstacle[3]
+        theta = obstacle[4] * np.pi
+        rgba = hex_to_rgba(clrs[k])
+        ET.SubElement(obstacle_body, "geom", 
+                    type="box", name=f'obs{k}', contype="0", conaffinity="0",
+                    size=f"{size_x} {size_y} 0.02", pos=f"{pos_x} {pos_y} 0", euler=f'0 0 {theta}',
+                    rgba=f'{rgba[0]} {rgba[1]} {rgba[2]} {rgba[3]}')
+        k += 1
+
+    # for i in range(13):
+    #     pos_x = init_dlo_shape[i, 0]
+    #     pos_y = init_dlo_shape[i, 1]
+
+    #     ET.SubElement(obstacle_body, "geom", 
+    #                 type="sphere", name=f'init_kp{i}', contype="0", conaffinity="0",
+    #                 size="0.005", pos=f"{pos_x} {pos_y} 0",
+    #                 rgba='0 1 0 0.5')
+        
+    for i in range(13):
+        pos_x = goal_dlo_shape[i, 0]
+        pos_y = goal_dlo_shape[i, 1]
+
+        ET.SubElement(obstacle_body, "geom", 
+                    type="sphere", name=f'goal_kp{i}', contype="0", conaffinity="0",
+                    size="0.005", pos=f"{pos_x} {pos_y} 0",
+                    rgba='0 0.5 1 0.8')
+
+    # Save the modified XML
+    mod_file = f'{file_dir}dual_hand_thin_03_mod.xml'
+    tree.write(mod_file)
 
 
 def lse_fn(x, beta=1.):
@@ -19,6 +129,12 @@ def lse_fn(x, beta=1.):
     sum_tmp = np.sum( exp_tmp )
     log_tmp = np.log( sum_tmp )
     return 1. / beta * log_tmp
+
+
+def draw_fake_eef(eef_state, sz, ax):
+    x = eef_state[0]
+    y = eef_state[1]
+    theta = eef_state[2]
 
 
 class Point(NamedTuple):
@@ -161,9 +277,10 @@ class Block:
     '''
         city building block
     '''
+    
     def __init__(self, size_x, size_y, size_z, 
                  pos_x, pos_y, pos_z = None, angle: float = 0.,
-                 clr='gray', is_wall: bool = False):
+                 clr=None, is_wall: bool = False):
         
         self._size_x = size_x
         self._size_y = size_y
@@ -185,10 +302,13 @@ class Block:
         # tf = fcl.Transform(T)
         self._collision_obj = fcl.CollisionObject(self.geom, self.tf)
 
-        # visualization property
-        self._color = clr
-
         self._wall = is_wall
+
+        if self._wall:
+            # visualization property
+            self._color = 'gray'
+        else:
+            self._color = clr
 
 
     @staticmethod
@@ -308,10 +428,13 @@ class WorldMap:
         for obs in self._obstacle:
             tf = obs.rotation
             obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
-            vertex1_o = np.array([-obs._size_x / 2, obs._size_y / 2, 0.])
-            vertex2_o= np.array([obs._size_x / 2, obs._size_y / 2, 0.])
-            vertex3_o= np.array([obs._size_x / 2, -obs._size_y / 2, 0.])
-            vertex4_o = np.array([-obs._size_x / 2, -obs._size_y / 2, 0.])
+            obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
+            _size_x = obs._size_x + 0.02
+            _size_y = obs._size_y + 0.02
+            vertex1_o = np.array([-_size_x / 2, _size_y / 2, 0.])
+            vertex2_o= np.array([_size_x / 2, _size_y / 2, 0.])
+            vertex3_o= np.array([_size_x / 2, -_size_y / 2, 0.])
+            vertex4_o = np.array([-_size_x / 2, -_size_y / 2, 0.])
             
             vertex1 = obs_center + tf @ vertex1_o
             vertex2 = obs_center + tf @ vertex2_o
@@ -332,10 +455,12 @@ class WorldMap:
         for obs in self._obstacle:
             tf = obs.rotation
             obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
-            vertex1_o = np.array([-obs._size_x / 2, obs._size_y / 2, 0.])
-            vertex2_o= np.array([obs._size_x / 2, obs._size_y / 2, 0.])
-            vertex3_o= np.array([obs._size_x / 2, -obs._size_y / 2, 0.])
-            vertex4_o = np.array([-obs._size_x / 2, -obs._size_y / 2, 0.])
+            _size_x = obs._size_x + 0.02
+            _size_y = obs._size_y + 0.02
+            vertex1_o = np.array([_size_x / 2, _size_y / 2, 0.])
+            vertex2_o= np.array([_size_x / 2, _size_y / 2, 0.])
+            vertex3_o= np.array([_size_x / 2, -_size_y / 2, 0.])
+            vertex4_o = np.array([-_size_x / 2, -_size_y / 2, 0.])
             
             vertex1 = obs_center + tf @ vertex1_o
             vertex2 = obs_center + tf @ vertex2_o
@@ -558,7 +683,7 @@ class WorldMap:
     def visualize_passage(self, ax=None, full_passage: bool = True):
         assert self._finalized, 'world_map is not finalized!'
         if ax is None:
-            fig = plt.figure(figsize=plt.figaspect(0.5))
+            fig = plt.figure()
             ax = fig.add_subplot()
 
         for obs in self._obstacle:
@@ -569,8 +694,8 @@ class WorldMap:
                 ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--')
 
         for passage in self._filtered_passages:
-            ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k-.', linewidth=1.0)
-        return fig, ax
+            ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--', linewidth=1.0)
+        return ax
     
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@ def visualize_shape(dlo: np.ndarray, ax, ld=3.0, s=25, clr=None):
     num_kp = dlo.shape[0]
 
     for i in range(num_kp):
-        ax.scatter(dlo[i][0], dlo[i][1], dlo[i][2], color=clr, marker='o')
+        ax.scatter(dlo[i][0], dlo[i][1], s=s, color=clr, marker='o')
     for i in range(num_kp-1):
         ax.plot([dlo[i][0], dlo[i+1][0]], 
                 [dlo[i][1], dlo[i+1][1]], color=clr, linewidth=ld)

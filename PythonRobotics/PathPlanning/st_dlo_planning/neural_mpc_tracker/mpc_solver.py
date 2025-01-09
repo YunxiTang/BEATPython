@@ -72,7 +72,7 @@ class DiscreteModelEnv:
 
 
 # ============================== Gradient Based Solver ======================================= # 
-def relaxed_log_barrier(x, delta=0.01, phi=1.0):
+def relaxed_log_barrier(x, delta=0.005, phi=1.0):
     delta = torch.tensor(delta)
     if x > delta:
         val = -phi * torch.log(x)

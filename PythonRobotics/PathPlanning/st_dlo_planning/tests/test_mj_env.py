@@ -90,8 +90,8 @@ if __name__ == '__main__':
     pre_left_euler_z = 0.
     for i in range(80):
         ts.append(i)
-        action = np.array([0.02, 0.0, 0.2, 
-                           -0.02, 0.0, 0.2])
+        action = np.array([0.02, 0.03, 0.2, 
+                           -0.01, 0.03, 0.2])
         obs, _, done, _, _ = env.step(action)
 
         gripper_transforms = obs['eef_transforms']

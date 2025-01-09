@@ -46,8 +46,8 @@
     <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
     <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="white" class="panda"/>
-    <material name="off_white" class="panda" rgba="0.901961 0.921569 0.929412 1.0"/>
-    <material name="black" class="panda" rgba="0.25 0.25 0.25 1.0"/>
+    <material name="off_white" class="panda" rgba="0.901961 0.921569 0.929412 0.1"/>
+    <material name="black" class="panda" rgba="0.25 0.25 0.25 0.1"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
     <mesh name="hand_c" file="hand.stl"/>
     <mesh name="hand_0" file="hand_0.obj"/>
@@ -60,19 +60,22 @@
   </asset>
 
   <worldbody>
-    <!-- <light pos="0 0 1.5" dir="0 0 -1" directional="true"/> -->
+    <light pos="0.35 0.35 5.5" dir="0.5 0.5 -1" directional="false" castshadow="false"/>
+    <light pos="0.35 0.35 5.5" dir="-0.5 0.5 -1" directional="false" castshadow="false"/>
+    <light pos="0.35 0.35 5.5" dir="0.5 -0.5 -1" directional="false" castshadow="false"/>
+    <light pos="0.35 0.35 5.5" dir="-0.5 -0.5 -1" directional="false" castshadow="false"/>
     <body name='table' pos="0 0 0.2">
-      <geom name="floor" size="1 1 0.05" type="plane" /> 
+      <geom name="floor" size="2 2 0.05" type="plane" /> 
     </body>
     
     <!-- <camera name="track_cable" mode="targetbodycom" target="cable0" fovy="35" pos="0.125 0.05 1.2"/> -->
-    <camera name="top_camera" mode="targetbodycom" target="table" fovy="55" pos="0.0 0.0 1.0"/>
+    <camera name="top_camera" mode="fixed" target="table" fovy="50" pos="0.35 0.35 1.5"/>
     
     <body name="left_hand" childclass="panda" pos="0 0 0.5" quat="0.000796327 0 1 0" gravcomp="1.0">
       <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
       <joint name="left_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
       <joint name="left_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
-      <joint name="left_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-1.575 1.575" damping="2"/>
+      <joint name="left_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-3.14 3.14" damping="2"/>
       
       <!-- <geom class="visual" material="off_white" mesh="hand_0"/>
       <geom class="visual" material="black" mesh="hand_1"/>
@@ -109,7 +112,7 @@
       <inertial pos="-0.01 0 0.03" mass="0.73" diaginertia="0.0025 0.001 0.0017"/>
       <joint name="right_px" pos="0 0 0" axis="1 0 0" type="slide" range="-5 5" damping="2"/>
       <joint name="right_py" pos="0 0 0" axis="0 1 0" type="slide" range="-5 5" damping="2"/>
-      <joint name="right_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-1.575 1.575" damping="2"/>
+      <joint name="right_rz" pos="0 0 0" axis="0 0 1" type="hinge" range="-3.14 3.14" damping="2"/>
       
       <!-- <geom class="visual" material="off_white" mesh="hand_0"/>
       <geom class="visual" material="black" mesh="hand_1"/>

@@ -40,8 +40,8 @@ def sdf_box(query_point: jnp.ndarray, vertixes):
     sdf3 = jnp.dot(query_point - vertex3, n34 / jnp.linalg.norm(n34))
     sdf4 = jnp.dot(query_point - vertex4, n41 / jnp.linalg.norm(n41))
     
-    # sdf_val = lse_fn(jnp.array([sdf1, sdf2, sdf3, sdf4]), beta=100.)
-    sdf_val = jnp.max(jnp.array([sdf1, sdf2, sdf3, sdf4]))
+    sdf_val = lse_fn(jnp.array([sdf1, sdf2, sdf3, sdf4]), beta=100.)
+    # sdf_val = jnp.max(jnp.array([sdf1, sdf2, sdf3, sdf4]))
     return sdf_val
 
 barrier_func = sdf_box

@@ -8,6 +8,7 @@ from gym.spaces import Box
 import seaborn as sns
 from st_dlo_planning.envs.mujoco_base_env import MujocoEnv
 from pathlib import Path, PureWindowsPath
+import xml.etree.ElementTree as ET
 
 
 def wrap_angle(theta):
@@ -22,7 +23,7 @@ def wrap_angle(theta):
 
 
 TaskSceneNames = {
-    '03': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_03.xml')), 'dlo_len':0.3, 'cable_geom_num': 39},
+    '03': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_03_mod.xml')), 'dlo_len':0.3, 'cable_geom_num': 39},
     '04': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_04.xml')), 'dlo_len':0.4, 'cable_geom_num': 49},
     '05': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_05.xml')), 'dlo_len':0.5, 'cable_geom_num': 39},
     '06': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_06.xml')), 'dlo_len':0.6, 'cable_geom_num': 39}
@@ -123,12 +124,12 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
 
         # reset the feature point color
         # reset the feature point color
-        material_id = self.model.mat('cable_material').id
-        # for idx in self.feat_idx:
-        for geom_name in self.cable_geom_names:
-            geom_id = self.model.geom(geom_name).id
-            self.model.geom_matid[geom_id] = material_id
-            self.model.geom(geom_name).rgba = None
+        # material_id = self.model.mat('cable_material').id
+        # # for idx in self.feat_idx:
+        # for geom_name in self.cable_geom_names:
+        #     geom_id = self.model.geom(geom_name).id
+        #     self.model.geom_matid[geom_id] = material_id
+        #     self.model.geom(geom_name).rgba = None
         
 
         # get the actuated joint idxs
