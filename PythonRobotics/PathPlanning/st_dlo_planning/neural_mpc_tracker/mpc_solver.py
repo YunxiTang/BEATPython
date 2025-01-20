@@ -7,10 +7,11 @@ import copy
 
 import st_dlo_planning.utils.pytorch_utils as ptu
 from st_dlo_planning.neural_mpc_tracker.gdm_dataset import normalize_data, unnormalize_data
+from st_dlo_planning.neural_mpc_tracker.modelling_gdm import GDM
 
 
 class DiscreteModelEnv:
-    def __init__(self, dynamic_model, dlo_len, nx, nu, device, stats=None):
+    def __init__(self, dynamic_model, nx, nu, device, stats=None):
         """
         A discrete system model wrapper.
 
@@ -27,11 +28,11 @@ class DiscreteModelEnv:
         self.nx = nx
         self.nu = nu
         self.dim_q = nx + nu
-        self.dlo_len = dlo_len
-        self.stats = stats
-
+        
         self.dynamic_model.eval()
         self.dynamic_model.to(self.device)
+
+        self.stats = stats
 
     def step(self, 
              state: np.ndarray, 
@@ -71,18 +72,26 @@ class DiscreteModelEnv:
 
 
 # ============================== Gradient Based Solver ======================================= # 
+def relaxed_log_barrier(x, delta=0.01, phi=1.0):
+    delta = torch.tensor(delta)
+    if x > delta:
+        val = -phi * torch.log(x)
+    else:
+        val = 1 / 2 * ( ((x - 2 * delta) / delta) ** 2 - 1) - torch.log(delta)
+    return val
+
+
 class GradientMPCSolver:
     def __init__(self,
                  system_model: nn.Module,
                  path_cost_func: Callable,
                  final_cost_func: Callable,
                  dlo_len: float,
-                 nx: int,
-                 nu: int,
+                 num_eef: int,
                  dt: float, 
                  device,
-                 u_max: np.ndarray,
-                 u_min: np.ndarray,
+                 umin=None,
+                 umax=None,
                  discount_factor: float = 1.0,
                  horizon: int = 10,
                  tol: float = 1e-3,
@@ -98,10 +107,7 @@ class GradientMPCSolver:
         self._lr = lr
         self._horizon = horizon
         
-        self._nx = nx
-        self._nu = nu
-        self._umax = u_max
-        self._umin = u_min
+        self._num_eef = num_eef
         self._discount_factor = discount_factor
         self._dt = dt
         self._device = device
@@ -109,50 +115,59 @@ class GradientMPCSolver:
         self._tol = tol
 
         # initial guess for U, i.e. delta eef positions
-        self.U = torch.zeros(self._horizon, self._nu, 
+        self.U = torch.zeros(self._horizon, self._num_eef, 3, 
                              requires_grad=True, device=self._device)
-
+        
+        self.umin = ptu.from_numpy(umin)
+        self.umax = ptu.from_numpy(umax)
+        self.umin = self.umin.reshape(self._num_eef, 3)
+        self.umax = self.umax.reshape(self._num_eef, 3)
+        
         # MPC numerical optimizer
         self.optimizer = torch.optim.AdamW([self.U,], self._lr, weight_decay=0.001)
 
         
-    def plan(self, x_init, xref):
+    def plan(self, dlo_kp_2d_init, eef_states_init, dlo_kp_ref_2d):
         """ 
             plan a sequence of trajectory via gradient-based optimization
         """
-        inter_target_shape = ptu.from_numpy(xref, device=self._device)
+        inter_target_shape = ptu.from_numpy(dlo_kp_ref_2d, device=self._device)
+        loss_last = float('inf')
 
-        dlo_len_b = self.dlo_len[None]
-        loss_last = 1e4
+        phi = 100.0
         for iter in range(self._max_iter):
             cumulative_loss = 0.0
-            x = ptu.from_numpy(x_init, self._device)
+            dlo_kp_2d = ptu.from_numpy(dlo_kp_2d_init, self._device)
+            eef_states = ptu.from_numpy(eef_states_init, self._device)
+            
             for t in range(self._horizon):
-                x_b = x[None]
-                # u_b = torch.tanh(self.U[t][None]) * self._umax[0]
-                u_b = self.U[t][None]
+                dlo_kp_2d_b = dlo_kp_2d[None]
+                eef_states_b = eef_states[None]
+                u_b = self.U[t][None] # torch.tanh(self.U[t][None]) * self.umax[None]
                 
-                delta_X = self.model(x_b, u_b, dlo_len_b)[0]
-                delta_eef = self.U[t]
-                delta_x = torch.cat([delta_X, delta_eef], dim=0)
+                delta_dlo_kp_2d = self.model(dlo_kp_2d_b, eef_states_b, u_b)[0] # dlo_kp, eef_states, delta_eef_states
+                delta_eef = u_b[0] #torch.clamp(self.U[t], self.umin, self.umax)
 
-                x_next = x + delta_x
+                next_dlo_kp_2d = dlo_kp_2d + delta_dlo_kp_2d
+                next_eef_states = eef_states + delta_eef * 1.0
+
                 cumulative_loss = cumulative_loss \
-                                + self._discount_factor ** t * self.path_cost_func(x_next, self.U[t], inter_target_shape)
+                                + self._discount_factor ** t * self.path_cost_func(next_dlo_kp_2d, next_eef_states, 
+                                                                                   self.U[t], inter_target_shape, phi)
                 # forward simulate the system dynamics
-                x = x_next
+                dlo_kp_2d = next_dlo_kp_2d
+                eef_states = next_eef_states
                 
-            cumulative_loss = cumulative_loss + self._discount_factor ** t * self.final_cost_func(x, inter_target_shape)
-
-            if cumulative_loss.data.item() < loss_last:
+            cumulative_loss = cumulative_loss + self._discount_factor ** t * self.final_cost_func(dlo_kp_2d, eef_states, 
+                                                                                                  inter_target_shape, phi)
+            loss_np = ptu.to_numpy(cumulative_loss)
+            if loss_last - loss_np > self._tol or iter < 2:
                 self.optimizer.zero_grad()
                 cumulative_loss.backward()
                 self.optimizer.step()
+                # phi = 5 * phi
                 
-                loss_np = ptu.to_numpy(cumulative_loss)
-                print(f'MPC Iter: {iter} with objective {loss_np}')
-                if loss_last - loss_np < self._tol:
-                    break
+                # print(f'MPC Iter: {iter} with objective {loss_np}')
                 loss_last = loss_np
             else:
                 break

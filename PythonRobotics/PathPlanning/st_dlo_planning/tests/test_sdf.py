@@ -1,20 +1,21 @@
 if __name__ == '__main__':
-    import sys
     import os
-    import pathlib
-
-    ROOT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
-    print(ROOT_DIR)
-    sys.path.append(ROOT_DIR)
-    os.chdir(ROOT_DIR)
-    
-    from st_dlo_planning.utils.world_map import WorldMap, Block, MapCfg
+    import sys
+    import time
     import matplotlib.pyplot as plt
-    from omegaconf import OmegaConf
-    import seaborn as sns
-    import numpy as np
     
-    map_case = 'camera_ready_maze4'
+    sys.path.append('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning')
+
+    from st_dlo_planning.utils import PathSet, compute_enery
+    import jax.numpy as jnp
+    import jax
+    import numpy as np
+    from  omegaconf import OmegaConf
+
+    from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg
+
+    map_case = 'map_case0'
+
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -29,20 +30,24 @@ if __name__ == '__main__':
                      dim=3)
     
     world_map = WorldMap(map_cfg)
-    #  add some obstacles 
+    # ============== add some obstacles =========================
     size_z = map_cfg_file.workspace.map_zmax
     obstacles = map_cfg_file.obstacle_info.obstacles
     i = 0
-    clrs = sns.color_palette("tab10", n_colors=max(3, len(obstacles))).as_hex()
     for obstacle in obstacles:
         world_map.add_obstacle(Block(obstacle[0], obstacle[1], size_z, 
-                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=clrs[i]))
+                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.3+0.01*i, 0.5, 0.4]))
         i += 1
     world_map.finalize()
-    ax = world_map.visualize_passage(full_passage=False)
+    _, ax = world_map.visualize_passage(full_passage=False)
+
+    p = np.array([0.2, 0.3])
+
+    for obs in world_map._obstacle:
+        ax.scatter(p[0], p[1], c='r')
+        sdf_val, vrtxs = obs.get_2d_sdf_val(p)
+        print(sdf_val)
+        for vrtx in vrtxs:
+            ax.scatter(vrtx[0], vrtx[1], c='b')
     plt.axis('equal')
     plt.show()
-    
-    # world_map.visualize_passage()
-    # plt.axis('equal')
-    # plt.show()

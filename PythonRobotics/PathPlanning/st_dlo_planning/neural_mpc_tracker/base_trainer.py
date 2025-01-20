@@ -126,7 +126,7 @@ class DataLogger:
         Data Logging class to log metrics to wandb/tensorboard 
         (with retrieve running statistics about logged data as an optional).
     """
-    include_cfg_keys = ('meta', 'model', 'train')
+    include_cfg_keys = ('meta', 'train')
     
     def __init__(self, 
                  log_dir: str, 

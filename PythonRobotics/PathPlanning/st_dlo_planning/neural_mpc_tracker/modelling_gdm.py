@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from torch.nn import functional as F
 import math
+from einops import reduce, rearrange
 from st_dlo_planning.neural_mpc_tracker.configuration_gdm import GDM_CFG
 
 
@@ -215,19 +216,44 @@ class GDM(nn.Module):
         
         self.eef_proj = nn.Linear(model_cfg.eef_dim, model_cfg.embed_dim)
         self.delta_eef_proj = nn.Linear(model_cfg.delta_eef_dim, model_cfg.embed_dim)
+
+        self.eef_pe = nn.Embedding(model_cfg.num_eef, model_cfg.embed_dim)
         
         self.ca_decoder = CABlock(model_cfg.embed_dim, model_cfg.nhead)
         
-        self.deltaKp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
+        self.delta_kp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
                                           nn.GELU(approximate='tanh'),
                                           nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
         
-    
+
+    def local_transform(self, dlo_kp, eef_states):
+        batch_size = dlo_kp.shape[0]
+        
+        dlo_kp_center = torch.mean(dlo_kp, dim=1, keepdim=True)
+        local_dlo_kp = dlo_kp - dlo_kp_center
+
+        tmp = torch.concatenate([dlo_kp_center, torch.zeros(batch_size, 1, 1, device=dlo_kp.device)], dim=2)
+        local_eef_states = eef_states - tmp
+
+        return local_dlo_kp, local_eef_states                                                  
+
+
     def forward(self, dlo_kp, eef_states, delta_eef_states):
+        '''
+            dlo_kp: in shape of (batch_size, kp_num, kp_dim)
+            eef_states: in shape of (batch_size, eef_num, eef_dim)
+            delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
+        '''
+        dlo_kp, eef_states = self.local_transform(dlo_kp, eef_states)
         q = self.dlo_encoder(dlo_kp)
         k = self.eef_proj(eef_states)
+        # add positional embedding for eefs
+        pos = torch.arange(0, k.shape[1], device=dlo_kp.device, dtype=torch.long).unsqueeze(0)
+        eef_pos_emb = self.eef_pe(pos)
+        k = k + 0.01 * eef_pos_emb
+
         v = self.delta_eef_proj(delta_eef_states)
-        
+
         z = self.ca_decoder(q, k, v)
-        predicts = self.deltaKp_head(z)
+        predicts = self.delta_kp_head(z)
         return predicts

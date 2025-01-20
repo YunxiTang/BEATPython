@@ -13,15 +13,15 @@ workspace:
   dim: 3
 
 obstacle_info: # size_x, size_y, pos_x, pos_y, angle
-   obstacles: [[0.05, 0.15, 0.4, 0.30, -0.1],
-               [0.06, 0.15, 0.2, 0.15, 0.40],
+   obstacles: [[0.05, 0.2, 0.4, 0.32, 1.45],
+               [0.08, 0.3, 0.2, 0.18, 0.05],
                [0.08, 0.15, 0.35, 0.55, 0.78],
-               [0.04, 0.15, 0.60, 0.55, 1.28]] 
+               [0.03, 0.05, 0.60, 0.55, 1.28]] 
 
 dlo_cfg:
-  start: [0.12, 0.04]
-  goal: [0.68, 0.62]
+  start: [0.15, 0.60]
+  goal: [0.6, 0.15]
 
 logging:
-  save_pivot_path_name: 'map6_pivot_path.npy'
+  save_pivot_path_name: 'camera_ready_mo3.npy'
 

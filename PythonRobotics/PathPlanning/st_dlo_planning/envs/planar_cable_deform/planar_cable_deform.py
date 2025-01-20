@@ -8,6 +8,7 @@ from gym.spaces import Box
 import seaborn as sns
 from st_dlo_planning.envs.mujoco_base_env import MujocoEnv
 from pathlib import Path, PureWindowsPath
+import xml.etree.ElementTree as ET
 
 
 def wrap_angle(theta):
@@ -22,7 +23,7 @@ def wrap_angle(theta):
 
 
 TaskSceneNames = {
-    '03': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_03.xml')), 'dlo_len':0.3, 'cable_geom_num': 39},
+    '03': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_03_mod.xml')), 'dlo_len':0.3, 'cable_geom_num': 39},
     '04': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_04.xml')), 'dlo_len':0.4, 'cable_geom_num': 49},
     '05': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_05.xml')), 'dlo_len':0.5, 'cable_geom_num': 39},
     '06': {'file': Path(PureWindowsPath(r'assets\\dual_hand_thin_06.xml')), 'dlo_len':0.6, 'cable_geom_num': 39}
@@ -122,12 +123,14 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
         # reset the feature point color
-        material_id = self.model.mat('cable_material').id
+        # reset the feature point color
+        # material_id = self.model.mat('cable_material').id
+        # # for idx in self.feat_idx:
+        # for geom_name in self.cable_geom_names:
+        #     geom_id = self.model.geom(geom_name).id
+        #     self.model.geom_matid[geom_id] = material_id
+        #     self.model.geom(geom_name).rgba = None
         
-        for geom_name in self.cable_geom_names:
-            geom_id = self.model.geom(geom_name).id
-            self.model.geom_matid[geom_id] = material_id
-            self.model.geom(geom_name).rgba = None
 
         # get the actuated joint idxs
         self.left_hand_jnt_idxs = [self._get_joint_index(joint_name) for joint_name in ['left_px', 'left_py', 'left_rz']]
@@ -263,12 +266,13 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
             delta_left_act = L_target - L_pose
             delta_right_act = R_target - R_pose
             
-            full_act = np.concatenate((delta_left_act, delta_right_act)) * 2.0
+            full_act = np.concatenate((delta_left_act, delta_right_act)) * 1.0
             full_act = np.clip(full_act, [-0.04, -0.04, -0.4, -0.04, -0.04, -0.4], 
                                          [ 0.04,  0.04,  0.4,  0.04,  0.04,  0.4])
             
             next_obs, reward, done, info, truncated = self.step(full_act)
-            
+            if render_mode == 'human':
+                self.render(mode=render_mode)
             if return_traj:
                 states.append(obs)
                 actions.append(full_act)

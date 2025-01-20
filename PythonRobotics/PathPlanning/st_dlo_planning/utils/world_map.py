@@ -3,11 +3,138 @@ import numpy as np
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import fcl
+from typing import Callable
 from itertools import combinations
 from typing import NamedTuple
 from dataclasses import dataclass
 from matplotlib.patches import Rectangle 
 from scipy.spatial.transform import Rotation as R
+
+from st_dlo_planning.utils.pytorch_utils import from_numpy
+
+import seaborn as sns
+from omegaconf import OmegaConf
+import xml.etree.ElementTree as ET
+import pathlib
+
+
+def hex_to_rgba(hex_code):
+    """
+    Convert a hex color code to an RGBA tuple.
+    Supports both #RRGGBB and #RRGGBBAA formats.
+    """
+    hex_code = hex_code.lstrip("#")  # Remove the '#' if present
+
+    # Determine if the hex code includes an alpha channel
+    if len(hex_code) == 6:
+        hex_code += "FF"  # Add default alpha (fully opaque)
+
+    # Convert hex to integer values
+    r = int(hex_code[0:2], 16)  # Red
+    g = int(hex_code[2:4], 16)  # Green
+    b = int(hex_code[4:6], 16)  # Blue
+    a = int(hex_code[6:8], 16)  # Alpha
+
+    # Normalize to range [0, 1] (optional, commonly used in graphics)
+    r_norm = r / 255.0
+    g_norm = g / 255.0
+    b_norm = b / 255.0
+    a_norm = a / 255.0
+
+    return (r_norm, g_norm, b_norm, a_norm)  # Return normalized RGBA
+
+
+def load_mapCfg_to_mjcf(map_case: str, init_dlo_shape, goal_dlo_shape):
+    h = 0.4
+
+    cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
+    map_cfg = OmegaConf.load(cfg_path)
+
+    obstacles = map_cfg.obstacle_info.obstacles
+
+    print(obstacles)
+    # Load the XML file
+    file_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/planar_cable_deform/assets/'
+    raw_file = f'{file_dir}dual_hand_thin_03.xml'
+
+    tree = ET.parse(raw_file)
+    root = tree.getroot()
+
+    clrs = sns.color_palette("tab10", n_colors=max(3, len(obstacles))).as_hex()
+
+    # mocap body
+    worldbody = root.find("worldbody")
+    obstacle_body = ET.SubElement(worldbody, "body", name="obstacles", mocap="true", pos=f"0 0 {h}")
+
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_left', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0.02", 
+                  pos=f"{-map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0",
+                  rgba='0.5 0.5 0.8 0.3')
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_right', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0.02", 
+                  pos=f"{map_cfg.workspace.map_ymax+map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0",
+                  rgba='0.5 0.5 0.8 0.3')
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_down', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.robot_size/2} 0.02", 
+                  pos=f"{map_cfg.workspace.map_xmax/2} {-map_cfg.workspace.robot_size/2} 0",
+                  rgba='0.5 0.5 0.8 0.3')
+    ET.SubElement(obstacle_body, "geom", 
+                  type="box", name='wall_up', contype="0", conaffinity="0",
+                  size=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.robot_size/2} 0.02", 
+                  pos=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.map_ymax+map_cfg.workspace.robot_size/2} 0",
+                  rgba='0.5 0.5 0.8 0.3')
+    
+    k = 0
+    for obstacle in obstacles:
+        size_x = obstacle[0] / 2
+        size_y = obstacle[1] / 2
+        pos_x = obstacle[2]
+        pos_y = obstacle[3]
+        theta = obstacle[4] * np.pi
+        rgba = hex_to_rgba(clrs[k])
+        ET.SubElement(obstacle_body, "geom", 
+                    type="box", name=f'obs{k}', contype="0", conaffinity="0",
+                    size=f"{size_x} {size_y} 0.02", pos=f"{pos_x} {pos_y} 0", euler=f'0 0 {theta}',
+                    rgba=f'{rgba[0]} {rgba[1]} {rgba[2]} {rgba[3]}')
+        k += 1
+
+    # for i in range(13):
+    #     pos_x = init_dlo_shape[i, 0]
+    #     pos_y = init_dlo_shape[i, 1]
+
+    #     ET.SubElement(obstacle_body, "geom", 
+    #                 type="sphere", name=f'init_kp{i}', contype="0", conaffinity="0",
+    #                 size="0.005", pos=f"{pos_x} {pos_y} 0",
+    #                 rgba='0 1 0 0.5')
+        
+    for i in range(13):
+        pos_x = goal_dlo_shape[i, 0]
+        pos_y = goal_dlo_shape[i, 1]
+
+        ET.SubElement(obstacle_body, "geom", 
+                    type="sphere", name=f'goal_kp{i}', contype="0", conaffinity="0",
+                    size="0.005", pos=f"{pos_x} {pos_y} 0",
+                    rgba='0 0.5 1 0.8')
+
+    # Save the modified XML
+    mod_file = f'{file_dir}dual_hand_thin_03_mod.xml'
+    tree.write(mod_file)
+
+
+def lse_fn(x, beta=1.):
+    exp_tmp = np.exp( beta * x )
+    sum_tmp = np.sum( exp_tmp )
+    log_tmp = np.log( sum_tmp )
+    return 1. / beta * log_tmp
+
+
+def draw_fake_eef(eef_state, sz, ax):
+    x = eef_state[0]
+    y = eef_state[1]
+    theta = eef_state[2]
 
 
 class Point(NamedTuple):
@@ -150,9 +277,10 @@ class Block:
     '''
         city building block
     '''
+    
     def __init__(self, size_x, size_y, size_z, 
                  pos_x, pos_y, pos_z = None, angle: float = 0.,
-                 clr='gray', is_wall: bool = False):
+                 clr=None, is_wall: bool = False):
         
         self._size_x = size_x
         self._size_y = size_y
@@ -168,16 +296,62 @@ class Block:
                                        [0, 0, 1.0]]).as_matrix()
 
         # collision property
-        geom = fcl.Box(self._size_x, self._size_y, self._size_z)
+        self.geom = fcl.Box(self._size_x, self._size_y, self._size_z)
         T = np.array([self._pos_x, self._pos_y, self._pos_z])
-        tf = fcl.Transform(self.rotation, T)
+        self.tf = fcl.Transform(self.rotation, T)
         # tf = fcl.Transform(T)
-        self._collision_obj = fcl.CollisionObject(geom, tf)
-
-        # visualization property
-        self._color = clr
+        self._collision_obj = fcl.CollisionObject(self.geom, self.tf)
 
         self._wall = is_wall
+
+        if self._wall:
+            # visualization property
+            self._color = 'gray'
+        else:
+            self._color = clr
+
+
+    @staticmethod
+    def get_normal_vector(p1, p2):
+        delta = p2 - p1
+        return np.array([-delta[1], delta[0]])
+
+
+    def get_2d_sdf_val(self, query_point):
+        # get vertices of the box in x-y plane in clockwise order.
+        tf = self.rotation
+        obs_center = np.array([self._pos_x, self._pos_y, 0.])
+        vertex1_o = np.array([-self._size_x / 2, self._size_y / 2, 0.])
+        vertex2_o= np.array([self._size_x / 2, self._size_y / 2, 0.])
+        vertex3_o= np.array([self._size_x / 2, -self._size_y / 2, 0.])
+        vertex4_o = np.array([-self._size_x / 2, -self._size_y / 2, 0.])
+        
+        vertex1 = obs_center + tf @ vertex1_o
+        vertex2 = obs_center + tf @ vertex2_o
+        vertex3 = obs_center + tf @ vertex3_o
+        vertex4 = obs_center + tf @ vertex4_o
+
+        vertex1 = vertex1[0:2]
+        vertex2 = vertex2[0:2]
+        vertex3 = vertex3[0:2]
+        vertex4 = vertex4[0:2]
+
+        # compute the normal direction vector
+        n12 = self.get_normal_vector(vertex1, vertex2)
+        n23 = self.get_normal_vector(vertex2, vertex3)
+        n34 = self.get_normal_vector(vertex3, vertex4)
+        n41 = self.get_normal_vector(vertex4, vertex1)
+
+        sdf1 = np.dot(query_point - vertex1, n12 / np.linalg.norm(n12))
+        sdf2 = np.dot(query_point - vertex2, n23 / np.linalg.norm(n23))
+        sdf3 = np.dot(query_point - vertex3, n34 / np.linalg.norm(n34))
+        sdf4 = np.dot(query_point - vertex4, n41 / np.linalg.norm(n41))
+
+        # print(np.max([sdf1, sdf2, sdf3, sdf4]))
+
+        sdf_val = np.max([sdf1, sdf2, sdf3, sdf4])#lse_fn(np.array([sdf1, sdf2, sdf3, sdf4]), beta=500.)
+
+        return sdf_val, [vertex1, vertex2, vertex3, vertex4]
 
 
 @dataclass
@@ -247,6 +421,73 @@ class WorldMap:
         self.filter_passage()
         
         return None
+    
+
+    def get_obs_vertixs(self):
+        obs_vrtxs = []
+        for obs in self._obstacle:
+            tf = obs.rotation
+            obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
+            obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
+            _size_x = obs._size_x + 0.02
+            _size_y = obs._size_y + 0.02
+            vertex1_o = np.array([-_size_x / 2, _size_y / 2, 0.])
+            vertex2_o= np.array([_size_x / 2, _size_y / 2, 0.])
+            vertex3_o= np.array([_size_x / 2, -_size_y / 2, 0.])
+            vertex4_o = np.array([-_size_x / 2, -_size_y / 2, 0.])
+            
+            vertex1 = obs_center + tf @ vertex1_o
+            vertex2 = obs_center + tf @ vertex2_o
+            vertex3 = obs_center + tf @ vertex3_o
+            vertex4 = obs_center + tf @ vertex4_o
+
+            vertex1 = vertex1[0:2][None]
+            vertex2 = vertex2[0:2][None]
+            vertex3 = vertex3[0:2][None]
+            vertex4 = vertex4[0:2][None]
+
+            obs_vrtxs.append( np.concatenate([vertex1, vertex2, vertex3, vertex4], axis=0) )
+        return obs_vrtxs
+    
+
+    def get_obs_tensor_info(self, device):
+        obs_info = []
+        for obs in self._obstacle:
+            tf = obs.rotation
+            obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
+            _size_x = obs._size_x + 0.02
+            _size_y = obs._size_y + 0.02
+            vertex1_o = np.array([_size_x / 2, _size_y / 2, 0.])
+            vertex2_o= np.array([_size_x / 2, _size_y / 2, 0.])
+            vertex3_o= np.array([_size_x / 2, -_size_y / 2, 0.])
+            vertex4_o = np.array([-_size_x / 2, -_size_y / 2, 0.])
+            
+            vertex1 = obs_center + tf @ vertex1_o
+            vertex2 = obs_center + tf @ vertex2_o
+            vertex3 = obs_center + tf @ vertex3_o
+            vertex4 = obs_center + tf @ vertex4_o
+
+            vertex1 = vertex1[0:2]
+            vertex2 = vertex2[0:2]
+            vertex3 = vertex3[0:2]
+            vertex4 = vertex4[0:2]
+
+            # compute the normal direction vector
+            n12 = from_numpy(obs.get_normal_vector(vertex1, vertex2), device)
+            n23 = from_numpy(obs.get_normal_vector(vertex2, vertex3), device)
+            n34 = from_numpy(obs.get_normal_vector(vertex3, vertex4), device)
+            n41 = from_numpy(obs.get_normal_vector(vertex4, vertex1), device)
+
+            vertex1 = from_numpy(vertex1[0:2], device)
+            vertex2 = from_numpy(vertex2[0:2], device)
+            vertex3 = from_numpy(vertex3[0:2], device)
+            vertex4 = from_numpy(vertex4[0:2], device)
+
+            obs_info.append(
+                {'normal_vec': [n12, n23, n34, n41],
+                 'vertex': [vertex1, vertex2, vertex3, vertex4]}
+            )
+        return obs_info
     
 
     def construct_passage(self):
@@ -442,7 +683,7 @@ class WorldMap:
     def visualize_passage(self, ax=None, full_passage: bool = True):
         assert self._finalized, 'world_map is not finalized!'
         if ax is None:
-            fig = plt.figure(figsize=plt.figaspect(0.5))
+            fig = plt.figure()
             ax = fig.add_subplot()
 
         for obs in self._obstacle:
@@ -453,8 +694,8 @@ class WorldMap:
                 ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--')
 
         for passage in self._filtered_passages:
-            ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k-.', linewidth=1.0)
-        return fig, ax
+            p,  = ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--', linewidth=2.0)
+        return ax
     
 
 if __name__ == '__main__':

@@ -23,8 +23,12 @@ def compute_enery(dlo_shape, k1, k2, segment_len):
     U5 = 0.0
     for j in range(num_feature-5):
         U5 = U5 + k2/2. * (jnp.linalg.norm(dlo_shape[j+5] - dlo_shape[j]) - 5 * segment_len) ** 2
+
+    Ux = 0.0
+    for j in range(num_feature-8):
+        Ux = Ux + k2/2. * (jnp.linalg.norm(dlo_shape[j+8] - dlo_shape[j]) - 8 * segment_len) ** 2
         
-    return U1 + U2 + U3 + U4 + U5
+    return U1 + U2 + U3 + U4 #+ Ux
 
 if __name__ == '__main__':
     import numpy as np

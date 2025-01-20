@@ -34,7 +34,7 @@ def elastic_enery(intermediate_points, init_intermediate_points, end_point1, end
         U5 = U5 + k2/2. * (jnp.linalg.norm(dlo_shape[j+5] - dlo_shape[j]) - 5 * segment_len) ** 2
         
     reg = 0.01 * jnp.mean((intermediate_points - init_intermediate_points)**2)
-    return U1 + U2 + U3# + U4 + U5
+    return U1 + U2 + U3 + U4 + U5
 
 
 val_and_grad_fn = jax.value_and_grad(elastic_enery)

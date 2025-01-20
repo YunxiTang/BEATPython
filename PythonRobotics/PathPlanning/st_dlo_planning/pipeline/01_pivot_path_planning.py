@@ -13,8 +13,12 @@ if __name__ == '__main__':
     
     from st_dlo_planning.spatial_pathset_gen.dlo_ompl import DloOmpl
     from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
+    from st_dlo_planning.utils.misc_utils import setup_seed
+    import seaborn as sns
 
-    map_id = 'map_case10.yaml'
+    # setup_seed(100)
+    
+    map_id = 'map_case0.yaml' #'map_case4.yaml' # 
 
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_id}'
     map_cfg_file = OmegaConf.load(cfg_path)
@@ -35,9 +39,10 @@ if __name__ == '__main__':
     print(size_z)
     obstacles = map_cfg_file.obstacle_info.obstacles
     i = 0
+    clrs = sns.color_palette("icefire", n_colors=max(3, len(obstacles))).as_hex()
     for obstacle in obstacles:
         world_map.add_obstacle(Block(obstacle[0], obstacle[1], size_z, 
-                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=[0.0+0.05*i, 0.5, 0.4]))
+                                     obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=clrs[i]))
         i += 1
     
     world_map.finalize()
@@ -46,7 +51,8 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=0.0, k_pathLen=100., animation=False)
+    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=2, k_passage=1.0, k_pathLen=1., animation=False)
+    # dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=0.0, k_pathLen=10., animation=False)
 
     start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]
     goal = [map_cfg_file.dlo_cfg.goal[0], map_cfg_file.dlo_cfg.goal[1], size_z/2]
@@ -55,7 +61,7 @@ if __name__ == '__main__':
     goal_validate = world_map.check_pos_collision(goal)
     
     if start_validate and goal_validate:
-        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=20, num_waypoints=50)
+        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=50, num_waypoints=50)
         result_path = pathlib.Path(__file__).parent.parent.joinpath('results', map_cfg_file.logging.save_pivot_path_name)
         np.save(result_path, sol_np)
         print(sol)
@@ -66,24 +72,25 @@ if __name__ == '__main__':
 
     if sol_np is not None:
         print(sol_np.shape)
-        fig, ax = world_map.visualize_passage(full_passage=False)
-        plot_circle(start[0], start[1], 0.005, ax)
-        plot_circle(goal[0], goal[1], 0.005, ax, color='-r')
+        ax = world_map.visualize_passage(full_passage=False)
+        plot_circle(start[0], start[1], 0.008, ax, color='-b')
+        plot_circle(goal[0], goal[1], 0.008, ax, color='-r')
 
         for i in range(sol_np.shape[0]-1):
             ax.plot([sol_np[i, 0], sol_np[i+1, 0]], 
                     [sol_np[i, 1], sol_np[i+1, 1]], 'r-')
 
-        res = world_map.get_path_intersection(sol_np)
-        pw = []
-        for passage in res:
-            ax.scatter(passage['point'].x, passage['point'].y)
-            pw.append(passage['passage_width'])
-            print(passage['passage_width'])
-        print(' = ' * 30)
-        print(np.min(pw))
+        # res = world_map.get_path_intersection(sol_np)
+        # pw = []
+        # for passage in res:
+        #     ax.scatter(passage['point'].x, passage['point'].y)
+        #     pw.append(passage['passage_width'])
+        #     print(passage['passage_width'])
+        # print(' = ' * 30)
+        # print(np.min(pw))
 
         plt.axis('equal')
-        plt.show()
         ax.set_xlim(world_map.map_cfg.map_xmin - 0.05, world_map.map_cfg.map_xmax + 0.05)
         ax.set_ylim(world_map.map_cfg.map_ymin - 0.05, world_map.map_cfg.map_ymax + 0.05)
+        plt.show()
+        

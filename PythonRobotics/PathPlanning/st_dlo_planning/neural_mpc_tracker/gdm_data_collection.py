@@ -33,8 +33,12 @@ def CollectOfflineData(env:DualGripperCableEnv,
 
         ep_num = 0
 
+        state, _ = env.reset()
+
+        # straight DLO state
+        L_pose_straight, R_pose_straight = env.get_lowdim_eef_state(state)
+
         while True:
-            state, _ = env.reset()
             L_pose_init, R_pose_init = env.get_lowdim_eef_state(state)
 
             # target generation
@@ -45,15 +49,22 @@ def CollectOfflineData(env:DualGripperCableEnv,
             L_target[0] = -L_target[0] if L_target[0] > 0 else L_target[0]
             R_target[0] = -R_target[0] if R_target[0] < 0 else R_target[0]
 
-            r = np.random.uniform(low=0.08, high=dlo_len / 2.+ 0.005, size=(2,))
+            r = np.random.uniform(low=0.05, high=dlo_len / 2, size=(2,))
 
-            L_target = L_target / L_norm * r[0] + center
-            R_target = R_target / R_norm * r[1] + center
+            theta_ = np.random.uniform(-np.pi/2, np.pi/2)
+            Rot = sciR.from_euler(seq='zyx', angles=[theta_, 0, 0]).as_matrix()
+
+            L_target = Rot @ ( L_target / L_norm * r[0] ) + center 
+            R_target = Rot @ ( R_target / R_norm * r[1] ) + center 
             
             thetas = np.random.uniform(low=-np.pi/2, high=np.pi/2, size=(2, ))
             
             left_target = np.array([  L_target[0],  L_target[1], wrap_angle(thetas[0] + L_pose_init[2])])
             right_target = np.array([ R_target[0],  R_target[1], wrap_angle(thetas[1] + R_pose_init[2])])
+
+            if ep_num % 2 == 1:
+                left_target = np.array([  L_pose_straight[0]-0.0025,  L_pose_straight[1], wrap_angle(L_pose_straight[2])])
+                right_target = np.array([ R_pose_straight[0]+0.0025,  R_pose_straight[1], wrap_angle(R_pose_straight[2])])
 
             print('Targets: ', left_target, right_target)
 
