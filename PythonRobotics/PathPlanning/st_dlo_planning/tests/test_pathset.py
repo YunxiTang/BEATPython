@@ -1,14 +1,24 @@
 if __name__ == '__main__':
-    import os
     import sys
-    import time
+    import os
+    import pathlib
     import matplotlib.pyplot as plt
-    
-    sys.path.append('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning')
+    import numpy as np
+    import torch
+    from pprint import pprint
+    from omegaconf import OmegaConf
+
+    ROOT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
+    print(ROOT_DIR)
+    sys.path.append(ROOT_DIR)
+    os.chdir(ROOT_DIR)
 
     from st_dlo_planning.utils import PathSet, compute_enery
     import jax.numpy as jnp
     import jax
+
+    fig = plt.figure() 
+    ax = fig.add_subplot(111) 
 
     jax.config.update("jax_enable_x64", True)     # enable fp64
     jax.config.update('jax_platform_name', 'cpu') # use the CPU instead of GPU
@@ -40,13 +50,14 @@ if __name__ == '__main__':
     print( u )
 
 
-    ts = time.time()
     for i in range(20000):
         dlo_shape_sample2 = pathset.query_dlo_shape(jnp.array([0.5,0.5,0.5]))
-    te = time.time() - ts
-    print(te, te/20000)
+
     u = compute_enery(dlo_shape_sample2, k1=1.0, k2=0.5, segment_len=pathset.seg_len)
     print( u )
     plt.plot(dlo_shape_sample2[:, 0], dlo_shape_sample2[:, 1], 'k-', linewidth=3, label='DLO Shape 4')
-    pathset.vis_all_path()
+    
+    pathset.vis_all_path(ax)
+    plt.axis('equal')
+    plt.show()
 

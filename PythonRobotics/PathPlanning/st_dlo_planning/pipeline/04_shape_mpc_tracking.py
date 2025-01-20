@@ -44,9 +44,10 @@ if __name__ == '__main__':
     device = ptu.init_gpu(use_gpu=False)
 
     Q = np.eye(6, 6) * 50
-
+    
+    save = True
     # load the planned dlo configuration sequence
-    map_case = 'camera_ready_maze4'
+    map_case = 'camera_ready_so1'
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -116,7 +117,7 @@ if __name__ == '__main__':
         
         # dlo
         # seprate the shape into position and shape parts
-        weight_position = torch.diag(torch.tensor([1.0, 1.0], device=device)) * 100.0
+        weight_position = torch.diag(torch.tensor([1.0, 1.0], device=device)) * 150.0
         weight_curve = torch.diag(torch.tensor([1.0, 1.0] + [1.0, 1.0] * (13-2) + [1.0, 1.0], device=device)) * 150.0
         
         target_position = torch.mean(target_dlo_kp_2d, dim=0, keepdim=True)
@@ -153,8 +154,8 @@ if __name__ == '__main__':
 
                 sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
 
-                # if sdf_val < 0.05:
-                obs_loss = obs_loss + relaxed_log_barrier(sdf_val, phi=phi)
+                if sdf_val < 0.05:
+                    obs_loss = obs_loss + relaxed_log_barrier(sdf_val, phi=phi)
 
             for m in range(2):
                 eef_pos = eef_states[m, 0:2]
@@ -170,8 +171,8 @@ if __name__ == '__main__':
 
                 sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
 
-                # if sdf_val < 0.05:
-                obs_loss = obs_loss + relaxed_log_barrier(sdf_val-0.05, phi=phi)
+                if sdf_val < 0.05:
+                    obs_loss = obs_loss + relaxed_log_barrier(sdf_val-0.04, phi=phi)
 
         # eef_orientation
         left_theta = eef_states[0, 2]
@@ -186,8 +187,9 @@ if __name__ == '__main__':
         
         ctrl_loss = 0.5 * (ctrl.T @ weight_u @ ctrl)
 
-        orien_loss = (left_theta_target - left_theta) ** 2 + (right_theta_target - right_theta) ** 2
-        c = position_loss + curve_loss + ctrl_loss + 1e-2  * obs_loss + orien_loss * 0.1
+        orien_loss = (left_theta_target - left_theta) ** 2 + (right_theta_target - right_theta) ** 2 \
+                     + 0# torch.sum((eef_states[0, 0:2] - target_dlo_kp_2d[0]) ** 2) + torch.sum((eef_states[1, 0:2] - target_dlo_kp_2d[-1]) ** 2)
+        c = position_loss + curve_loss + ctrl_loss + 1e-2  * obs_loss + orien_loss * 0.5
         return c 
     
     # @torch.jit.script
@@ -207,7 +209,7 @@ if __name__ == '__main__':
         curve_err = curve_err.flatten()
         pos_err = pos_err.flatten()
 
-        weight_position = torch.diag(torch.tensor([1.0, 1.0], device=device)) * 100.0
+        weight_position = torch.diag(torch.tensor([1.0, 1.0], device=device)) * 150.0
         weight_curve = torch.diag(torch.tensor([1.0, 1.0] + [1.0, 1.0] * (13-2) + [1.0, 1.0], device=device)) * 150.0
 
         position_loss = 0.5 * (pos_err.T @ weight_position @ pos_err)
@@ -242,8 +244,8 @@ if __name__ == '__main__':
 
                 sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
 
-                # if sdf_val < 0.05:
-                obs_loss = obs_loss + relaxed_log_barrier(sdf_val, phi=phi) #1 / (sdf_val**4)
+                if sdf_val < 0.05:
+                    obs_loss = obs_loss + relaxed_log_barrier(sdf_val, phi=phi) #1 / (sdf_val**4)
 
             for m in range(2):
                 eef_pos = eef_states[m, 0:2]
@@ -258,17 +260,18 @@ if __name__ == '__main__':
 
                 sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
 
-                # if sdf_val < 0.05:
-                obs_loss = obs_loss + relaxed_log_barrier(sdf_val-0.05, phi=phi) #1 / (sdf_val**4)
+                if sdf_val < 0.05:
+                    obs_loss = obs_loss + relaxed_log_barrier(sdf_val-0.04, phi=phi) #1 / (sdf_val**4)
         
-        orien_loss = (left_theta_target - left_theta) ** 2 + (right_theta_target - right_theta) ** 2
+        orien_loss = (left_theta_target - left_theta) ** 2 + (right_theta_target - right_theta) ** 2 \
+                      + 0# torch.sum((eef_states[0, 0:2] - target_dlo_kp_2d[0]) ** 2) + torch.sum((eef_states[1, 0:2] - target_dlo_kp_2d[-1]) ** 2)
         
-        c = position_loss + curve_loss + orien_loss * 0.1 + 1e-2 * obs_loss
+        c = position_loss + curve_loss + orien_loss * 0.5 + 1e-2 * obs_loss
         return c
 
 
     # setup the simulation env
-    render_mode = 'rgb_array' #'human' # 'depth_array' #
+    render_mode = 'rgb_array' #  'human' #'depth_array' #
     camera = 'top_camera'
     task_id = '03'
     env = DualGripperCableEnv(task=task_id, feat_stride=3, render_mode=render_mode, camera_name=camera)
@@ -279,7 +282,7 @@ if __name__ == '__main__':
     
     video_logger = misu.VideoLoggerPro(video_res_path, fps=int(3/env.dt))
 
-    # env.step_relative_eef([0.05, 0.05, -0.01], [0.05, 0.05, 0.01], num_steps=100)
+    # env.step_relative_eef([0.02, 0.2, -0.0], [-0.02, 0.2, 0.0], num_steps=50, render_mode=render_mode)
     buffer = ReplayBuffer(obs_dim=env.num_feat*3 + env.num_grasp*3, 
                           act_dim=env.num_grasp*3)
 
@@ -293,10 +296,10 @@ if __name__ == '__main__':
     gdm_model.load_state_dict(model_params)
     gdm_model.to(device)
 
-    lb = np.array([-0.04, -0.04, -0.4, -0.04, -0.04, -0.4]) / 4
-    ub = np.array([ 0.04,  0.04,  0.4,  0.04,  0.04,  0.4]) / 4
+    lb = np.array([-0.04, -0.04, -0.4, -0.04, -0.04, -0.4]) / 3
+    ub = np.array([ 0.04,  0.04,  0.4,  0.04,  0.04,  0.4]) / 3
 
-    H = 4
+    H = 1
     agent = GradientLMPCAgent(nx=env.num_feat*2, 
                               nu=env.num_grasp*3,
                               dlo_length=env.dlo_len, 
@@ -316,6 +319,7 @@ if __name__ == '__main__':
     ultra_error_list = []
     action_list = []
     cons_vio_list = []
+    time_list = []
 
     dlos = []
     target_dlos = []
@@ -332,8 +336,6 @@ if __name__ == '__main__':
 
     init_target_shape = planned_shape_seq[0].flatten()
     final_target_shape = planned_shape_seq[-1].flatten()
-
-    artists = []
     ani_dlos = []
 
     while i < T:
@@ -361,9 +363,9 @@ if __name__ == '__main__':
 
         action = np.clip(action, lb, ub)
 
-        # action = 0.5 * pre_action + 0.5 * action
+        # action = 0.2 * pre_action + 0.8 * action
         if hmin > 0.02:
-            num_step = 1
+            num_step = 2
         else:
             num_step = 1
         next_obs, reward, done, truncated, info = env.step_relative_eef(action[0:3], action[3:], num_steps=num_step, render_mode=render_mode)
@@ -383,7 +385,6 @@ if __name__ == '__main__':
         # ============================================================ #
         
         obs = next_obs
-
         dlo_kp = obs['dlo_keypoints']
 
         dlo_kp_3d = dlo_kp.reshape(-1, 3)
@@ -394,17 +395,12 @@ if __name__ == '__main__':
                 tmp.append(cle)
         
         cons_vio = np.min(np.array(tmp))
-
         ultra_error = np.linalg.norm(dlo_kp - final_target_shape, 2 ) / env.num_feat
-        error_list.append(error)
-        ultra_error_list.append(ultra_error)
-        action_list.append(action)
-        cons_vio_list.append(cons_vio)
 
         if i % 5 == 0:
             print(f'env_step: {i}, ref_idx {ref_idx}/{planned_shape_seq.shape[0]}, inter_err: {error:.4f}, ultra_err: {ultra_error:.4f}, hmin: {cons_vio:.4f}, patience: {patience}, err_patience: {error_patience}')
 
-        if error > error_pre and ref_idx > 0:
+        if error >= error_pre and ref_idx > 0:
             error_patience += 1
 
         i += 1
@@ -415,14 +411,19 @@ if __name__ == '__main__':
             if img is not None:
                 video_logger.log_frame(img) 
 
-        if (error < 4e-3 and ref_idx < planned_shape_seq.shape[0]-1) or (error_patience > 20) or (patience > 150 and ref_idx > 0):
+        if (error < 4e-3 and ref_idx < planned_shape_seq.shape[0]-1) or (error_patience > 15) or (patience > 150 and ref_idx > 0):
             ref_idx += 1
             ref_idx = min(ref_idx, planned_shape_seq.shape[0] - 1)
             patience = 0
             error_patience = 0
-
+        
+        if ref_idx > 0:
             dlos.append(dlo_kp.reshape(-1, 3))
             target_dlos.append(dlo_kp_ref.reshape(-1, 3))
+            error_list.append(error)
+            ultra_error_list.append(ultra_error)
+            action_list.append(action)
+            cons_vio_list.append(cons_vio)
             
         if ultra_error <= 2e-3:
             dlos.append(dlo_kp.reshape(-1, 3))
@@ -434,7 +435,6 @@ if __name__ == '__main__':
 
     # ======================= plot ======================== #
     import matplotlib.pyplot as plt
-    import seaborn as sns
     from st_dlo_planning.utils.path_interpolation import visualize_shape
     
     sns.set_theme('notebook')
@@ -453,11 +453,11 @@ if __name__ == '__main__':
     
     ax = world_map.visualize_passage(full_passage=False)
 
-    for k in range(0, len(dlos), 4):
+    for k in range(0, len(dlos), 150):
         dlo_shape = dlos[k]
         dlo_shape = dlo_shape.reshape(-1, 3)
-        visualize_shape(dlo_shape, ax, clr='k', ld=2.0)
-        visualize_shape(target_dlos[k], ax, clr='r', ld=1.0)
+        visualize_shape(dlo_shape, ax, clr='k', ld=1.5, s=10)
+        # visualize_shape(target_dlos[k], ax, clr='r', ld=1.0)
     plt.axis('equal')
     plt.savefig(f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/tracking_res_{map_case}.png",
                 dpi=1200)
@@ -469,7 +469,8 @@ if __name__ == '__main__':
     clrs = np.linspace(0.0, 1.0, len(ani_dlos))
     rever_clrs = np.flip(clrs)
     import matplotlib.animation as animation
-
+    artists = []
+    
     # init_target_shape = init_target_shape.reshape(-1, 3)
     # container_init = ax.plot(init_target_shape[:, 0], init_target_shape[:, 1], 
     #                          color='k', linewidth=1.5, marker='o', mec='k', mfc='k', ms=4)
@@ -492,5 +493,26 @@ if __name__ == '__main__':
     ani = animation.ArtistAnimation(fig=fig_ani, artists=artists, interval=20)
     ani.save(filename=f"{result_dir}/tracking_{map_case}.gif", writer="pillow")
 
-    if video_logger._frames[0] is not None:
-        video_logger.create_video()
+    
+    # save all the workspace results
+    if save:
+        if video_logger._frames[0] is not None:
+            video_logger.create_video()
+
+        import pickle
+        ws_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/exp_ws'
+        file_to_save = os.path.join(ws_dir, f'{map_case}.pkl')
+        f = open(file_to_save, "wb")
+        res = {
+            'error_list': error_list,
+            'ultra_error_list': ultra_error_list,
+            'action_list': action_list,
+            'cons_vio_list': cons_vio_list,
+            'dlos': dlos,
+            'target_dlos': target_dlos,
+            'reference_shapes': planned_shape_seq
+        }
+        pickle.dump(res, f)
+
+        # close file
+        f.close()

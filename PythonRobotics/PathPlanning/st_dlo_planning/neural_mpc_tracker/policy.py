@@ -98,10 +98,12 @@ class GradientLMPCAgent:
             num_eef=2,
             dt=dt,
             device=device,
+            umin=umin,
+            umax=umax,
             discount_factor=discount_factor,
             horizon=traj_horizon,
             tol=1e-4,
-            lr=0.008,
+            lr=0.005,
             max_iter=50
         )
 

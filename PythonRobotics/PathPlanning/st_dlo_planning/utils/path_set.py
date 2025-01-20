@@ -42,7 +42,7 @@ class PathSet:
             ax.plot(trajectory[:, 0], trajectory[:, 1], 'k-.', label="Smooth Path", linewidth=1.0)
             # plt.plot(waypoints[:, 0], waypoints[:, 1], 'k-.', label="Raw Path")
             # plt.scatter(waypoints[:, 0], waypoints[:, 1], color='k', label="Waypoints")
-        plt.axis('equal')
+        # plt.axis('equal')
 
 
 # ============================================================================= #

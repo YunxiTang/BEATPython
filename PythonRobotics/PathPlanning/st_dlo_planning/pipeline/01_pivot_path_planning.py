@@ -16,9 +16,9 @@ if __name__ == '__main__':
     from st_dlo_planning.utils.misc_utils import setup_seed
     import seaborn as sns
 
-    setup_seed(100)
+    # setup_seed(100)
     
-    map_id = 'camera_ready_maze4.yaml' #'map_case4.yaml' # 
+    map_id = 'map_case0.yaml' #'map_case4.yaml' # 
 
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_id}'
     map_cfg_file = OmegaConf.load(cfg_path)
@@ -51,7 +51,8 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
-    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0.1, k_passage=1.0, k_pathLen=5., animation=False)
+    dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=2, k_passage=1.0, k_pathLen=1., animation=False)
+    # dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=0.0, k_pathLen=10., animation=False)
 
     start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]
     goal = [map_cfg_file.dlo_cfg.goal[0], map_cfg_file.dlo_cfg.goal[1], size_z/2]
@@ -60,7 +61,7 @@ if __name__ == '__main__':
     goal_validate = world_map.check_pos_collision(goal)
     
     if start_validate and goal_validate:
-        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=120, num_waypoints=50)
+        sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=50, num_waypoints=50)
         result_path = pathlib.Path(__file__).parent.parent.joinpath('results', map_cfg_file.logging.save_pivot_path_name)
         np.save(result_path, sol_np)
         print(sol)

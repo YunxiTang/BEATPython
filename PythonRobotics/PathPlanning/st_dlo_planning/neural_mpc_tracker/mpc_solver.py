@@ -72,7 +72,7 @@ class DiscreteModelEnv:
 
 
 # ============================== Gradient Based Solver ======================================= # 
-def relaxed_log_barrier(x, delta=0.005, phi=1.0):
+def relaxed_log_barrier(x, delta=0.01, phi=1.0):
     delta = torch.tensor(delta)
     if x > delta:
         val = -phi * torch.log(x)
@@ -90,6 +90,8 @@ class GradientMPCSolver:
                  num_eef: int,
                  dt: float, 
                  device,
+                 umin=None,
+                 umax=None,
                  discount_factor: float = 1.0,
                  horizon: int = 10,
                  tol: float = 1e-3,
@@ -116,6 +118,11 @@ class GradientMPCSolver:
         self.U = torch.zeros(self._horizon, self._num_eef, 3, 
                              requires_grad=True, device=self._device)
         
+        self.umin = ptu.from_numpy(umin)
+        self.umax = ptu.from_numpy(umax)
+        self.umin = self.umin.reshape(self._num_eef, 3)
+        self.umax = self.umax.reshape(self._num_eef, 3)
+        
         # MPC numerical optimizer
         self.optimizer = torch.optim.AdamW([self.U,], self._lr, weight_decay=0.001)
 
@@ -136,13 +143,13 @@ class GradientMPCSolver:
             for t in range(self._horizon):
                 dlo_kp_2d_b = dlo_kp_2d[None]
                 eef_states_b = eef_states[None]
-                u_b = self.U[t][None]
+                u_b = self.U[t][None] # torch.tanh(self.U[t][None]) * self.umax[None]
                 
                 delta_dlo_kp_2d = self.model(dlo_kp_2d_b, eef_states_b, u_b)[0] # dlo_kp, eef_states, delta_eef_states
-                delta_eef = self.U[t]
+                delta_eef = u_b[0] #torch.clamp(self.U[t], self.umin, self.umax)
 
                 next_dlo_kp_2d = dlo_kp_2d + delta_dlo_kp_2d
-                next_eef_states = eef_states + delta_eef
+                next_eef_states = eef_states + delta_eef * 1.0
 
                 cumulative_loss = cumulative_loss \
                                 + self._discount_factor ** t * self.path_cost_func(next_dlo_kp_2d, next_eef_states, 

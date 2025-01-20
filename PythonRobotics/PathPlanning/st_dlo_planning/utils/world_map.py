@@ -70,22 +70,22 @@ def load_mapCfg_to_mjcf(map_case: str, init_dlo_shape, goal_dlo_shape):
                   type="box", name='wall_left', contype="0", conaffinity="0",
                   size=f"{map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0.02", 
                   pos=f"{-map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0",
-                  rgba='0.5 0.5 0.8 1')
+                  rgba='0.5 0.5 0.8 0.3')
     ET.SubElement(obstacle_body, "geom", 
                   type="box", name='wall_right', contype="0", conaffinity="0",
                   size=f"{map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0.02", 
                   pos=f"{map_cfg.workspace.map_ymax+map_cfg.workspace.robot_size/2} {map_cfg.workspace.map_ymax/2} 0",
-                  rgba='0.5 0.5 0.8 1')
+                  rgba='0.5 0.5 0.8 0.3')
     ET.SubElement(obstacle_body, "geom", 
                   type="box", name='wall_down', contype="0", conaffinity="0",
                   size=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.robot_size/2} 0.02", 
                   pos=f"{map_cfg.workspace.map_xmax/2} {-map_cfg.workspace.robot_size/2} 0",
-                  rgba='0.5 0.5 0.8 1')
+                  rgba='0.5 0.5 0.8 0.3')
     ET.SubElement(obstacle_body, "geom", 
                   type="box", name='wall_up', contype="0", conaffinity="0",
                   size=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.robot_size/2} 0.02", 
                   pos=f"{map_cfg.workspace.map_xmax/2} {map_cfg.workspace.map_ymax+map_cfg.workspace.robot_size/2} 0",
-                  rgba='0.5 0.5 0.8 1')
+                  rgba='0.5 0.5 0.8 0.3')
     
     k = 0
     for obstacle in obstacles:
@@ -694,7 +694,7 @@ class WorldMap:
                 ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--')
 
         for passage in self._filtered_passages:
-            ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--', linewidth=1.0)
+            p,  = ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--', linewidth=2.0)
         return ax
     
 

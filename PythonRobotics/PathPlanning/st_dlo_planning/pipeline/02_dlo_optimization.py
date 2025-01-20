@@ -8,6 +8,7 @@ if __name__ == '__main__':
     from pprint import pprint
     from omegaconf import OmegaConf
     import seaborn as sns
+    import pickle
 
     sns.set_theme('paper')
 
@@ -31,7 +32,7 @@ if __name__ == '__main__':
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
 
     import zarr
-    map_case = 'camera_ready_maze4' #'map_case8.yaml' # 
+    map_case = 'map_case0' # 'camera_ready_maze4' #'map_case8.yaml' # 
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -89,9 +90,9 @@ if __name__ == '__main__':
 
     straight_shape = keypoints[0]
     
-    init_dlo_shape = keypoints[35]
+    init_dlo_shape = keypoints[30]
     init_dlo_shape = init_dlo_shape 
-    goal_dlo_shape = keypoints[25]
+    goal_dlo_shape = keypoints[55]
 
     seg_len = np.linalg.norm(straight_shape[0] - straight_shape[1])
     
@@ -127,7 +128,7 @@ if __name__ == '__main__':
     world_map.visualize_passage(full_passage=False, ax=ax[1])
     _, _, new_pathset_list, backup_pathset_list = deform_pathset_step1(pivot_path, 
                                                                        pathset_list,
-                                                                       world_map, 0.2)
+                                                                       world_map, 0.15)
     final_pathset, SegIdx = deform_pathset_step2(np.array(backup_pathset_list), np.array(new_pathset_list))
 
     polished_pathset = np.copy(final_pathset)
@@ -187,16 +188,28 @@ if __name__ == '__main__':
         
         for i in range(s_path.shape[0]-1):
             ax[1].plot([s_path[i, 0], s_path[i+1, 0]], 
-                    [s_path[i, 1], s_path[i+1, 1]], c=clrs[p], linewidth=1.5)
+                       [s_path[i, 1], s_path[i+1, 1]], c=clrs[p], linewidth=1.5)
         p += 1
 
     for i in range(pivot_path.shape[0]-1):
         ax[1].plot([pivot_path[i, 0], pivot_path[i+1, 0]], 
                    [pivot_path[i, 1], pivot_path[i+1, 1]], 'k-.', linewidth=1.0)
     
+    ws_dir = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/exp_ws'
+    file_to_save = os.path.join(ws_dir, f'{map_case}_spatial_path_set.pkl')
+    f = open(file_to_save, "wb")
+    res = {
+        'spatial_path_set': polished_pathset
+    }
+    pickle.dump(res, f)
+
+    # close file
+    f.close()
+    # exit()
+
     # ================= DLO configuration optimization =============================
-    pathset = PathSet( polished_pathset, T=40, seg_len=seg_len)
-    solver = TcDloSolver(pathset=pathset, k1=20.0, k2=2.0, tol=1e-5, max_iter=2500)
+    pathset = PathSet( polished_pathset, T=50, seg_len=seg_len)
+    solver = TcDloSolver(pathset=pathset, k1=0.47836547, k2=2.18431412, tol=1e-5, max_iter=2500)
     opt_sigmas, info = solver.solve()
     solution = jnp.reshape(opt_sigmas, (pathset.T + 1, pathset.num_path))
 
@@ -205,7 +218,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=20, k2=2, segment_len=seg_len)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=0.47836547, k2=2.18431412, segment_len=seg_len)
         polished_dlo_shapes.append(dlo_shape)
 
     world_map.visualize_passage(ax=ax[2], full_passage=False)
@@ -215,7 +228,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 4):
         raw_dlo_shape = raw_dlo_shapes[i]
         polished_dlo_shape = polished_dlo_shapes[i]
-        # ax[2].plot(raw_dlo_shape[:, 0], raw_dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=1)
+        ax[2].plot(raw_dlo_shape[:, 0], raw_dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=1)
         ax[2].plot(polished_dlo_shape[:, 0], polished_dlo_shape[:, 1], color=[clrs[i], rever_clrs[i], clrs[i]], linewidth=3)
     
     for i in range(num_kp-1):

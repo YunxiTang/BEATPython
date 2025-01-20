@@ -78,16 +78,16 @@ class DloOptProblem():
         @jax.jit
         def _sigma_to_energy(carry, Sigma):
             sigma = Sigma[0:self.num_path]
-            delta_sigma = jnp.sum( Sigma[self.num_path:] )
+            delta_sigma = jnp.mean( Sigma[self.num_path:] )
             dlo_shape = self._assemble_shape(sigma)
-            u = self._compute_potential_energy(dlo_shape) * delta_sigma + 1e-1 * jnp.linalg.norm((dlo_shape - np.mean(dlo_shape, axis=0))-(self.init_shape - np.mean(self.init_shape, axis=0))) #+ 1.1 * delta_sigma**2
+            u = self._compute_potential_energy(dlo_shape) * delta_sigma + 0.01 * jnp.linalg.norm((dlo_shape - np.mean(dlo_shape, axis=0))-(self.init_shape - np.mean(self.init_shape, axis=0))) #+ 1.1 * delta_sigma**2
             new_carry = u + carry
             return new_carry, u
         loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, Sigmas, length=self.T+1)
 
         diff2_sigmas = jnp.diff(jnp.diff(sigmas, axis=0), axis=0)
         reg = jnp.sum(  diff2_sigmas ** 2 )
-        return loss + 20.0 * reg
+        return loss + 10.0 * reg
 
 
     @partial(jax.jit, static_argnums=(0,))
@@ -169,12 +169,12 @@ class TcDloSolver:
         self.lb = np.repeat([0.], self.pathset.num_path * (self.pathset.T + 1))
         self.ub = np.repeat([1.], self.pathset.num_path * (self.pathset.T + 1))
         
-        self.cl = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.001,] * (self.T * self.num_path) + [0.1,])
-        self.cu = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.05,] * (self.T * self.num_path) + [10.15,])
+        self.cl = np.array([0.,] * self.num_path + [0.,] * self.num_path + [-0.03,] * (self.T * self.num_path) + [0.0,])
+        self.cu = np.array([0.,] * self.num_path + [0.,] * self.num_path + [0.02,] * (self.T * self.num_path) + [1000,])
         print(self.cl.shape, self.cu.shape)
         # initialize the decision variables
-        # self.init_sigmas = np.ones((self.pathset.T + 1) * self.pathset.num_path) * 1.0
-        self.init_sigmas = np.repeat( np.linspace(0.0, 1.0, self.pathset.T + 1, endpoint=True), self.pathset.num_path)
+        self.init_sigmas = np.ones((self.pathset.T + 1) * self.pathset.num_path) * 0.0
+        # self.init_sigmas = np.repeat( np.linspace(0.0, 1.0, self.pathset.T + 1, endpoint=True), self.pathset.num_path)
         
     def solve(self):
         """ 

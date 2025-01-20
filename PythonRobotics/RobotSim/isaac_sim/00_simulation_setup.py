@@ -1,12 +1,14 @@
-from isaacgym import gymapi
+import isaacgym
+from isaacgym import gymapi, gymutil, gymtorch
 import numpy as np
 import os
 
 
 if __name__ == '__main__':
+    # create a gym space
     gym = gymapi.acquire_gym()
 
-    # create a simulation with sim_params
+    # create sim_params
     sim_params = gymapi.SimParams()
     sim_params.dt = 1 / 60.
     sim_params.substeps = 2
@@ -14,7 +16,7 @@ if __name__ == '__main__':
     sim_params.up_axis = gymapi.UP_AXIS_Z
     sim_params.gravity = gymapi.Vec3(0.0, 0.0, -9.8)
 
-    # set PhysX-specific parameters
+    # set PhysX engine parameters
     sim_params.physx.use_gpu = True
     sim_params.physx.solver_type = 1
     sim_params.physx.num_position_iterations = 6

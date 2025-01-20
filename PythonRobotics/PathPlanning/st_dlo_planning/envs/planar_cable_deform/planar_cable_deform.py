@@ -271,8 +271,8 @@ class DualGripperCableEnv(MujocoEnv, utils.EzPickle):
                                          [ 0.04,  0.04,  0.4,  0.04,  0.04,  0.4])
             
             next_obs, reward, done, info, truncated = self.step(full_act)
-            if render_mode is not None:
-                self.render(render_mode)
+            if render_mode == 'human':
+                self.render(mode=render_mode)
             if return_traj:
                 states.append(obs)
                 actions.append(full_act)
