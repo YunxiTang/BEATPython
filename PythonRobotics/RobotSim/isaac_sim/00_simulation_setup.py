@@ -14,7 +14,7 @@ if __name__ == '__main__':
     sim_params.substeps = 2
     sim_params.use_gpu_pipeline = True
     sim_params.up_axis = gymapi.UP_AXIS_Z
-    sim_params.gravity = gymapi.Vec3(0.0, 0.0, -9.8)
+    sim_params.gravity = gymapi.Vec3(0.0, 0.0,-0.0)
 
     # set PhysX engine parameters
     sim_params.physx.use_gpu = True
@@ -37,15 +37,30 @@ if __name__ == '__main__':
 
     gym.add_ground(sim, plane_params)
 
-    # load an asset
-    asset_root = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),  'assets')
-    asset_file = 'urdf/ycb/025_mug/025_mug.urdf'
-    
+    # load ur5e asset
+    asset_root = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RobotSim/isaac_sim/assets/urdf/ur_e_description'
+    asset_file = 'universalUR5e.urdf'
     asset_options = gymapi.AssetOptions()
-    asset_options.fix_base_link = False
+    asset_options.fix_base_link = True
     asset_options.disable_gravity = False
+    asset_options.use_mesh_materials = True
 
-    mug_asset = gym.load_asset(
+    ur5_asset = gym.load_asset(
+        sim,
+        asset_root,
+        asset_file,
+        asset_options
+    )
+
+    # load table asset
+    asset_root = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RobotSim/isaac_sim/assets/urdf'
+    asset_file = 'square_table.urdf'
+    asset_options = gymapi.AssetOptions()
+    asset_options.fix_base_link = True
+    asset_options.disable_gravity = False
+    asset_options.use_mesh_materials = True
+
+    table_asset = gym.load_asset(
         sim,
         asset_root,
         asset_file,
@@ -58,32 +73,45 @@ if __name__ == '__main__':
 
     env_num = 16
     env_per_row = 4
-    env_spacing = 1
+    env_spacing = 2
 
-    lower = gymapi.Vec3(-env_spacing, 0.0,   -env_spacing)
+    lower = gymapi.Vec3(-env_spacing, 0.0, -env_spacing)
     upper = gymapi.Vec3(env_spacing, env_spacing, env_spacing)
 
     env_handles = []
-    mug_handles = []
+    ur5_handles = []
 
     for i in range(env_num):
         # create env
-        env = gym.create_env(sim, lower, upper, env_per_row)
-        env_handles.append(env)
+        env_handle = gym.create_env(sim, lower, upper, env_per_row)
+        env_handles.append(env_handle)
 
-        # create actor
-        mug_pose = gymapi.Transform()
-        mug_pose.p = gymapi.Vec3(0.0, 0.0, 1.0)
-        zyx = 2 * np.random.random(3)
-        mug_pose.r = gymapi.Quat.from_euler_zyx(zyx[0], zyx[1], zyx[2]) 
+        # ============== create actor for env ======================================
+        # one table
+        table_pose = gymapi.Transform()
+        table_pose.p = gymapi.Vec3(0, 1.5, 0.5)
+        zyx = 2 * np.random.random(3) * 0
+        table_pose.r = gymapi.Quat.from_euler_zyx(zyx[0], zyx[1], zyx[2]) 
+        table_handle = gym.create_actor(env_handle, table_asset, table_pose, "table", i, 0)
 
-        mug_handle = gym.create_actor(env, mug_asset, mug_pose, "mug", i, 0)
+        # two ur5e robots
+        ur5_pose_1 = gymapi.Transform()
+        ur5_pose_1.p = gymapi.Vec3(-0.75, 1.5, 0.56)
+        zyx = 2 * np.random.random(3) * 0
+        ur5_pose_1.r = gymapi.Quat.from_euler_zyx(zyx[0], zyx[1], zyx[2]) 
+        ur5_handle_1 = gym.create_actor(env_handle, ur5_asset, ur5_pose_1, "ur5e1", i, 0)
 
-        color = np.random.random(3)
-        gym.set_rigid_body_color(env, mug_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(color[0], color[1], color[2]))
-        mug_handles.append(mug_handle)
+        ur5_pose_2 = gymapi.Transform()
+        ur5_pose_2.p = gymapi.Vec3(0.75, 1.5, 0.56)
+        zyx = 2 * np.random.random(3) * 0
+        ur5_pose_2.r = gymapi.Quat.from_euler_zyx(zyx[0], zyx[1], np.pi*0) 
+        ur5_handle_2 = gym.create_actor(env_handle, ur5_asset, ur5_pose_2, "ur5e2", i, 0)
 
-        origin_pos = gym.get_env_origin(env)
+        # color = [0.2, 0.2, 0.8] #np.random.random(3)
+        # gym.set_rigid_body_color(env_handle, ur5_handle, 3, gymapi.MESH_VISUAL, gymapi.Vec3(color[0], color[1], color[2]))
+        # ur5_handles.append(ur5_handle_1)
+
+        origin_pos = gym.get_env_origin(env_handle)
         print(origin_pos)
     
     gym.prepare_sim(sim)
