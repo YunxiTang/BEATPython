@@ -30,10 +30,10 @@ class Env:
 
         # load an asset
         asset_root = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),  'assets')
-        asset_file = 'urdf/ycb/025_mug/025_mug.urdf'
+        asset_file = 'urdf/ycb/025_mug/025_mug.urdf'# 'urdf/ur5/ur5.urdf'
         
         asset_options = gymapi.AssetOptions()
-        asset_options.fix_base_link = False
+        asset_options.fix_base_link = True
         asset_options.disable_gravity = False
 
         mug_asset = self.gym.load_asset(

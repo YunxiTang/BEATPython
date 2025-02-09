@@ -1,7 +1,10 @@
 '''
     class.__dict__
 '''
+from isaacgym import gymapi
 import torch.nn as nn
+import numpy as np
+
 
 class model(nn.Module):
     def __init__(self):
@@ -40,3 +43,7 @@ if __name__ == '__main__':
 
     # print('===========================')
     # a.test()
+
+    print(gymapi.DofState.dtype)    
+    res = np.zeros(5, dtype=gymapi.DofState.dtype)
+    print(res)
