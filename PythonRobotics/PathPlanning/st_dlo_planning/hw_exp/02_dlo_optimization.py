@@ -32,8 +32,10 @@ if __name__ == '__main__':
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
 
     import zarr
-    map_case = 'map_case0' # 'camera_ready_maze4' #'map_case8.yaml' # 
-    cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
+    map_id = 'hw_so1'
+
+    cfg_path = os.path.join(ROOT_DIR, f'st_dlo_planning/hw_exp/map_cfg/{map_id}.yaml')
+    
     map_cfg_file = OmegaConf.load(cfg_path)
     
     map_cfg = MapCfg(resolution=map_cfg_file.workspace.resolution,
@@ -46,9 +48,15 @@ if __name__ == '__main__':
                      robot_size=map_cfg_file.workspace.robot_size,
                      dim=3)
     
+    # load optimal pivot path 
+    pivot_path_res_path = os.path.join(ROOT_DIR, 
+                               'st_dlo_planning/results/realworld_result/pivot_path_res', 
+                               map_cfg_file.logging.save_pivot_path_name)
+    solution = np.load(pivot_path_res_path, mmap_mode='r')
+    pivot_path = solution
+
+    # ============== add some obstacles in the world map =========================
     world_map = WorldMap(map_cfg)
-    
-    # ============== add some obstacles =========================
     size_z = map_cfg_file.workspace.map_zmax
     obstacles = map_cfg_file.obstacle_info.obstacles
     i = 0
@@ -59,15 +67,10 @@ if __name__ == '__main__':
         i += 1
     world_map.finalize()
 
-    result_path = pathlib.Path(__file__).parent.parent.joinpath('results', map_cfg_file.logging.save_pivot_path_name)
-    
-    solution = np.load(result_path, mmap_mode='r')
-    
-    pivot_path = solution
-
     fig, ax = plt.subplots(1, 3, constrained_layout=True, figsize=(12, 4))
 
     world_map.visualize_passage(ax=ax[0], full_passage=False)
+
     res = world_map.get_path_intersection(pivot_path)
     
     for kk in range(pivot_path.shape[0]-1):
@@ -82,6 +85,7 @@ if __name__ == '__main__':
     min_pw = np.min(pw)
     print(' = ' * 15, min_pw, ' = ' * 15)
 
+    # the inititial/goal shapes
     zarr_root = zarr.open('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/train/task03_10.zarr')
     dlo_len = zarr_root['meta']['dlo_len'][0]
     keypoints = zarr_root['data']['dlo_keypoints'][:]
@@ -195,21 +199,17 @@ if __name__ == '__main__':
         ax[1].plot([pivot_path[i, 0], pivot_path[i+1, 0]], 
                    [pivot_path[i, 1], pivot_path[i+1, 1]], 'k-.', linewidth=1.0)
     
-    ws_dir = os.path.join(ROOT_DIR, 'st_dlo_planning/results/exp_ws')
-    file_to_save = os.path.join(ws_dir, f'{map_case}_spatial_path_set.pkl')
+    file_to_save = os.path.join(ROOT_DIR, 
+                                'st_dlo_planning/results/realworld_result/spatial_path_set_res',
+                                f'{map_id}_spatial_path_set.pkl')
     f = open(file_to_save, "wb")
-    res = {
-        'spatial_path_set': polished_pathset
-    }
+    res = {'spatial_path_set': polished_pathset}
     pickle.dump(res, f)
-
-    # close file
-    f.close()
-    # exit()
+    f.close() # close file
 
     # ================= DLO configuration optimization =============================
     pathset = PathSet( polished_pathset, T=50, seg_len=seg_len)
-    solver = TcDloSolver(pathset=pathset, k1=0.47836547, k2=2.18431412, tol=1e-5, max_iter=2500)
+    solver = TcDloSolver(pathset=pathset, k1=10.0, k2=1.0, tol=1e-5, max_iter=2500)
     opt_sigmas, info = solver.solve()
     solution = jnp.reshape(opt_sigmas, (pathset.T + 1, pathset.num_path))
 
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=0.47836547, k2=2.18431412, segment_len=seg_len)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=10.0, k2=1.0, segment_len=seg_len)
         polished_dlo_shapes.append(dlo_shape)
 
     world_map.visualize_passage(ax=ax[2], full_passage=False)
@@ -237,8 +237,10 @@ if __name__ == '__main__':
         ax[2].plot([goal_dlo_shape[i][0], goal_dlo_shape[i+1][0]], 
                    [goal_dlo_shape[i][1], goal_dlo_shape[i+1][1]], color='r', linewidth=3.0)
         
-    plt.savefig(f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/transfered_path_{map_case}.png",
-                dpi=1200)
+    fig_path = os.path.join(ROOT_DIR, 
+                            'st_dlo_planning/results/realworld_result/path_transfer_figs',
+                            f'transfered_path_{map_id}.png')
+    plt.savefig(fig_path, dpi=1200)
     plt.axis('equal')
     plt.show()
     
@@ -251,7 +253,9 @@ if __name__ == '__main__':
     plt.plot(np.linspace(0.0, 1.0, pathset.T+1, endpoint=True), solution)
     plt.show()
 
-    result_path = pathlib.Path(__file__).parent.parent.joinpath('results', f'{map_case}_optimal_shape_seq.npy')
+    result_path = os.path.join(ROOT_DIR,
+                               'st_dlo_planning/results/realworld_result/optimal_shape_seq_res',
+                               f'{map_id}_optimal_shape_seq.npy')
     sol = np.concatenate(polished_dlo_shapes, axis=0)
     print(sol.shape)
     np.save(result_path, sol)
@@ -276,8 +280,9 @@ if __name__ == '__main__':
 
     ani = animation.ArtistAnimation(fig=fig_ani, artists=artists, interval=200)
     pathset.vis_all_path(ax_ani)
+    ax_ani.axis('equal')
     plt.show()
-    ani.save(filename=f"/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/optimized_{map_case}.gif", writer="pillow")
-
-    
-
+    ani_file_name = os.path.join(ROOT_DIR,
+                                'st_dlo_planning/results/realworld_result/optimal_shape_seq_gif',
+                                f'optimized_{map_id}.gif')
+    ani.save(filename=ani_file_name, writer="pillow")
