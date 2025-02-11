@@ -417,7 +417,7 @@ if __name__ == '__main__':
     image_url = "/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/DloPerception/test4.jpg"
     # image = load_image(image_url)
     
-    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/dom_dataset/episode_3010/episode_3010.mp4')
+    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/dom_dataset/episode_4010/episode_4010.mp4')
 
     num_keypoint = 40
 
