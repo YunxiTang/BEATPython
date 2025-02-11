@@ -81,7 +81,7 @@ if __name__ == '__main__':
     
     obs_vrtxs = world_map.get_obs_vertixs()
 
-    result_path = pathlib.Path(__file__).parent.parent.joinpath('results', f'{map_case}_optimal_shape_seq.npy')
+    result_path = pathlib.Path(__file__).parent.parent.joinpath('results', 'optimal_shape_seq_res', f'{map_case}_optimal_shape_seq.npy')
     planned_shape_seq = np.load(result_path, mmap_mode='r')
     planned_shape_seq = np.copy( planned_shape_seq.reshape(-1, 13, 3) )
 
