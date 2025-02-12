@@ -92,8 +92,9 @@ predictor.set_image(image=image)
 lk_tracker = LKTracker(image, 'select_particle')
 selected_particlses = lk_tracker._selected_points
 input_point = np.array(selected_particlses)
-input_label = np.array([1])
+input_label = np.array([1,] * input_point.shape[0])
 
+print(input_point)
 
 plt.figure(figsize=(10, 10))
 plt.imshow(image)

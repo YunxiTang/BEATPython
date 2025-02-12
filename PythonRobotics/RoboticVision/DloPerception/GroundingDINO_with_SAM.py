@@ -349,7 +349,7 @@ def detect(image: Image.Image,
     results = [DetectionResult.from_dict(result) for result in results]
     filtered_results = []
     for res in results:
-        if res.label == 'white rope.':
+        if res.label == 'rope.':
             filtered_results.append(res)
     return filtered_results
 
@@ -402,14 +402,14 @@ def grounded_segmentation(
 if __name__ == '__main__':
     import time
     import cv2
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"# "cuda" if torch.cuda.is_available() else "cpu"
 
     print(device)
-    labels = ["a stick.", "white rope.",]
-    threshold = 0.3
+    labels = ["rod.", "rope."]
+    threshold = 0.1
 
-    detector_id = "IDEA-Research/grounding-dino-tiny"
-    segmenter_id = "facebook/sam-vit-base"
+    detector_id = "IDEA-Research/grounding-dino-base"
+    segmenter_id = "facebook/sam-vit-large"
 
     print('load segmentator')
     segmenter_id = segmenter_id if segmenter_id is not None else "facebook/sam-vit-base"
@@ -423,9 +423,9 @@ if __name__ == '__main__':
     # image_url = "/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/DloPerception/test4.jpg"
     # image = load_image(image_url)
     
-    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_cache/dobert_dataset/dom_dataset/episode_4001/episode_4001.mp4')
+    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_cache/dobert_dataset/dom_dataset/episode_4008/episode_4008.mp4')
 
-    num_keypoint = 40
+    num_keypoint = 50
 
     i = 0
 
