@@ -12,10 +12,12 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from transformers import AutoModelForMaskGeneration, AutoProcessor, pipeline
 
-
+import os
 from skimage.morphology import skeletonize
 from scipy.spatial.distance import cdist
 import seaborn as sns
+
+# os.environ['TORCH_CUDA_ARCH_LIST'] = True
 
 def extract_uniform_keypoints(mask, num_keypoints=10):
     # Step 1: 预处理 Mask（转换为二值图像）
@@ -340,15 +342,16 @@ def detect(image: Image.Image,
            threshold: float = 0.3,
            object_detector: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    Use Grounding DINO to detect a set of labels in an image in a zero-shot fashion.
+        Use Grounding DINO to detect a set of labels in an image in a zero-shot fashion.
     """
-
     labels = [label if label.endswith(".") else label+"." for label in labels]
-
     results = object_detector(image,  candidate_labels=labels, threshold=threshold)
     results = [DetectionResult.from_dict(result) for result in results]
-
-    return results
+    filtered_results = []
+    for res in results:
+        if res.label == 'rope.':
+            filtered_results.append(res)
+    return filtered_results
 
 def segment(image: Image.Image,
             detection_results: List[Dict[str, Any]],
@@ -388,9 +391,9 @@ def grounded_segmentation(
     segmentator: Optional[str] = None) -> Tuple[np.ndarray, List[DetectionResult]]:
     if isinstance(image, str):
         image = load_image(image)
-
+    # print(image)
     detections = detect(image, labels, threshold, object_detector)
-    # print(detections)
+    
     detections = segment(image, detections, device, polygon_refinement, segmentator, processor)
 
     return np.array(image), detections
@@ -399,36 +402,43 @@ def grounded_segmentation(
 if __name__ == '__main__':
     import time
     import cv2
+    device = "cpu"# "cuda" if torch.cuda.is_available() else "cpu"
 
-    labels = ["white rope.",]
-    threshold = 0.2
+    print(device)
+    labels = ["rod.", "rope."]
+    threshold = 0.1
 
-    detector_id = "IDEA-Research/grounding-dino-tiny"
-    segmenter_id = "facebook/sam-vit-base"
+    detector_id = "IDEA-Research/grounding-dino-base"
+    segmenter_id = "facebook/sam-vit-large"
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    detector_id = detector_id if detector_id is not None else "IDEA-Research/grounding-dino-tiny"
-    object_detector = pipeline(model=detector_id, task="zero-shot-object-detection", device=device)
-
-    segmenter_id = segmenter_id if segmenter_id is not None else "facebook/sam-vit-large"
+    print('load segmentator')
+    segmenter_id = segmenter_id if segmenter_id is not None else "facebook/sam-vit-base"
     segmentator = AutoModelForMaskGeneration.from_pretrained(segmenter_id).to(device)
-    processor = AutoProcessor.from_pretrained(segmenter_id)
+    processor = AutoProcessor.from_pretrained(segmenter_id, use_fast=False)
 
-    image_url = "/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/DloPerception/test4.jpg"
+    print('load detector')
+    detector_id = detector_id if detector_id is not None else "IDEA-Research/grounding-dino-tiny"
+    object_detector = pipeline(model=detector_id, task="zero-shot-object-detection", device=device, use_fast=True)
+
+    # image_url = "/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/DloPerception/test4.jpg"
     # image = load_image(image_url)
     
-    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_dataset/dom_dataset/episode_3010/episode_3010.mp4')
+    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_cache/dobert_dataset/dom_dataset/episode_4008/episode_4008.mp4')
 
-    num_keypoint = 40
+    num_keypoint = 50
 
     i = 0
-    kp_pre = np.zeros((num_keypoint, 2), dtype=np.uint8)
+
     while True:
         ret, source_img = cap.read()
+        
         if i % 30 == 0:
             if source_img is None:
                 break
             else:
+                cv2.imshow("source_img", source_img)
+                cv2.waitKey(100)
+        
                 # 转换 BGR -> RGB
                 img_rgb = cv2.cvtColor(source_img, cv2.COLOR_BGR2RGB)
 
@@ -447,12 +457,10 @@ if __name__ == '__main__':
             plot_detections(image_array, detections, None)
             
             mask = detections[0].mask
-            # plt.imshow(mask)
-            # plt.show()
+            plt.imshow(mask)
+            plt.show()
 
             keypoints = extract_uniform_keypoints(mask, num_keypoints=num_keypoint)
-
-            # if np.linalg.norm(keypoints - kp_pre < 15) and i > 1:
             # 可视化结果
             j = 0
             for keypoint in keypoints:
@@ -460,9 +468,8 @@ if __name__ == '__main__':
                 # plt.plot([pos[1], pos_next[1]], [pos[0], pos_next[0]])
                 j += 1
             cv2.imshow("output", image)
-            cv2.waitKey(10)
+            cv2.waitKey(100)
 
-        kp_pre = keypoints
 
         i += 1
         

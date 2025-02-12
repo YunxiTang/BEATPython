@@ -3,7 +3,7 @@ meta:
 
 train:
   device: "cuda:0"
-  seed: 30
+  seed: 40
 
   # optimization
   lr_warmup_steps: 20
