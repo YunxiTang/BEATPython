@@ -402,10 +402,11 @@ def grounded_segmentation(
 if __name__ == '__main__':
     import time
     import cv2
+    import zarr
     device = "cpu"# "cuda" if torch.cuda.is_available() else "cpu"
 
     print(device)
-    labels = ["rod.", "rope."]
+    labels = ["rope."]
     threshold = 0.1
 
     detector_id = "IDEA-Research/grounding-dino-base"
@@ -419,42 +420,38 @@ if __name__ == '__main__':
     print('load detector')
     detector_id = detector_id if detector_id is not None else "IDEA-Research/grounding-dino-tiny"
     object_detector = pipeline(model=detector_id, task="zero-shot-object-detection", device=device, use_fast=True)
-
-    # image_url = "/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/DloPerception/test4.jpg"
-    # image = load_image(image_url)
     
-    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_cache/dobert_dataset/dom_dataset/episode_4008/episode_4008.mp4')
+    root = zarr.open('/media/yxtang/Extreme SSD/GenDloRec/real_world/realworld_dataset-0-20250304.zarr')
+    rgb_dataset = root['data']['rgb']
 
     num_keypoint = 50
 
     i = 0
 
     while True:
-        ret, source_img = cap.read()
+        source_img = rgb_dataset[i][:,:,0:3]
         
         if i % 30 == 0:
-            if source_img is None:
-                break
-            else:
-                cv2.imshow("source_img", source_img)
-                cv2.waitKey(100)
-        
-                # 转换 BGR -> RGB
-                img_rgb = cv2.cvtColor(source_img, cv2.COLOR_BGR2RGB)
+            cv2.imshow("source_img", source_img)
+            cv2.waitKey(10)
+    
+            # 转换 BGR -> RGB
+            # img_rgb = cv2.cvtColor(source_img, cv2.COLOR_BGR2RGB)
 
-                # 转换为 PIL Image
-                img_pil = Image.fromarray(img_rgb)
-                ts = time.time()
-                image_array, detections = grounded_segmentation(image=img_pil,
-                                                                labels=labels,
-                                                                threshold=threshold,
-                                                                polygon_refinement=False,
-                                                                object_detector=object_detector,
-                                                                processor=processor,
-                                                                segmentator=segmentator)
-        
-                print(time.time() - ts)
-            plot_detections(image_array, detections, None)
+            # 转换为 PIL Image
+            img_pil = Image.fromarray(source_img)
+            ts = time.time()
+            image_array, detections = grounded_segmentation(image=img_pil,
+                                                            labels=labels,
+                                                            threshold=threshold,
+                                                            polygon_refinement=False,
+                                                            object_detector=object_detector,
+                                                            processor=processor,
+                                                            segmentator=segmentator)
+    
+            # print(detections)
+            # print(time.time() - ts)
+            # plot_detections(image_array, detections, None)
             
             mask = detections[0].mask
             plt.imshow(mask)
@@ -469,8 +466,6 @@ if __name__ == '__main__':
                 j += 1
             cv2.imshow("output", image)
             cv2.waitKey(100)
-
-
         i += 1
         
         # mask_img = Image.fromarray(detections[0].mask * 255)

@@ -80,7 +80,7 @@ model_type = "vit_h"
 
 device = "cuda"
 
-image = cv2.imread('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/CoTracker/cable_test.PNG')
+image = cv2.imread('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/RoboticVision/CoTracker/object1.jpeg')
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
@@ -108,6 +108,7 @@ masks, scores, logits = predictor.predict(
     multimask_output=True)
 
 print(masks.shape)
+print(scores)
 for i, (mask, score) in enumerate(zip(masks, scores)):
     plt.figure(figsize=(10,10))
     plt.imshow(image)

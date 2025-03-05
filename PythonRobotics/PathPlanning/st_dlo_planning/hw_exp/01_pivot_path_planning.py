@@ -34,7 +34,7 @@ if __name__ == '__main__':
                      robot_size=map_cfg_file.workspace.robot_size,
                      dim=3)
     
-
+    print(map_cfg)
     world_map = WorldMap(map_cfg)
     
     # ============== add some obstacles =========================
@@ -42,20 +42,17 @@ if __name__ == '__main__':
     print(size_z)
 
     obstacles = map_cfg_file.obstacle_info.obstacles
-    i = 0
+
     clrs = sns.color_palette("icefire", n_colors=max(3, len(obstacles))).as_hex()
-    for obstacle in obstacles:
+    for i, obstacle in enumerate(obstacles):
         world_map.add_obstacle(Block(obstacle[0], obstacle[1], size_z, 
                                      obstacle[2], obstacle[3], angle=obstacle[4]*np.pi, clr=clrs[i]))
-        i += 1
-    
     world_map.finalize()
 
     ax = world_map.visualize_passage(full_passage=False)
     plt.axis('equal')
     plt.show()
 
-    
     dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=2, k_passage=1.0, k_pathLen=1., animation=False)
 
     start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]

@@ -384,17 +384,21 @@ class WorldMap:
         self._finalized = False
 
         # add walls
-        wall_left = Block(map_cfg.robot_size, map_cfg.map_ymax, map_cfg.map_zmax, 
-                          -map_cfg.robot_size/2, map_cfg.map_ymax/2, is_wall=True)
+        wall_left = Block(map_cfg.robot_size, map_cfg.map_ymax-map_cfg.map_ymin, map_cfg.map_zmax, 
+                          map_cfg.map_xmin-map_cfg.robot_size / 2, 
+                          (map_cfg.map_ymax+map_cfg.map_ymin) / 2, is_wall=True)
         
-        wall_right = Block(map_cfg.robot_size, map_cfg.map_ymax, map_cfg.map_zmax, 
-                           map_cfg.map_ymax+map_cfg.robot_size/2, map_cfg.map_ymax/2, is_wall=True)
+        wall_right = Block(map_cfg.robot_size, map_cfg.map_ymax-map_cfg.map_ymin, map_cfg.map_zmax, 
+                           map_cfg.map_xmax+map_cfg.robot_size / 2, 
+                           (map_cfg.map_ymax+map_cfg.map_ymin) / 2, is_wall=True)
         
-        wall_down = Block(map_cfg.map_xmax, map_cfg.robot_size, map_cfg.map_zmax, 
-                          map_cfg.map_xmax/2, -map_cfg.robot_size/2, is_wall=True)
+        wall_down = Block(map_cfg.map_xmax-map_cfg.map_xmin, map_cfg.robot_size, map_cfg.map_zmax, 
+                          (map_cfg.map_xmax+map_cfg.map_xmin) / 2, 
+                          map_cfg.map_ymin-map_cfg.robot_size/2, is_wall=True)
         
-        wall_up = Block(map_cfg.map_xmax, map_cfg.robot_size, map_cfg.map_zmax, 
-                        map_cfg.map_xmax/2, map_cfg.map_ymax+map_cfg.robot_size/2, is_wall=True)
+        wall_up = Block(map_cfg.map_xmax-map_cfg.map_xmin, map_cfg.robot_size, map_cfg.map_zmax, 
+                        (map_cfg.map_xmax+map_cfg.map_xmin) / 2, 
+                        map_cfg.map_ymax+map_cfg.robot_size / 2, is_wall=True)
         
         self.add_obstacle(wall_left)
         self.add_obstacle(wall_right)
@@ -668,15 +672,15 @@ class WorldMap:
         for obstacle in self._obstacle:
             if show_wall:
                 plot_box(center = (obstacle._pos_x, obstacle._pos_y, obstacle._pos_z), 
-                        size = (obstacle._size_x, obstacle._size_y, obstacle._size_z),
-                        ax = ax,
-                        clr = obstacle._color)
+                         size = (obstacle._size_x, obstacle._size_y, obstacle._size_z),
+                         ax = ax,
+                         clr = obstacle._color)
             else:
                 if not obstacle._wall:
                     plot_box(center = (obstacle._pos_x, obstacle._pos_y, obstacle._pos_z), 
-                            size = (obstacle._size_x, obstacle._size_y, obstacle._size_z),
-                            ax = ax,
-                            clr = obstacle._color)
+                             size = (obstacle._size_x, obstacle._size_y, obstacle._size_z),
+                             ax = ax,
+                             clr = obstacle._color)
         return ax
     
 
