@@ -4,21 +4,22 @@ meta:
 
 workspace:
   resolution: 0.01
-  map_xmin: 0.0
-  map_xmax: 0.7
-  map_ymin: 0.0
-  map_ymax: 0.7
+  map_xmin: -0.44
+  map_xmax: 0.36
+  map_ymin: -0.39
+  map_ymax: 0.06
   map_zmin: 0.0
   map_zmax: 0.8
   robot_size: 0.01
   dim: 3
 
 obstacle_info:
-   obstacles: [[0.3, 0.3, 0.3, 0.35, 0.25]] # size_x, size_y, pos_x, pos_y, angle
+   obstacles: [[0.25, 0.10, 0.05, -0.15, 0.1],
+               [0.15, 0.15, -0.2, -0.15, 0.1],] # size_x, size_y, pos_x, pos_y, angle
 
 dlo_cfg:
-  start: [0.15, 0.1]
-  goal:  [0.35, 0.6]
+  start: [0.00, 0.0]
+  goal:  [-0.15, -0.35]
 
 logging:
   save_pivot_path_name: 'hw_so1.npy'

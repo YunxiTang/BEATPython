@@ -51,6 +51,8 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.show()
 
+    exit()
+
     dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=2, k_passage=1.0, k_pathLen=1., animation=False)
     # dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.0, k_passage=0.0, k_pathLen=10., animation=False)
 

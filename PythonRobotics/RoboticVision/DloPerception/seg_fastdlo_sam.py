@@ -42,8 +42,8 @@ def extract_uniform_keypoints(mask, num_keypoints=10):
 
     # Step 2: 骨架化（得到单像素宽的中心线）
     skeleton = skeletonize(mask, method='lee').astype(np.uint8)
-    plt.imshow(skeleton, cmap="gray")
-    plt.show()
+    # plt.imshow(skeleton, cmap="gray")
+    # plt.show()
 
     # Step 3: 获取骨架的像素点坐标
     yx_points = np.column_stack(np.where(skeleton > 0))  # (N, 2) 形式
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     sam.to(device=device)
     predictor = SamPredictor(sam)
 
-    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_cache/dobert_dataset/dom_dataset/episode_4004/episode_4004.mp4')
+    cap = cv2.VideoCapture('/media/yxtang/Extreme SSD/DOM_Reaseach/dobert_cache/dobert_dataset/dom_dataset/episode_1009/episode_1009.mp4')
 
     frame = 0
     while True:
@@ -181,19 +181,20 @@ if __name__ == "__main__":
             ts = time.time()
             predictor.set_image(image=image4sam)
             masks, scores, logits = predictor.predict(point_coords=input_point,
-                                                    point_labels=input_label,
-                                                    multimask_output=True)
-            print(time.time() - ts)
-            for i, (mask, score) in enumerate(zip(masks, scores)):
-                plt.figure(figsize=(5,5))
-                plt.imshow(image4sam)
-                show_mask(mask, plt.gca())
-                show_points(input_point, input_label, plt.gca(), marker_size=25)
-                plt.title(f"Mask {i+1}, Score: {score:.3f}", fontsize=18)
-                plt.axis('off')
-                plt.show()  
-                break
-            mask = masks[0]
+                                                      point_labels=input_label,
+                                                      multimask_output=True)
+            mask_idx = np.argmax(scores)
+            print(time.time() - ts, mask_idx)
+            # for i, (mask, score) in enumerate(zip(masks, scores)):
+            #     plt.figure(figsize=(5,5))
+            #     plt.imshow(image4sam)
+            #     show_mask(mask, plt.gca())
+            #     show_points(input_point, input_label, plt.gca(), marker_size=25)
+            #     plt.title(f"Mask {i+1}, Score: {score:.3f}", fontsize=18)
+            #     plt.axis('off')
+            #     plt.show()  
+            #     break
+            mask = masks[mask_idx]
             keypoints = extract_uniform_keypoints(mask, num_keypoints=50)
             # 可视化结果
             j = 0
@@ -201,6 +202,10 @@ if __name__ == "__main__":
                 image = cv2.circle(canvas1, (keypoint[1], keypoint[0]), radius=2, color=(255, 5 + 3 * j, 255-3*j), thickness=-1)
                 # plt.plot([pos[1], pos_next[1]], [pos[0], pos_next[0]])
                 j += 1
+
+            for input_point_ in input_point:
+                image = cv2.circle(canvas1, (input_point_[0], input_point_[1]), radius=5, color=(255, 0, 0), thickness=-1)
+
             cv2.imshow("rope_state", canvas1)
             cv2.waitKey(10)
         # print('-' * 20)
