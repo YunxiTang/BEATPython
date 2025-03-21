@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     Q = np.eye(6, 6) * 50
     
-    save = True
+    save = False
     # load the planned dlo configuration sequence
     map_case = 'camera_ready_so1'
     cfg_path = f'/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/envs/map_cfg/{map_case}.yaml'
@@ -271,7 +271,7 @@ if __name__ == '__main__':
 
 
     # setup the simulation env
-    render_mode = 'rgb_array' #  'human' #'depth_array' #
+    render_mode = 'human' #'rgb_array' #  'depth_array' #
     camera = 'top_camera'
     task_id = '03'
     env = DualGripperCableEnv(task=task_id, feat_stride=3, render_mode=render_mode, camera_name=camera)

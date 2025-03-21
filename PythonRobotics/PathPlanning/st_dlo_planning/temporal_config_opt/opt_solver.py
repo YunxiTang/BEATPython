@@ -80,7 +80,7 @@ class DloOptProblem():
             sigma = Sigma[0:self.num_path]
             delta_sigma = jnp.mean( Sigma[self.num_path:] )
             dlo_shape = self._assemble_shape(sigma)
-            u = self._compute_potential_energy(dlo_shape) * delta_sigma# + 0.01 * jnp.linalg.norm((dlo_shape - np.mean(dlo_shape, axis=0))-(self.init_shape - np.mean(self.init_shape, axis=0))) #+ 1.1 * delta_sigma**2
+            u = self._compute_potential_energy(dlo_shape) * delta_sigma ** 2# + 0.01 * jnp.linalg.norm((dlo_shape - np.mean(dlo_shape, axis=0))-(self.init_shape - np.mean(self.init_shape, axis=0))) #+ 1.1 * delta_sigma**2
             new_carry = u + carry
             return new_carry, u
         loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, Sigmas, length=self.T+1)

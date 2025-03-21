@@ -40,14 +40,14 @@ def elastic_enery(intermediate_points, init_intermediate_points, end_point1, end
 val_and_grad_fn = jax.value_and_grad(elastic_enery)
 
 
-def polish_dlo_shape(raw_shape, k1, k2, segment_len, verbose:bool=False):
+def polish_dlo_shape(raw_shape, k1, k2, segment_len, iter:int=500, verbose:bool=False):
     intermidiate_points = raw_shape[1:-1]
     endpoint1 = raw_shape[0][None]
     endpoint2 = raw_shape[-1][None]
     init_intermediate_points = intermidiate_points
     energy_pre = 10000.
 
-    for i in range(200):
+    for i in range(iter):
         energy, grads = val_and_grad_fn(intermidiate_points, init_intermediate_points, endpoint1, endpoint2, k1, k2, segment_len)
         intermidiate_points = intermidiate_points - 0.005 * grads
         if i % 20 == 0 and verbose:
