@@ -13,7 +13,7 @@ import torch.utils.data
 from torch.utils.data import Dataset
 from einops import reduce
 import copy
-
+from scipy.interpolate import splprep, splev
 import zarr
 
 
@@ -253,6 +253,23 @@ def unnormalize_data(stats, normalized_delta_shape=None, normalized_delta_ee_pos
     return unnormalized_delta_shape, unnormalized_delta_ee_pos
 
 
+def fit_bspline(keypoints, num_samples=13, degree=3) -> np.ndarray:
+    keypoints = np.array(keypoints)  # Ensure it's a NumPy array
+    # num_points, dim = keypoints.shape  # Get number of points and dimensionality
+
+    # Fit a B-Spline through the keypoints
+    tck, _ = splprep(keypoints.T, s=0, k=degree)  # Transpose keypoints for splprep
+
+    # Sample points along the fitted spline
+    u_fine = np.linspace(0, 1, num_samples)  # Parametric range
+    spline_points = splev(u_fine, tck)       # Returns a list of arrays, one for each dimension
+
+    # Stack the arrays into a single (num_samples, dim) array
+    spline_points = np.vstack(spline_points).T
+
+    return spline_points
+
+
 class MultiStepGDMDataset(Dataset):
     def __init__(self, data_path:str, max_step:int=10):
         super(MultiStepGDMDataset, self).__init__()
@@ -260,7 +277,7 @@ class MultiStepGDMDataset(Dataset):
 
         root = zarr.open(self.data_path, 'r')
 
-        self.actions = root['data']['action']
+        # self.actions = root['data']['action']
 
         self.dlo_keypoints = root['data']['dlo_keypoints']
         self.eef_states = root['data']['eef_states']
@@ -273,9 +290,16 @@ class MultiStepGDMDataset(Dataset):
         self.ep_num = root['data']['ep_num']
 
         self.dlo_lens = root['meta']['dlo_len']
+   
+        if len(self.eef_states.shape) == 2:
+            self.num_grasps = self.eef_states.shape[1] // 3
+        else: # == 3
+            self.num_grasps = self.eef_states.shape[1]
 
-        self.num_grasps = self.actions.shape[1] // 3
-        self.num_feats = self.dlo_keypoints.shape[1] // 3
+        if len(self.dlo_keypoints.shape) == 2: # (num_frame. dlo_kp)
+            self.num_feats = self.dlo_keypoints.shape[1] // 3
+        else: # == 3
+            self.num_feats = self.dlo_keypoints.shape[1]
         
         self.max_step = max_step
         self.capacity = self.dlo_lens.shape[0] - max_step
@@ -299,10 +323,10 @@ class MultiStepGDMDataset(Dataset):
                 break
         
         # system configuration
-        dlo_keypoints = self.dlo_keypoints[idx].reshape(self.num_feats, -1)
+        dlo_keypoints = fit_bspline(self.dlo_keypoints[idx].reshape(self.num_feats, -1), 13).astype(np.float32)
         dlo_keypoints = dlo_keypoints[:, 0:2]
 
-        next_dlo_keypoints = self.next_dlo_keypoints[next_idx].reshape(self.num_feats, -1)
+        next_dlo_keypoints = fit_bspline(self.next_dlo_keypoints[next_idx].reshape(self.num_feats, -1), 13).astype(np.float32)
         next_dlo_keypoints = next_dlo_keypoints[:, 0:2]
 
         eef_states = self.eef_states[idx].reshape(self.num_grasps, -1)
@@ -345,12 +369,12 @@ if __name__ == '__main__':
 
         return local_dlo_kp, local_eef_states, dlo_kp_center 
 
-    data_path = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/train/task03_10.zarr'
+    data_path = '/media/yxtang/Extreme SSD/HDP/gdm_dataset/train/task_ethernet_cable.zarr'
     dataset = MultiStepGDMDataset( data_path, max_step=5 )
     for key, val in dataset[0].items():
         print(key, ': ', val.shape)
 
-    batch_size = 2
+    batch_size = 1
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     for batch in dataloader:
