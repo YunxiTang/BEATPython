@@ -68,8 +68,7 @@ class GDMTrainer(BaseTrainer):
 
         self.optimizer.zero_grad()
         loss.backward()
-        # torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, self.model.parameters()), 
-        #                                1.0)
+        torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, self.model.parameters()), self._cfg.optimizer.grad_clip)
         self.optimizer.step()
 
         l_np = to_numpy(loss)
@@ -115,7 +114,7 @@ class GDMTrainer(BaseTrainer):
         for sub_data_dir in train_data_dirs:
             train_data_paths = glob.glob(os.path.join(sub_data_dir, 'task*.zarr'))
             for train_data_path in train_data_paths:
-                sub_dataset = MultiStepGDMDataset(data_path=train_data_path)
+                sub_dataset = MultiStepGDMDataset(data_path=train_data_path, max_step=30)
                 train_datasets.append(sub_dataset)
         data = ConcatDataset(train_datasets)
         data_size = data.cumulative_sizes[-1]
@@ -130,7 +129,7 @@ class GDMTrainer(BaseTrainer):
         for sub_data_dir in test_data_dirs:
             test_data_paths = glob.glob(os.path.join(sub_data_dir, 'task*.zarr'))
             for test_data_path in test_data_paths:
-                sub_dataset = MultiStepGDMDataset(data_path=test_data_path, max_step=0)
+                sub_dataset = MultiStepGDMDataset(data_path=test_data_path, max_step=30)
                 test_datasets.append(sub_dataset)
         test_dataset = ConcatDataset(test_datasets)
         print('Test Data Size:', test_dataset.cumulative_sizes[-1])
@@ -142,7 +141,7 @@ class GDMTrainer(BaseTrainer):
         
         # configure logging
         wandb_logger = DataLogger(
-            log_dir='/home/yxtang/CodeBase/DOBERT/outputs',
+            log_dir=cfg.logging.output_dir,
             wandb_entity='tangyunxi000',
             config=cfg
         )

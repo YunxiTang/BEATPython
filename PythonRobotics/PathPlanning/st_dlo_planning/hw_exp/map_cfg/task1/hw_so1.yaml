@@ -14,12 +14,7 @@ workspace:
   dim: 3
 
 obstacle_info:
-   obstacles: [[0.25, 0.10, 0.05, -0.15, 0.1],
-               [0.15, 0.15, -0.2, -0.15, 0.1],] # size_x, size_y, pos_x, pos_y, angle
-
-dlo_cfg:
-  start: [0.00, 0.0]
-  goal:  [-0.15, -0.35]
+   obstacles: [[0.12, 0.08, -0.03, -0.15, 1.57],] # size_x, size_y, pos_x, pos_y, angle
 
 logging:
   save_pivot_path_name: 'hw_so1.npy'

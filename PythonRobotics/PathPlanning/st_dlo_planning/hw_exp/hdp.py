@@ -11,6 +11,8 @@ if __name__ == '__main__':
     import jax.numpy as jnp
     import seaborn as sns
     import matplotlib.animation as animation
+    import json
+    import yaml
 
     jax.config.update("jax_enable_x64", True)     # enable fp64
     jax.config.update('jax_platform_name', 'cpu') # use the CPU instead of GPU
@@ -32,8 +34,11 @@ if __name__ == '__main__':
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
     
     # ============== load environment configuration ============== 
+    task_id = 'task1'
+    task_folder = os.path.join(ROOT_DIR, f'st_dlo_planning/hw_exp/map_cfg/{task_id}')
     map_id = 'hw_so1'
-    cfg_path = os.path.join(ROOT_DIR, f'st_dlo_planning/hw_exp/map_cfg/{map_id}.yaml')
+    cfg_path = os.path.join(task_folder, f'{map_id}.yaml')
+
     map_cfg_file = OmegaConf.load(cfg_path)
     
     map_cfg = MapCfg(resolution=map_cfg_file.workspace.resolution,
@@ -50,7 +55,6 @@ if __name__ == '__main__':
 
     # 1. add some obstacles from predefined environment setup
     size_z = map_cfg_file.workspace.map_zmax
-    print(size_z)
 
     obstacles = map_cfg_file.obstacle_info.obstacles
     clrs = sns.color_palette("icefire", n_colors=max(3, len(obstacles))).as_hex()
@@ -60,12 +64,32 @@ if __name__ == '__main__':
     world_map.finalize()
 
     ax = world_map.visualize_passage(full_passage=False)
+    
+    # 2. the pivot path start and goal point
+    start_yaml_path = os.path.join(task_folder, 'start_kp_world.yaml')
+    with open(start_yaml_path, 'r') as f:
+        start_data = np.array( yaml.safe_load(f)['initial_kp_in_world'] )
+
+    goal_yaml_path = os.path.join(task_folder, 'goal_kp_world.yaml')
+    with open(goal_yaml_path, 'r') as f:
+        goal_data = np.array( yaml.safe_load(f)['initial_kp_in_world'] )
+
+    start_center = np.mean( start_data , axis=0 )
+    goal_center = np.mean( goal_data , axis=0 )
+
+    for i in range(start_data.shape[0] - 1):
+        ax.plot([start_data[i, 0], start_data[i + 1, 0]], 
+                [start_data[i, 1], start_data[i + 1, 1]], 'b-')
+    for i in range(goal_data.shape[0] - 1):
+        ax.plot([goal_data[i, 0], goal_data[i + 1, 0]], 
+                [goal_data[i, 1], goal_data[i + 1, 1]], 'r-')
+    plot_circle(start_center[0], start_center[1], 0.01, ax, color='-b')
+    plot_circle(goal_center[0], goal_center[1], 0.01, ax, color='-r')
     plt.axis('equal')
     plt.show()
 
-    # 2. the pivot path start and goal point
-    start = [map_cfg_file.dlo_cfg.start[0], map_cfg_file.dlo_cfg.start[1], size_z/2]
-    goal = [map_cfg_file.dlo_cfg.goal[0], map_cfg_file.dlo_cfg.goal[1], size_z/2]
+    start = [start_center[0], start_center[1], size_z/2]
+    goal = [goal_center[0], goal_center[1], size_z/2]
 
     start_validate = world_map.check_pos_collision(start)
     goal_validate = world_map.check_pos_collision(goal)
@@ -100,22 +124,11 @@ if __name__ == '__main__':
     # ================ deformation sequence optimization ====================
     pivot_path = sol_np
     fig, ax = plt.subplots(1, 3, constrained_layout=True, figsize=(12, 4))
-    # the inititial/goal shapes (TODO: replace with the true values)
     
-    zarr_file = os.path.join(ROOT_DIR, 'st_dlo_planning/results/gdm_mj/train/task03_10.zarr')
-    zarr_root = zarr.open(zarr_file)
-    dlo_len = zarr_root['meta']['dlo_len'][0]
-    keypoints = zarr_root['data']['dlo_keypoints'][:]
-    keypoints = keypoints.reshape(-1, 13, 3)
-    num_kp = keypoints.shape[1]
+    init_dlo_shape = start_data
+    goal_dlo_shape = goal_data[::-1]  # Reversed along axis 0
 
-    straight_shape = keypoints[0]
-    
-    init_dlo_shape = keypoints[30]
-    init_dlo_shape = init_dlo_shape 
-    goal_dlo_shape = keypoints[55]
-
-    seg_len = np.linalg.norm(straight_shape[0] - straight_shape[1])
+    seg_len = 1.75 / 100
     
     num_kp = goal_dlo_shape.shape[0]
     
@@ -218,7 +231,7 @@ if __name__ == '__main__':
 
     # ================= DLO configuration optimization =============================
     pathset = PathSet( polished_pathset, T=50, seg_len=seg_len)
-    solver = TcDloSolver(pathset=pathset, k1=10.0, k2=1.0, tol=1e-5, max_iter=2500)
+    solver = TcDloSolver(pathset=pathset, k1=10.0, k2=5.0, tol=1e-5, max_iter=2500)
     opt_sigmas, info = solver.solve()
     solution = jnp.reshape(opt_sigmas, (pathset.T + 1, pathset.num_path))
 
@@ -227,7 +240,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=10.0, k2=1.0, segment_len=seg_len)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=10.0, k2=5.0, segment_len=seg_len)
         polished_dlo_shapes.append(dlo_shape)
 
 
@@ -246,12 +259,12 @@ if __name__ == '__main__':
                    [init_dlo_shape[i][1], init_dlo_shape[i+1][1]], color='k', linewidth=3.0)
         ax[2].plot([goal_dlo_shape[i][0], goal_dlo_shape[i+1][0]], 
                    [goal_dlo_shape[i][1], goal_dlo_shape[i+1][1]], color='r', linewidth=3.0)
-        
+    ax[1].axis('equal')
+    ax[2].axis('equal')
     fig_path = os.path.join(ROOT_DIR, 
                             'st_dlo_planning/results/realworld_result/path_transfer_figs',
                             f'transfered_path_{map_id}.png')
     plt.savefig(fig_path, dpi=1200)
-    plt.axis('equal')
     plt.show()
     
     # =========================================

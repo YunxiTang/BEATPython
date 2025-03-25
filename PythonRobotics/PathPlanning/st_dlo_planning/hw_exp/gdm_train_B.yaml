@@ -1,0 +1,59 @@
+meta:
+  author: "tyx"
+  cable_type: "braid_cable"
+
+train:
+  device: "cuda:0"
+  seed: 10
+
+  # optimization
+  lr_warmup_steps: 10
+  num_epochs: 500
+
+  # training loop control in epochs
+  validation_every: 10
+  test_every: 20
+
+optimizer:
+  lr: 1.0e-4
+  betas: [0.95, 0.999]
+  eps: 1.0e-8
+  weight_decay: 1.0e-5
+  grad_clip: 1.0
+
+train_dataloader:
+  data_dir: ['/media/yxtang/Extreme SSD/HDP/hw_dataset/${meta.cable_type}/train',]
+  batch_size: 256
+  step: 30
+  num_workers: 1
+  shuffle: True
+  pin_memory: True
+  persistent_workers: False
+
+val_dataloader:
+  batch_size: 512
+  num_workers: 1
+  shuffle: True
+  pin_memory: True
+  persistent_workers: False
+
+test_dataloader:
+  data_dir: ['/media/yxtang/Extreme SSD/HDP/hw_dataset/${meta.cable_type}/test',]
+  batch_size: 512
+  num_workers: 1
+  shuffle: False
+  pin_memory: True
+  persistent_workers: False
+
+logging:
+  mode: "online"
+  wandb_project: "st_dlo_hw"
+  experiment_name: "${meta.cable_type}_gdm"
+  output_dir: "/media/yxtang/Extreme SSD/HDP/wandb_outputs"
+  ckpt_dir: "/media/yxtang/Extreme SSD/HDP/results/${meta.cable_type}"
+
+checkpoint:
+  save_checkpoint: True
+  checkpoint_every: 50
+  ckpt_dir: '${logging.ckpt_dir}/checkpoints/${logging.experiment_name}_${train.seed}'
+  save_last_ckpt: True
