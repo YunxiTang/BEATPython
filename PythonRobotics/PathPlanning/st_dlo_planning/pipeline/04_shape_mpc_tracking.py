@@ -343,6 +343,8 @@ if __name__ == '__main__':
 
         dlo_kp = obs['dlo_keypoints']
         eef_states = obs['lowdim_eef_transforms']
+
+        print(dlo_kp.shape, eef_states.shape)
         
         if ref_idx == 0:
             dlo_kp_ref = planned_shape_seq[0]

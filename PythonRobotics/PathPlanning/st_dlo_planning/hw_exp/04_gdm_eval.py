@@ -12,15 +12,14 @@ if __name__ == '__main__':
     import st_dlo_planning.utils.misc_utils as misu
     import st_dlo_planning.utils.pytorch_utils as ptu
     import numpy as np
-    from st_dlo_planning.envs.planar_cable_deform.planar_cable_deform import DualGripperCableEnv, wrap_angle
+    # from st_dlo_planning.envs.planar_cable_deform.planar_cable_deform import DualGripperCableEnv, wrap_angle
+    # from st_dlo_planning.neural_mpc_tracker.mpc_solver import DiscreteModelEnv
     from st_dlo_planning.neural_mpc_tracker.gdm_dataset import MultiStepGDMDataset
     from st_dlo_planning.neural_mpc_tracker.modelling_gdm import GDM, GDM_CFG
-    from st_dlo_planning.neural_mpc_tracker.mpc_solver import DiscreteModelEnv
     from st_dlo_planning.neural_mpc_tracker.gdm_dataset import visualize_shape
-    from st_dlo_planning.utils.pytorch_utils import dict_apply, from_numpy, to_numpy
+    from st_dlo_planning.utils.pytorch_utils import dict_apply, to_numpy
     import torch
     from torch.utils.data import DataLoader
-    import random
     import matplotlib.pyplot as plt
 
 
@@ -30,18 +29,16 @@ if __name__ == '__main__':
     # misu.setup_seed(seed)
     device = ptu.init_gpu()
 
-    # set a test environment
-    env = DualGripperCableEnv(task='03', feat_stride=4)
-
+    cable_type = 'usb_cable'
     # ======================= grab the training dataset stats =================================
-    test_data_path = '/media/yxtang/Extreme SSD/HDP/hw_dataset/ethernet_cable/test/task_ethernet_cable_1.zarr'
-    test_dataset = MultiStepGDMDataset( test_data_path, max_step=120 )
+    test_data_path = f'/media/yxtang/Extreme SSD/HDP/hw_dataset/{cable_type}/test/task_{cable_type}_1.zarr'
+    test_dataset = MultiStepGDMDataset( test_data_path, max_step=60, min_step=30 )
 
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
 
     # ======================= load trained global deformation model =======================
-    model_dirs = ['/media/yxtang/Extreme SSD/HDP/results/ethernet_cable/checkpoints/ethernet_cable_gdm_10/',]
-    model_ckpt_paths = [model_dirs[0] + 'latest.ckpt',]
+    model_dirs = [f'/media/yxtang/Extreme SSD/HDP/results/{cable_type}/checkpoints/{cable_type}_gdm_20/',]
+    model_ckpt_paths = [model_dirs[0] + 'latest.ckpt',] # [model_dirs[0] + 'latest.ckpt',]
     clr = ['r', 'b', 'g', 'k']
     errors = []
 
@@ -80,9 +77,3 @@ if __name__ == '__main__':
             lifted_next_dlo_kp_gt = np.concatenate((next_dlo_keypoints_gt, np.zeros((dlo_keypoints.shape[1], 1))), axis=1)
             visualize_shape(lifted_next_dlo_kp_gt, ax, clr='r', ld=0.5)
             plt.show()
-        # # ======================= wrap the global deformation model up =======================
-        # wrapped_model = DiscreteModelEnv( gdm_model, env.dlo_len, 10, 2, device)
-
-        # # ======================= rollout the model =======================
-        # error_norm = run_prediction(wrapped_model, States, Next_States)
-        # errors.append(error_norm)

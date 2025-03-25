@@ -271,7 +271,7 @@ def fit_bspline(keypoints, num_samples=13, degree=3) -> np.ndarray:
 
 
 class MultiStepGDMDataset(Dataset):
-    def __init__(self, data_path:str, max_step:int=10):
+    def __init__(self, data_path:str, max_step:int=10, min_step:int=0):
         super(MultiStepGDMDataset, self).__init__()
         self.data_path = data_path
 
@@ -305,7 +305,7 @@ class MultiStepGDMDataset(Dataset):
         self.capacity = self.dlo_lens.shape[0] - max_step
 
         if max_step > 0:
-            self.steps = np.random.randint(0, self.max_step, size=[self.capacity,])
+            self.steps = np.random.randint(min_step, self.max_step, size=[self.capacity,])
         else:
             self.steps = [0,] * self.capacity
 

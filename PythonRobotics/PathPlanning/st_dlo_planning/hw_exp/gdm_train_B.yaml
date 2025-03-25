@@ -1,6 +1,6 @@
 meta:
   author: "tyx"
-  cable_type: "ethernet_cable"
+  cable_type: "braid_cable"
 
 train:
   device: "cuda:0"

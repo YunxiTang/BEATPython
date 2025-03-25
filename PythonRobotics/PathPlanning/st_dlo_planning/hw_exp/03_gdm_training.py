@@ -22,7 +22,6 @@ if __name__ == '__main__':
     gdm_cfg = GDM_CFG()
     train_cfg = OmegaConf.load(cfg_path)
     trainer = GDMTrainer(train_cfg, gdm_cfg)
-
     # trainer.run()
 
     model_dirs = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/checkpoints/st_dlo_gdm_30/'
