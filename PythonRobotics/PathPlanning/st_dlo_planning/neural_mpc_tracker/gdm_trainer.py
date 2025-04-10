@@ -13,20 +13,20 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split, ConcatDataset
 import torch.optim as optim
 
+from hydra.utils import instantiate
+
 from st_dlo_planning.utils.pytorch_utils import dict_apply, to_numpy, optimizer_to
 from st_dlo_planning.utils.misc_utils import setup_seed
 from st_dlo_planning.neural_mpc_tracker.gdm_dataset import MultiStepGDMDataset
 from st_dlo_planning.neural_mpc_tracker.modelling_gdm import GDM, GDM_CFG
 from st_dlo_planning.neural_mpc_tracker.base_trainer import BaseTrainer, CosineWarmupScheduler, DataLogger
 
-import numpy as np
-
 
 class GDMTrainer(BaseTrainer):
     include_keys = ('epoch',) 
     exclude_keys = tuple() 
 
-    def __init__(self, cfg: OmegaConf, gdm_cfg: GDM_CFG):
+    def __init__(self, cfg: OmegaConf, gdm_model: nn.Module):
         '''
             global deformation model trainer
         '''
@@ -37,13 +37,13 @@ class GDMTrainer(BaseTrainer):
         setup_seed(seed)
 
         # configure model
-        self.model = GDM(gdm_cfg)
+        self.model = gdm_model
 
         # configure optimizer
-        self.optimizer = torch.optim.AdamW(self.model.parameters(), 
-                                           lr=cfg.optimizer.lr, 
-                                           betas=cfg.optimizer.betas,
-                                           weight_decay=cfg.optimizer.weight_decay)
+        self.optimizer = optim.AdamW(self.model.parameters(), 
+                                     lr=cfg.optimizer.lr, 
+                                     betas=cfg.optimizer.betas,
+                                     weight_decay=cfg.optimizer.weight_decay)
         # lr scheduler
         self.scheduler = CosineWarmupScheduler(optimizer=self.optimizer, 
                                                warmup=cfg.train.lr_warmup_steps, 

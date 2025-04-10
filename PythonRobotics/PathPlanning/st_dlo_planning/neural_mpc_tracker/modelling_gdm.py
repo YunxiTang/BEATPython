@@ -404,11 +404,30 @@ class Conv_GDM(nn.Module):
 
 class RNN_GDM(nn.Module):
     '''
-        RNN based GDM
+        Bi-LSTM based GDM
     '''
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, model_cfg: RNN_GDM_CFG):
+        super(RNN_GDM, self).__init__()
+        self.dlo_proj = nn.Linear(model_cfg.kp_dim, model_cfg.embed_dim)
+        self.eef_proj = nn.Linear(model_cfg.eef_dim, model_cfg.embed_dim)
+        self.delta_eef_proj = nn.Linear(model_cfg.delta_eef_dim, model_cfg.embed_dim)
 
+        self.rnn = nn.LSTM(input_size=model_cfg.embed_dim, 
+                           hidden_size=model_cfg.embed_dim, 
+                           num_layers=model_cfg.num_layers, 
+                           batch_first=True, 
+                           bidirectional=True)
+        self.rnn_out = nn.Linear(model_cfg.embed_dim * 2, model_cfg.embed_dim)
+
+        self.ln = LayerNorm(model_cfg.embed_dim * 2)
+
+        self.film = nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim * 2)
+
+        self.delta_kp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
+                                           nn.GELU(approximate='tanh'),
+                                           nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
+        total_params = sum(p.numel() for p in self.parameters() if p.requires_grad) / 1000000.
+        print(f"Total number of learnable parameters: {total_params}M")
 
 
     def local_transform(self, dlo_kp, eef_states):
@@ -430,5 +449,27 @@ class RNN_GDM(nn.Module):
             delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
         '''
         dlo_kp, eef_states = self.local_transform(dlo_kp, eef_states)
-        q = self.dlo_encoder(dlo_kp)
-        k = self.eef_proj(eef_states)
+        kp_proj = self.dlo_proj(dlo_kp)
+        eef_proj = self.eef_proj(eef_states)
+        delta_eef_proj = self.delta_eef_proj(delta_eef_states)
+
+        left_eef_proj = eef_proj[:, 0, :].unsqueeze(1)
+        right_eef_proj = eef_proj[:, 1, :].unsqueeze(1)
+
+        concated_seq = torch.concatenate([left_eef_proj, kp_proj, right_eef_proj], dim=1)
+
+        latents, _ = self.rnn(concated_seq)
+        latents = self.ln(latents)
+        rnn_out = self.rnn_out(latents)
+        rnn_out = rnn_out[:, 1:-1, :]
+
+        # Apply FiLM modulation using delta_eef_proj as condition
+        reduce_eef_proj = reduce(delta_eef_proj, 'b n d -> b d', 'mean')
+        cond = self.film(reduce_eef_proj)
+        alpha, beta = torch.split(cond, split_size_or_sections=cond.shape[1] // 2, dim=1)
+        alpha = alpha.view(alpha.shape[0], 1, alpha.shape[1])
+        beta = beta.view(beta.shape[0], 1, beta.shape[1])
+        rnn_out = alpha * rnn_out + beta
+        
+        predicts = self.delta_kp_head(rnn_out)
+        return predicts

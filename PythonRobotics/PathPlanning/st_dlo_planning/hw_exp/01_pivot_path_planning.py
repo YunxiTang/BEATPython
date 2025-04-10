@@ -18,7 +18,7 @@ if __name__ == '__main__':
     
     map_id = 'hw_so1.yaml'
 
-    cfg_path = os.path.join(ROOT_DIR, f'st_dlo_planning/hw_exp/map_cfg/{map_id}')
+    cfg_path = os.path.join(ROOT_DIR, f'st_dlo_planning/hw_exp/map_cfg/task1/{map_id}')
 
     print(cfg_path)
     

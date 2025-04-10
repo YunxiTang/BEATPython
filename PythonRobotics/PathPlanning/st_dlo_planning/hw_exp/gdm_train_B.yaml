@@ -1,6 +1,6 @@
 meta:
   author: "tyx"
-  cable_type: "braid_cable"
+  cable_type: "short_rubber_cable"
 
 train:
   device: "cuda:0"
@@ -23,7 +23,7 @@ optimizer:
 
 train_dataloader:
   data_dir: ['/media/yxtang/Extreme SSD/HDP/hw_dataset/${meta.cable_type}/train',]
-  batch_size: 256
+  batch_size: 32
   step: 30
   num_workers: 1
   shuffle: True

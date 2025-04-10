@@ -106,7 +106,7 @@ def redistribute_points_by_scale(points,
     '''
     num_path = len(points)
     original_distance = np.linalg.norm( original_end - original_start )
-    new_distance = min(np.linalg.norm( new_start - new_end ), max_dist)
+    new_distance = min(np.linalg.norm( new_start - new_end )-0.02, max_dist)
     ratio = new_distance / original_distance
 
     points = points - (original_start + original_end) / 2 + (new_start + new_end) / 2
