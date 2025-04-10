@@ -80,6 +80,7 @@ if __name__ == '__main__':
         print(' +++++++ ' * 5)
     
     obs_vrtxs = world_map.get_obs_vertixs()
+    
 
     result_path = pathlib.Path(__file__).parent.parent.joinpath('results', 'optimal_shape_seq_res', f'{map_case}_optimal_shape_seq.npy')
     planned_shape_seq = np.load(result_path, mmap_mode='r')
@@ -147,12 +148,9 @@ if __name__ == '__main__':
                 sdf2 = torch.dot(dlo_kp - vertexs[1], norm_vecs[1] / torch.norm(norm_vecs[1]))
                 sdf3 = torch.dot(dlo_kp - vertexs[2], norm_vecs[2] / torch.norm(norm_vecs[2]))
                 sdf4 = torch.dot(dlo_kp - vertexs[3], norm_vecs[3] / torch.norm(norm_vecs[3]))
-
-                # x = torch.tensor([sdf1, sdf2, sdf3, sdf4], device=device)
-                # log_tmp = torch.log( torch.sum( torch.exp( 200. * x ) ) )
-                # sdf_val = 1. / 200. * log_tmp
-
-                sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
+                
+                full_sdf = torch.concatenate((sdf1[None], sdf2[None], sdf3[None], sdf4[None]), dim=0)
+                sdf_val = torch.max(full_sdf)
 
                 if sdf_val < 0.05:
                     obs_loss = obs_loss + relaxed_log_barrier(sdf_val, phi=phi)
@@ -165,11 +163,8 @@ if __name__ == '__main__':
                 sdf3 = torch.dot(eef_pos - vertexs[2], norm_vecs[2] / torch.norm(norm_vecs[2]))
                 sdf4 = torch.dot(eef_pos - vertexs[3], norm_vecs[3] / torch.norm(norm_vecs[3]))
 
-                # x = torch.tensor([sdf1, sdf2, sdf3, sdf4], device=device)
-                # log_tmp = torch.log( torch.sum( torch.exp( 200. * x ) ) )
-                # sdf_val = 1. / 200. * log_tmp
-
-                sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
+                full_sdf = torch.concatenate((sdf1[None], sdf2[None], sdf3[None], sdf4[None]), dim=0)
+                sdf_val = torch.max(full_sdf)
 
                 if sdf_val < 0.05:
                     obs_loss = obs_loss + relaxed_log_barrier(sdf_val-0.04, phi=phi)
@@ -189,7 +184,7 @@ if __name__ == '__main__':
 
         orien_loss = (left_theta_target - left_theta) ** 2 + (right_theta_target - right_theta) ** 2 \
                      + 0# torch.sum((eef_states[0, 0:2] - target_dlo_kp_2d[0]) ** 2) + torch.sum((eef_states[1, 0:2] - target_dlo_kp_2d[-1]) ** 2)
-        c = position_loss + curve_loss + ctrl_loss + 1e-2  * obs_loss + orien_loss * 0.5
+        c = position_loss + curve_loss + ctrl_loss + 5e-3  * obs_loss + orien_loss * 0.5
         return c 
     
     # @torch.jit.script
@@ -238,11 +233,8 @@ if __name__ == '__main__':
                 sdf3 = torch.dot(dlo_kp - vertexs[2], norm_vecs[2] / torch.norm(norm_vecs[2]))
                 sdf4 = torch.dot(dlo_kp - vertexs[3], norm_vecs[3] / torch.norm(norm_vecs[3]))
 
-                # x = torch.tensor([sdf1, sdf2, sdf3, sdf4], device=device)
-                # log_tmp = torch.log( torch.sum( torch.exp( 200. * x ) ) )
-                # sdf_val = 1. / 200. * log_tmp
-
-                sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
+                full_sdf = torch.concatenate((sdf1[None], sdf2[None], sdf3[None], sdf4[None]), dim=0)
+                sdf_val = torch.max(full_sdf)
 
                 if sdf_val < 0.05:
                     obs_loss = obs_loss + relaxed_log_barrier(sdf_val, phi=phi) #1 / (sdf_val**4)
@@ -254,11 +246,8 @@ if __name__ == '__main__':
                 sdf3 = torch.dot(eef_pos - vertexs[2], norm_vecs[2] / torch.norm(norm_vecs[2]))
                 sdf4 = torch.dot(eef_pos - vertexs[3], norm_vecs[3] / torch.norm(norm_vecs[3]))
 
-                # x = torch.tensor([sdf1, sdf2, sdf3, sdf4], device=device)
-                # log_tmp = torch.log( torch.sum( torch.exp( 200. * x ) ) )
-                # sdf_val = 1. / 200. * log_tmp
-
-                sdf_val = torch.max(torch.tensor([sdf1, sdf2, sdf3, sdf4]))
+                full_sdf = torch.concatenate((sdf1[None], sdf2[None], sdf3[None], sdf4[None]), dim=0)
+                sdf_val = torch.max(full_sdf)
 
                 if sdf_val < 0.05:
                     obs_loss = obs_loss + relaxed_log_barrier(sdf_val-0.04, phi=phi) #1 / (sdf_val**4)
@@ -266,7 +255,7 @@ if __name__ == '__main__':
         orien_loss = (left_theta_target - left_theta) ** 2 + (right_theta_target - right_theta) ** 2 \
                       + 0# torch.sum((eef_states[0, 0:2] - target_dlo_kp_2d[0]) ** 2) + torch.sum((eef_states[1, 0:2] - target_dlo_kp_2d[-1]) ** 2)
         
-        c = position_loss + curve_loss + orien_loss * 0.5 + 1e-2 * obs_loss
+        c = position_loss + curve_loss + orien_loss * 0.5 + 5e-3 * obs_loss
         return c
 
 

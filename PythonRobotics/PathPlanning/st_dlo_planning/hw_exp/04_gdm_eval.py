@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # misu.setup_seed(seed)
     device = ptu.init_gpu()
 
-    cable_type = 'usb_cable'
+    cable_type = 'rubber_cable'
     # ======================= grab the training dataset stats =================================
     test_data_path = f'/media/yxtang/Extreme SSD/HDP/hw_dataset/{cable_type}/test/task_{cable_type}_1.zarr'
     test_dataset = MultiStepGDMDataset( test_data_path, max_step=60, min_step=30 )

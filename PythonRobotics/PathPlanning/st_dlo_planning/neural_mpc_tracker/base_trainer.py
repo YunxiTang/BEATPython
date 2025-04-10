@@ -12,6 +12,7 @@ import numpy as np
 import torch.optim as optim
 import wandb
 import PIL
+import logging
 
 
 def to_numpy(tensor):
@@ -134,7 +135,8 @@ class DataLogger:
                  wandb_entity=None, 
                  wandb_mode: str = 'online', 
                  log_wandb=True, 
-                 log_tb=False):
+                 log_tb=False,
+                 log_local=False):
         """
         Args:
             log_dir (str): base path to store logs
@@ -142,27 +144,30 @@ class DataLogger:
         """
         self._tb_logger = None
         self._wandb_logger = None
+        self._local_logger = None
         self._data = dict() 
+
+        if log_local:
+            self._local_logger = open(os.path.join(log_dir, 'log.txt'), 'w')
 
         if log_tb:
             from tensorboardX import SummaryWriter
             self._tb_logger = SummaryWriter(os.path.join(log_dir), flush_secs=1, max_queue=1)
 
         if log_wandb:
-            self._wandb_logger = wandb.init(entity=wandb_entity,
-                                            project=config.logging.wandb_project,
-                                            name=config.logging.experiment_name + f'_{config.train.seed}',
-                                            dir=log_dir,
-                                            mode=wandb_mode,
-                                            )
-
             # set up info experiment identification (meta + train + model)
             wandb_config = dict()
             for key in self.include_cfg_keys:
                 for (k, v) in config[key].items():
                     wandb_config[k] = v
 
-            wandb.config.update(wandb_config)
+            self._wandb_logger = wandb.init(entity=wandb_entity,
+                                            project=config.logging.wandb_project,
+                                            name=config.logging.experiment_name + f'_{config.train.seed}',
+                                            dir=log_dir,
+                                            mode=wandb_mode,
+                                            config=wandb_config
+                                            )
         
 
     def log(self, k, v, epoch, data_type='scalar', log_stats=False):

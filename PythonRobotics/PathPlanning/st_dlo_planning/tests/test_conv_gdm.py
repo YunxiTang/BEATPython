@@ -12,14 +12,14 @@ if __name__ == '__main__':
     from torch.utils.data import DataLoader
     import torch.nn as nn
 
-    from st_dlo_planning.neural_mpc_tracker.modelling_gdm import GDM, RNN_GDM
-    from st_dlo_planning.neural_mpc_tracker.configuration_gdm import GDM_CFG, RNN_GDM_CFG
+    from st_dlo_planning.neural_mpc_tracker.modelling_gdm import Conv_GDM
+    from st_dlo_planning.neural_mpc_tracker.configuration_gdm import CONV_GDM_CFG
     from st_dlo_planning.neural_mpc_tracker.gdm_dataset import MultiStepGDMDataset
     from st_dlo_planning.utils.pytorch_utils import to_numpy, dict_apply
     from st_dlo_planning.utils.misc_utils import setup_seed
-    
-    setup_seed(10)
 
+    setup_seed(10)
+    
     train_data_path = '/media/yxtang/Extreme SSD/HDP/hw_dataset/ethernet_cable/train/task_ethernet_cable_1.zarr'
     test_data_path = '/media/yxtang/Extreme SSD/HDP/hw_dataset/ethernet_cable/test/task_ethernet_cable_1.zarr'
 
@@ -30,8 +30,8 @@ if __name__ == '__main__':
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
 
-    model_cfg = GDM_CFG(kp_dim=2)
-    gdm_model = GDM(model_cfg).to(device='cuda:0')
+    model_cfg = CONV_GDM_CFG(kp_dim=2)
+    gdm_model = Conv_GDM(model_cfg).to(device='cuda:0')
 
     optimizer = torch.optim.AdamW(gdm_model.parameters(), lr=1e-4)
     loss_fn = nn.MSELoss(reduction='mean')
@@ -72,6 +72,6 @@ if __name__ == '__main__':
                 loss_val = loss_fn(predict_vel, delta_shape)
                 val_Loss += to_numpy(loss_val)
         if val_Loss < best_loss:
-            best_loss = val_Loss       
+            best_loss = val_Loss
         print(f'Epoch: {epoch} || Train Loss: {Loss} Val Loss: {val_Loss}')
     print(best_loss)

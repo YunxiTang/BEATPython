@@ -461,7 +461,7 @@ class WorldMap:
             obs_center = np.array([obs._pos_x, obs._pos_y, 0.])
             _size_x = obs._size_x + 0.02
             _size_y = obs._size_y + 0.02
-            vertex1_o = np.array([_size_x / 2, _size_y / 2, 0.])
+            vertex1_o = np.array([-_size_x / 2, _size_y / 2, 0.])
             vertex2_o= np.array([_size_x / 2, _size_y / 2, 0.])
             vertex3_o= np.array([_size_x / 2, -_size_y / 2, 0.])
             vertex4_o = np.array([-_size_x / 2, -_size_y / 2, 0.])

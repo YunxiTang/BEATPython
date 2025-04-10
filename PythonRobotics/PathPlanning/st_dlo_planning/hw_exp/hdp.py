@@ -5,13 +5,11 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import numpy as np
     from omegaconf import OmegaConf
-    import zarr
     import pickle
     import jax
     import jax.numpy as jnp
     import seaborn as sns
     import matplotlib.animation as animation
-    import json
     import yaml
 
     jax.config.update("jax_enable_x64", True)     # enable fp64
@@ -32,12 +30,31 @@ if __name__ == '__main__':
     from st_dlo_planning.utils.path_interpolation import visualize_shape
     from st_dlo_planning.temporal_config_opt.opt_solver import TcDloSolver
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
+
+    from scipy.interpolate import splprep, splev
+
+
+    def fit_bspline(keypoints, num_samples=10, degree=3) -> np.ndarray:
+        keypoints = np.array(keypoints)  # Ensure it's a NumPy array
+        # num_points, dim = keypoints.shape  # Get number of points and dimensionality
+
+        # Fit a B-Spline through the keypoints
+        tck, _ = splprep(keypoints.T, s=0, k=degree)  # Transpose keypoints for splprep
+
+        # Sample points along the fitted spline
+        u_fine = np.linspace(0, 1, num_samples)  # Parametric range
+        spline_points = splev(u_fine, tck)       # Returns a list of arrays, one for each dimension
+
+        # Stack the arrays into a single (num_samples, dim) array
+        spline_points = np.vstack(spline_points).T
+
+        return spline_points
     
     # ============== load environment configuration ============== 
     task_id = 'task1'
-    task_folder = os.path.join(ROOT_DIR, f'st_dlo_planning/hw_exp/map_cfg/{task_id}')
-    map_id = 'hw_so1'
-    cfg_path = os.path.join(task_folder, f'{map_id}.yaml')
+    map_id = 'ma_task1_g3'
+    task_folder = f'/home/yxtang/CodeBase/LfD/robot_hardware/dlo_ws/src/rs_perception/scripts/config/maze_task/{task_id}'
+    cfg_path = os.path.join(task_folder, 'task_setup.yaml')
 
     map_cfg_file = OmegaConf.load(cfg_path)
     
@@ -68,14 +85,16 @@ if __name__ == '__main__':
     # 2. the pivot path start and goal point
     start_yaml_path = os.path.join(task_folder, 'start_kp_world.yaml')
     with open(start_yaml_path, 'r') as f:
-        start_data = np.array( yaml.safe_load(f)['initial_kp_in_world'] )
+        start_data = fit_bspline( np.array( yaml.safe_load(f)['points'] ), 10)# + np.array([0.05, -0.00, 0])
+        # start_data = start_data[::-1]
 
-    goal_yaml_path = os.path.join(task_folder, 'goal_kp_world.yaml')
+    goal_yaml_path = os.path.join(task_folder, 'goal_kp_world_3.yaml')
     with open(goal_yaml_path, 'r') as f:
-        goal_data = np.array( yaml.safe_load(f)['initial_kp_in_world'] )
+        goal_data = fit_bspline( np.array( yaml.safe_load(f)['points']), 10) + np.array([0.02, -0.03, 0])
+        # goal_data = goal_data[::-1]
 
-    start_center = np.mean( start_data , axis=0 )
-    goal_center = np.mean( goal_data , axis=0 )
+    start_center = np.mean(start_data, axis=0)
+    goal_center = np.mean(goal_data, axis=0)
 
     for i in range(start_data.shape[0] - 1):
         ax.plot([start_data[i, 0], start_data[i + 1, 0]], 
@@ -87,6 +106,7 @@ if __name__ == '__main__':
     plot_circle(goal_center[0], goal_center[1], 0.01, ax, color='-r')
     plt.axis('equal')
     plt.show()
+    # exit()
 
     start = [start_center[0], start_center[1], size_z/2]
     goal = [goal_center[0], goal_center[1], size_z/2]
@@ -96,10 +116,10 @@ if __name__ == '__main__':
 
     # ============== pivot path planning =========================
     if start_validate and goal_validate:
-        dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=2, k_passage=1.0, k_pathLen=1., animation=False)
+        dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0.04, k_passage=1.0, k_pathLen=100., animation=False)
         sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=50, num_waypoints=50)
         result_path = os.path.join(ROOT_DIR, 'st_dlo_planning/results/realworld_result/pivot_path_res', 
-                                   map_cfg_file.logging.save_pivot_path_name)
+                                   f'{map_cfg_file.logging.save_pivot_path_name}_3')
         np.save(result_path, sol_np)
         print(f'Save optimal pivot @: {result_path}.')
     else:
@@ -126,9 +146,10 @@ if __name__ == '__main__':
     fig, ax = plt.subplots(1, 3, constrained_layout=True, figsize=(12, 4))
     
     init_dlo_shape = start_data
-    goal_dlo_shape = goal_data[::-1]  # Reversed along axis 0
+    goal_dlo_shape = goal_data
 
-    seg_len = 1.75 / 100
+    seg_len = 0.17 / (start_data.shape[0]-1)
+    print(seg_len)
     
     num_kp = goal_dlo_shape.shape[0]
     
@@ -160,7 +181,7 @@ if __name__ == '__main__':
     world_map.visualize_passage(full_passage=False, ax=ax[1])
     _, _, new_pathset_list, backup_pathset_list = deform_pathset_step1(pivot_path, 
                                                                        pathset_list,
-                                                                       world_map, 0.15)
+                                                                       world_map, 0.05)
     final_pathset, SegIdx = deform_pathset_step2(np.array(backup_pathset_list), np.array(new_pathset_list))
 
     polished_pathset = np.copy(final_pathset)
@@ -227,11 +248,11 @@ if __name__ == '__main__':
     f = open(file_to_save, "wb")
     res = {'spatial_path_set': polished_pathset}
     pickle.dump(res, f)
-    f.close() # close file
+    f.close()
 
     # ================= DLO configuration optimization =============================
     pathset = PathSet( polished_pathset, T=50, seg_len=seg_len)
-    solver = TcDloSolver(pathset=pathset, k1=10.0, k2=5.0, tol=1e-5, max_iter=2500)
+    solver = TcDloSolver(pathset=pathset, k1=2.0, k2=1.0, tol=1e-3, max_iter=2500)
     opt_sigmas, info = solver.solve()
     solution = jnp.reshape(opt_sigmas, (pathset.T + 1, pathset.num_path))
 
@@ -240,7 +261,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=10.0, k2=5.0, segment_len=seg_len)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=2.0, k2=1.0, segment_len=seg_len, iter=30, verbose=True)
         polished_dlo_shapes.append(dlo_shape)
 
 

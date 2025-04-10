@@ -1,0 +1,10 @@
+workspace:
+  resolution: 0.01
+  map_xmin: -0.355 #-0.44
+  map_xmax: 0.145 #0.36
+  map_ymin: -0.39
+  map_ymax: 0.14 #0.06
+  map_zmin: 0.0
+  map_zmax: 0.8
+  robot_size: 0.01
+  dim: 3
