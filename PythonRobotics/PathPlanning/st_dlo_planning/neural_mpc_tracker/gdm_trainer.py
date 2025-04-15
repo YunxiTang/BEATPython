@@ -114,7 +114,7 @@ class GDMTrainer(BaseTrainer):
         for sub_data_dir in train_data_dirs:
             train_data_paths = glob.glob(os.path.join(sub_data_dir, 'task*.zarr'))
             for train_data_path in train_data_paths:
-                sub_dataset = MultiStepGDMDataset(data_path=train_data_path, max_step=30)
+                sub_dataset = MultiStepGDMDataset(data_path=train_data_path, max_step=self._cfg.train_dataloader.step)
                 train_datasets.append(sub_dataset)
         data = ConcatDataset(train_datasets)
         data_size = data.cumulative_sizes[-1]
@@ -129,7 +129,7 @@ class GDMTrainer(BaseTrainer):
         for sub_data_dir in test_data_dirs:
             test_data_paths = glob.glob(os.path.join(sub_data_dir, 'task*.zarr'))
             for test_data_path in test_data_paths:
-                sub_dataset = MultiStepGDMDataset(data_path=test_data_path, max_step=30)
+                sub_dataset = MultiStepGDMDataset(data_path=test_data_path, max_step=self._cfg.train_dataloader.step)
                 test_datasets.append(sub_dataset)
         test_dataset = ConcatDataset(test_datasets)
         print('Test Data Size:', test_dataset.cumulative_sizes[-1])
