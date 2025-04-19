@@ -80,15 +80,15 @@ class DloOptProblem():
             sigma = Sigma[0:self.num_path]
             delta_sigma = jnp.mean( Sigma[self.num_path:] )
             dlo_shape = self._assemble_shape(sigma)
-            u = self._compute_potential_energy(dlo_shape)
-               #+ * jnp.abs(delta_sigma) ** 2 + 0.0 * jnp.linalg.norm((dlo_shape - np.mean(dlo_shape, axis=0))-(self.goal_shape - np.mean(self.goal_shape, axis=0))) + 1.1 * delta_sigma** 2
+            u = self._compute_potential_energy(dlo_shape) + jnp.abs(delta_sigma) ** 2
+               # + 0.0 * jnp.linalg.norm((dlo_shape - np.mean(dlo_shape, axis=0))-(self.goal_shape - np.mean(self.goal_shape, axis=0))) + 1.1 * delta_sigma** 2
             new_carry = u + carry
             return new_carry, u
         loss, _ = jax.lax.scan(_sigma_to_energy, 0.0, Sigmas, length=self.T+1)
 
         diff2_sigmas = jnp.diff(jnp.diff(sigmas, axis=0), axis=0)
         reg = jnp.sum(  diff2_sigmas ** 2 )
-        return loss + 0.5 * reg
+        return loss + 10.5 * reg
 
 
     @partial(jax.jit, static_argnums=(0,))
@@ -115,8 +115,9 @@ class DloOptProblem():
         # dist = jnp.linalg.norm(xe - xs)
         # dist_ineq = jnp.array([dist])
         # dist_vals = []
-        # for i in range(0, self.T+1):
+        # for i in range(0, self.T):
         #     dlo_shape = self._assemble_shape(sigma[i])
+        #     dlo_shape_next = self._assemble_shape(sigma[i+1])
         #     xs = dlo_shape[0]
         #     xe = dlo_shape[self.num_path-1]
         #     dist = jnp.linalg.norm(xe - xs)

@@ -32,6 +32,7 @@ if __name__ == '__main__':
     from st_dlo_planning.temporal_config_opt.qp_solver import polish_dlo_shape
 
     from scipy.interpolate import splprep, splev
+    setup_seed(0)
 
 
     def fit_bspline(keypoints, num_samples=10, degree=3) -> np.ndarray:
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     
     # ============== load environment configuration ============== 
     task_id = 'task1'
-    map_id = 'ma_task1_g3'
+    map_id = 'ma_task1_s2_g5'
     task_folder = f'/home/yxtang/CodeBase/LfD/robot_hardware/dlo_ws/src/rs_perception/scripts/config/maze_task/{task_id}'
     cfg_path = os.path.join(task_folder, 'task_setup.yaml')
 
@@ -83,14 +84,14 @@ if __name__ == '__main__':
     ax = world_map.visualize_passage(full_passage=False)
     
     # 2. the pivot path start and goal point
-    start_yaml_path = os.path.join(task_folder, 'start_kp_world.yaml')
+    start_yaml_path = os.path.join(task_folder, 'start_kp_world_2.yaml')
     with open(start_yaml_path, 'r') as f:
-        start_data = fit_bspline( np.array( yaml.safe_load(f)['points'] ), 10)# + np.array([0.05, -0.00, 0])
+        start_data = fit_bspline( np.array( yaml.safe_load(f)['points'] ), 10) #+ np.array([0.00, -0.02, 0])
         # start_data = start_data[::-1]
 
-    goal_yaml_path = os.path.join(task_folder, 'goal_kp_world_3.yaml')
+    goal_yaml_path = os.path.join(task_folder, 'goal_kp_world_5.yaml')
     with open(goal_yaml_path, 'r') as f:
-        goal_data = fit_bspline( np.array( yaml.safe_load(f)['points']), 10) + np.array([0.02, -0.03, 0])
+        goal_data = fit_bspline( np.array( yaml.safe_load(f)['points']), 10) + np.array([0.01, -0.03, 0])
         # goal_data = goal_data[::-1]
 
     start_center = np.mean(start_data, axis=0)
@@ -116,10 +117,10 @@ if __name__ == '__main__':
 
     # ============== pivot path planning =========================
     if start_validate and goal_validate:
-        dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=0.04, k_passage=1.0, k_pathLen=100., animation=False)
+        dlo_ompl = DloOmpl(world_map, size_z/2, k_clearance=1.04, k_passage=1.0, k_pathLen=300., animation=False)
         sol, sol_np = dlo_ompl.plan(start, goal, allowed_time=50, num_waypoints=50)
         result_path = os.path.join(ROOT_DIR, 'st_dlo_planning/results/realworld_result/pivot_path_res', 
-                                   f'{map_cfg_file.logging.save_pivot_path_name}_3')
+                                   f'{map_cfg_file.logging.save_pivot_path_name}_{map_id}.npy')
         np.save(result_path, sol_np)
         print(f'Save optimal pivot @: {result_path}.')
     else:
@@ -181,7 +182,7 @@ if __name__ == '__main__':
     world_map.visualize_passage(full_passage=False, ax=ax[1])
     _, _, new_pathset_list, backup_pathset_list = deform_pathset_step1(pivot_path, 
                                                                        pathset_list,
-                                                                       world_map, 0.05)
+                                                                       world_map, 0.04)
     final_pathset, SegIdx = deform_pathset_step2(np.array(backup_pathset_list), np.array(new_pathset_list))
 
     polished_pathset = np.copy(final_pathset)
@@ -261,7 +262,7 @@ if __name__ == '__main__':
     for i in range(0, pathset.T+1, 1):
         dlo_shape = pathset.query_dlo_shape(solution[i])
         raw_dlo_shapes.append(dlo_shape)
-        dlo_shape = polish_dlo_shape(dlo_shape, k1=2.0, k2=1.0, segment_len=seg_len, iter=30, verbose=True)
+        dlo_shape = polish_dlo_shape(dlo_shape, k1=2.0, k2=1.0, segment_len=seg_len, iter=10, verbose=True)
         polished_dlo_shapes.append(dlo_shape)
 
 
