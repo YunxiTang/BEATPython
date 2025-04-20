@@ -49,7 +49,8 @@ class DloOptProblem():
 
         self.init_shape = self.pathset.query_dlo_shape(jnp.array([0.]*self.num_path))
         self.goal_shape = self.pathset.query_dlo_shape(jnp.array([1.]*self.num_path))
-    
+
+        self.obj_vals = []
         
     def _assemble_shape(self, sigma):
         dlo_shape = self.pathset.query_dlo_shape(sigma)
@@ -154,6 +155,7 @@ class DloOptProblem():
         """
             intermediate callback.
         """
+        self.obj_vals.append(obj_value)
         if iter_count % 5 == 0:
             print(f"Iteration #{iter_count}: Obj. Val.: {obj_value}.")
 
