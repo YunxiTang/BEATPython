@@ -19,7 +19,7 @@ def visualize_shape(dlo: np.ndarray, ax, ld=3.0, s=25, clr=None):
     for i in range(num_kp-1):
         ax.plot([dlo[i][0], dlo[i+1][0]], 
                 [dlo[i][1], dlo[i+1][1]], color=clr, linewidth=ld)
-    ax.axis('equal')
+    # ax.axis('equal')
     # ax.set_xlabel('X')
     # ax.set_ylabel('Y')
 

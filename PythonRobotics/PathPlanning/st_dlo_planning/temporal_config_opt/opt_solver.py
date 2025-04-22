@@ -89,7 +89,7 @@ class DloOptProblem():
 
         diff2_sigmas = jnp.diff(jnp.diff(sigmas, axis=0), axis=0)
         reg = jnp.sum(  diff2_sigmas ** 2 )
-        return loss + 10.5 * reg
+        return loss + 0.5 * reg
 
 
     @partial(jax.jit, static_argnums=(0,))
@@ -217,6 +217,6 @@ class TcDloSolver:
 
         # Solve the problem
         opt_sigmas, info = nlp.solve(self.init_sigmas)
-            
+        self.obj_vals = problem.obj_vals
         return opt_sigmas, info
     

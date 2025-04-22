@@ -379,7 +379,7 @@ class WorldMap:
         self._obstacle = []
         self.map_cfg = map_cfg
         self._resolution = map_cfg.resolution
-        self._s = fcl.Sphere(map_cfg.robot_size)
+        self._s = fcl.Sphere(map_cfg.robot_size/100)
         
         self._finalized = False
 
@@ -658,15 +658,15 @@ class WorldMap:
         if ax is None:
             fig = plt.figure(figsize=plt.figaspect(0.5))
             ax = fig.add_subplot(projection='3d')
-        ax.set_xlim(self.map_cfg.map_xmin, self.map_cfg.map_xmax)
-        ax.set_ylim(self.map_cfg.map_ymin, self.map_cfg.map_ymax)
-        ax.set_zlim(0, self.map_cfg.map_zmax)
-        ax.set_aspect('equal')
-        ax.xaxis.set_ticks(np.arange(self.map_cfg.map_xmin, self.map_cfg.map_xmax, 50.0))
-        ax.yaxis.set_ticks(np.arange(self.map_cfg.map_ymin, self.map_cfg.map_ymax, 50.0))
-        ax.zaxis.set_ticks(np.arange(self.map_cfg.map_zmin, self.map_cfg.map_zmax, 50.0))
-        ax.set(xlabel='$x (m)$', ylabel='$y (m)$', zlabel='$z (m)$')
-        ax.grid(True)
+        # ax.set_xlim(self.map_cfg.map_xmin, self.map_cfg.map_xmax)
+        # ax.set_ylim(self.map_cfg.map_ymin, self.map_cfg.map_ymax)
+        # ax.set_zlim(0, self.map_cfg.map_zmax)
+        # ax.set_aspect('equal')
+        # ax.xaxis.set_ticks(np.arange(self.map_cfg.map_xmin, self.map_cfg.map_xmax, 50.0))
+        # ax.yaxis.set_ticks(np.arange(self.map_cfg.map_ymin, self.map_cfg.map_ymax, 50.0))
+        # ax.zaxis.set_ticks(np.arange(self.map_cfg.map_zmin, self.map_cfg.map_zmax, 50.0))
+        # ax.set(xlabel='$x (m)$', ylabel='$y (m)$', zlabel='$z (m)$')
+        # ax.grid(True)
 
         # obstacle visulization
         for obstacle in self._obstacle:
@@ -698,7 +698,7 @@ class WorldMap:
                 ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--')
 
         for passage in self._filtered_passages:
-            p,  = ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--', linewidth=2.0)
+            p,  = ax.plot([passage.vrtx1[0], passage.vrtx2[0]], [passage.vrtx1[1], passage.vrtx2[1]], 'k--', linewidth=1.0)
         return ax
     
 
