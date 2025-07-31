@@ -13,10 +13,11 @@ tensor_args = TensorDeviceType()
 # this example loads urdf from a configuration file, you can also load from path directly
 # load a urdf, the base frame and the end-effector frame:
 config_file = load_yaml(join_path(get_robot_path(), "franka.yml"))
-
+print(config_file)
 urdf_file = config_file["robot_cfg"]["kinematics"][
     "urdf_path"
 ]  # Send global path starting with "/"
+
 base_link = config_file["robot_cfg"]["kinematics"]["base_link"]
 ee_link = config_file["robot_cfg"]["kinematics"]["ee_link"]
 
@@ -31,4 +32,4 @@ kin_model = CudaRobotModel(robot_cfg.kinematics)
 q = torch.rand((10, kin_model.get_dof()), **(tensor_args.as_torch_dict()))
 out = kin_model.get_state(q)
 
-print(out)
+# print(out)
