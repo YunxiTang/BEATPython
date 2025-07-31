@@ -17,10 +17,9 @@ def orientation_error(desired, current):
     return q_r[:, 0:3] * torch.sign(q_r[:, 3]).unsqueeze(-1)
 
 
-if __name__ == '__main__':
-    
+if __name__ == "__main__":
     args = gymutil.parse_arguments(description="Isaac Gym Operational Space Control")
-    
+
     # initialize gym
     gym = gymapi.acquire_gym()
 
@@ -41,11 +40,10 @@ if __name__ == '__main__':
     sim_params.physx.rest_offset = 0.0
     sim_params.use_gpu_pipeline = args.use_gpu_pipeline
     # create a simulation
-    sim = gym.create_sim(args.compute_device_id, 
-                         args.graphics_device_id, 
-                         args.physics_engine, 
-                         sim_params)
-    
+    sim = gym.create_sim(
+        args.compute_device_id, args.graphics_device_id, args.physics_engine, sim_params
+    )
+
     # create viewer
     viewer = gym.create_viewer(sim, gymapi.CameraProperties())
 
@@ -55,35 +53,37 @@ if __name__ == '__main__':
     gym.add_ground(sim, plane_params)
 
     # Load franka asset
-    asset_root = os.path.join(os.path.dirname(os.path.realpath(__file__)),  'assets')
-    print('=============', asset_root, '================')
+    asset_root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets")
+    print("=============", asset_root, "================")
     # create table asset
     table_dims = gymapi.Vec3(1.0, 0.5, 0.4)
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = True
-    table_asset = gym.create_box(sim, table_dims.x, table_dims.y, table_dims.z, asset_options)
+    table_asset = gym.create_box(
+        sim, table_dims.x, table_dims.y, table_dims.z, asset_options
+    )
 
     franka_asset_file = "urdf/franka_description/robots/franka_panda.urdf"
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = True
     asset_options.flip_visual_attachments = True
     asset_options.armature = 0.01
-    asset_options.disable_gravity = True # False #
+    asset_options.disable_gravity = True  # False #
     franka_asset = gym.load_asset(sim, asset_root, franka_asset_file, asset_options)
 
-    mug_asset_file = 'urdf/ycb/025_mug/025_mug.urdf'
+    mug_asset_file = "urdf/ycb/025_mug/025_mug.urdf"
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = False
     asset_options.flip_visual_attachments = True
     asset_options.armature = 0.01
-    asset_options.disable_gravity = False #
+    asset_options.disable_gravity = False  #
     mug_asset = gym.load_asset(sim, asset_root, mug_asset_file, asset_options)
-    
+
     # franka info
     franka_num_bodies = gym.get_asset_rigid_body_count(franka_asset)
     franka_dof_props = gym.get_asset_dof_properties(franka_asset)
-    franka_lower_limits = franka_dof_props['lower']
-    franka_upper_limits = franka_dof_props['upper']
+    franka_lower_limits = franka_dof_props["lower"]
+    franka_upper_limits = franka_dof_props["upper"]
     franka_ranges = franka_upper_limits - franka_lower_limits
     franka_mids = 0.5 * (franka_upper_limits + franka_lower_limits)
     franka_num_dofs = len(franka_dof_props)
@@ -122,22 +122,25 @@ if __name__ == '__main__':
 
     mug_pose = gymapi.Transform()
     mug_pose.p = gymapi.Vec3(0.0, table_dims.y, 1.0)
-    
+
     for i in range(num_envs):
-        env = gym.create_env(sim, 
-                             env_lower,
-                             env_upper, 
-                             envs_per_row)
+        env = gym.create_env(sim, env_lower, env_upper, envs_per_row)
         envs.append(env)
 
         franka_handle = gym.create_actor(env, franka_asset, pose, f"franka", i, 0)
         table_handle = gym.create_actor(env, table_asset, table_pose, f"table", i, 10)
 
-        mug_pose.r = gymapi.Quat.from_euler_zyx(math.pi/2+np.random.random(1)[0], 0, math.pi/2+np.random.random(1)[0])
+        mug_pose.r = gymapi.Quat.from_euler_zyx(
+            math.pi / 2 + np.random.random(1)[0],
+            0,
+            math.pi / 2 + np.random.random(1)[0],
+        )
         mug_handle = gym.create_actor(env, mug_asset, mug_pose, f"table", i, 20)
 
         # Set initial DOF states
-        gym.set_actor_dof_states(env, franka_handle, default_dof_state, gymapi.STATE_ALL)
+        gym.set_actor_dof_states(
+            env, franka_handle, default_dof_state, gymapi.STATE_ALL
+        )
         gym.set_actor_dof_properties(env, franka_handle, franka_dof_props)
 
         # Get inital hand pose
@@ -145,10 +148,14 @@ if __name__ == '__main__':
         hand_pose = gym.get_rigid_transform(env, hand_handle)
 
         init_pos_list.append([hand_pose.p.x, hand_pose.p.y, hand_pose.p.z])
-        init_orn_list.append([hand_pose.r.x, hand_pose.r.y, hand_pose.r.z, hand_pose.r.w])
+        init_orn_list.append(
+            [hand_pose.r.x, hand_pose.r.y, hand_pose.r.z, hand_pose.r.w]
+        )
 
         # Get global index of hand in rigid body state tensor
-        hand_idx = gym.find_actor_rigid_body_index(env, franka_handle, "panda_hand", gymapi.DOMAIN_SIM)
+        hand_idx = gym.find_actor_rigid_body_index(
+            env, franka_handle, "panda_hand", gymapi.DOMAIN_SIM
+        )
         hand_idxs.append(hand_idx)
 
         # color setting
@@ -156,20 +163,20 @@ if __name__ == '__main__':
         color = gymapi.Vec3(c[0], c[1], c[2])
         gym.set_rigid_body_color(env, table_handle, 0, gymapi.MESH_VISUAL, color)
 
-        for k in range(franka_num_bodies-2):
+        for k in range(franka_num_bodies - 2):
             c = 0.5 + 0.5 * np.random.random(3)
             color = gymapi.Vec3(c[0], c[1], c[2])
             gym.set_rigid_body_color(env, franka_handle, k, gymapi.MESH_VISUAL, color)
         actor_handles.append(franka_handle)
 
     gym.prepare_sim(sim)
-    
+
     # initial hand position and orientation tensors
     init_pos = torch.Tensor(init_pos_list).view(num_envs, 3)
     init_orn = torch.Tensor(init_orn_list).view(num_envs, 4)
     if args.use_gpu_pipeline:
-        init_pos = init_pos.to('cuda:0')
-        init_orn = init_orn.to('cuda:0')
+        init_pos = init_pos.to("cuda:0")
+        init_orn = init_orn.to("cuda:0")
 
     # desired hand positions and orientations
     pos_des = init_pos.clone()
@@ -190,7 +197,7 @@ if __name__ == '__main__':
     mm = gymtorch.wrap_tensor(_massmatrix)
 
     kp = 5
-    kv = 2 * math.sqrt(kp) 
+    kv = 2 * math.sqrt(kp)
 
     # Rigid body state tensor
     _rb_states = gym.acquire_rigid_body_state_tensor(sim)
@@ -231,14 +238,17 @@ if __name__ == '__main__':
         m_inv = torch.inverse(mm)
         m_eef = torch.inverse(j_eef @ m_inv @ torch.transpose(j_eef, 1, 2))
         orn_cur /= torch.norm(orn_cur, dim=-1).unsqueeze(-1)
-        
+
         orn_err = orientation_error(orn_des, orn_cur)
-        
+
         pos_err = kp * (pos_des - pos_cur)
 
         dpose = torch.cat([pos_err, orn_err], -1)
 
-        u = torch.transpose(j_eef, 1, 2) @ m_eef @ (kp * dpose).unsqueeze(-1) - kv * mm @ dof_vel
+        u = (
+            torch.transpose(j_eef, 1, 2) @ m_eef @ (kp * dpose).unsqueeze(-1)
+            - kv * mm @ dof_vel
+        )
 
         # Set tensor action
         gym.set_dof_actuation_force_tensor(sim, gymtorch.unwrap_tensor(u))
@@ -257,4 +267,3 @@ if __name__ == '__main__':
 
     gym.destroy_viewer(viewer)
     gym.destroy_sim(sim)
-    

@@ -1,6 +1,7 @@
 """
-    Jax implementation of Robotics Transformer (RT-1 / RT-1-X)
+Jax implementation of Robotics Transformer (RT-1 / RT-1-X)
 """
+
 import enum
 from typing import Dict, Optional, Tuple
 
@@ -16,6 +17,6 @@ class VisualEncdoder(nn.Module):
 
     def setup(self) -> None:
         return super().setup()
-    
+
     def __call__(self, *args, **kwargs) -> enum.Any:
         return super().__call__(*args, **kwargs)

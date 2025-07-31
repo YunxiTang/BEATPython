@@ -8,12 +8,11 @@ import matplotlib.pyplot as plt
 import einops
 
 
-dataset_path = '/home/yxtang/CodeBase/PythonCourse/dataset/img_test.zarr'
-root = zarr.open(dataset_path, 'r')
-bgr_img = root['color_img'][:]
-depth_img = root['depth_img'][:]
-print(root['time'][:])
-
+dataset_path = "/home/yxtang/CodeBase/PythonCourse/dataset/img_test.zarr"
+root = zarr.open(dataset_path, "r")
+bgr_img = root["color_img"][:]
+depth_img = root["depth_img"][:]
+print(root["time"][:])
 
 
 sns.set_theme()
@@ -24,5 +23,3 @@ for i in range(10):
     img = img / 255
     ax[i].imshow(img)
 plt.show()
-
-

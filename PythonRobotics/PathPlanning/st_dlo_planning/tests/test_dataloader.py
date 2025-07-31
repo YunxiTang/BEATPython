@@ -2,7 +2,6 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 
-
 class DummyDataset(Dataset):
     def __init__(self):
         super().__init__()
@@ -11,13 +10,9 @@ class DummyDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
-        return {
-            'data': self.data[idx],
-            'label': self.labels[idx]
-        }
-    
+        return {"data": self.data[idx], "label": self.labels[idx]}
 
 
 dataset = DummyDataset()
@@ -28,4 +23,4 @@ for batch in dataloader:
     # print(batch['data'].shape, batch['label'].shape)
     # print(batch['data'])
     # print(batch['label'])
-    # print(batch['data'].dtype)    
+    # print(batch['data'].dtype)

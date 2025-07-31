@@ -10,40 +10,42 @@ from pprint import pprint
 
 def test1():
     ds_builder = load_dataset_builder("lerobot/pusht_image")
-    print( ds_builder.info.description )
-    print( ds_builder.info.dataset_size )
+    print(ds_builder.info.description)
+    print(ds_builder.info.dataset_size)
     for key, val in ds_builder.info.features.items():
-        print( f'{key}: {val}' )
-    print( get_dataset_split_names("lerobot/pusht_image") )
+        print(f"{key}: {val}")
+    print(get_dataset_split_names("lerobot/pusht_image"))
 
 
 def test2():
-    data_x = np.linspace(0., 10., 1000).reshape(-1, 1)
+    data_x = np.linspace(0.0, 10.0, 1000).reshape(-1, 1)
     data_y = 2 * np.sin(data_x) + 0.5
-    ds = Dataset.from_dict({"data": data_x,
-                            "label": data_y}, split='train')
-    
+    ds = Dataset.from_dict({"data": data_x, "label": data_y}, split="train")
+
     ds = ds.with_format("torch")
     for key, val in ds.info.features.items():
-        print( f'{key}: {val}' )
+        print(f"{key}: {val}")
 
     dataloader = DataLoader(ds, batch_size=4)
     for batch in dataloader:
-        print(batch['data']) 
+        print(batch["data"])
         break
 
-    ds.save_to_disk('../../dataset/hf_ds')
-    ds.to_parquet('../../dataset/hf_ds/tmp.parquet')
+    ds.save_to_disk("../../dataset/hf_ds")
+    ds.to_parquet("../../dataset/hf_ds/tmp.parquet")
 
 
 def test3():
-    data = load_dataset('YXTang/private_gdm_mj', token=True, 
-                        cache_dir='/home/yxtang/CodeBase/PythonCourse/PythonRobotics/DataManagement/dataset',
-                        split='train')
+    data = load_dataset(
+        "YXTang/private_gdm_mj",
+        token=True,
+        cache_dir="/home/yxtang/CodeBase/PythonCourse/PythonRobotics/DataManagement/dataset",
+        split="train",
+    )
     pprint(data.features)
     pprint(data[0])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # test2()
     test3()

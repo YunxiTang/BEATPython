@@ -2,9 +2,10 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
+
 class SomeModule(nn.Module):
     feature_dim: int
-    
+
     def setup(self):
         # 定义SomeModule的网络结构
         self.dense_layer = nn.Dense(self.feature_dim)
@@ -13,19 +14,21 @@ class SomeModule(nn.Module):
         # 调用SomeModule的网络
         return self.dense_layer(inputs)
 
+
 class AnotherModule(nn.Module):
     # 将SomeModule作为参数传入
     some_module: SomeModule
-    
+
     def setup(self):
         # 可以在这里执行一些初始化操作，如果需要的话
         self.fc1 = nn.Dense(1)
-    
+
     def __call__(self, inputs):
         # 使用传入的SomeModule
         x = self.some_module(inputs)
         x = self.fc1(x)
         return x
+
 
 # 创建SomeModule的实例
 some_mod = SomeModule(feature_dim=5)

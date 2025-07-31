@@ -6,9 +6,11 @@ import numpy as np
 def ca_sigmoid(x, k):
     return 1 / (1 + ca.exp(-k * x))
 
+
 # compute smooth transitions for each segment
 def ca_weight_function(t, t_i, t_next, k):
     return ca_sigmoid(t - t_i, k) * ca_sigmoid(-(t - t_next), k)
+
 
 def ca_query_point_from_path(t, waypoints, k=120):
     # Step 1: Calculate distances between consecutive waypoints
@@ -33,7 +35,9 @@ def ca_query_point_from_path(t, waypoints, k=120):
     for i in range(len(normalized_distances) - 1):
         t_i = normalized_distances[i]
         t_next = normalized_distances[i + 1]
-        point_i = waypoints[i] + (waypoints[i + 1] - waypoints[i]) * (t - t_i) / (t_next - t_i)
+        point_i = waypoints[i] + (waypoints[i + 1] - waypoints[i]) * (t - t_i) / (
+            t_next - t_i
+        )
         w_i = ca_weight_function(t, t_i, t_next, k)
         point_smooth += w_i * point_i
         weight_sum += w_i
@@ -69,7 +73,7 @@ class CasadiPathSet:
         return ca.vertcat(*dlo_shape).reshape((self.num_path, -1))
 
 
-class CasadiDloOptProblem():
+class CasadiDloOptProblem:
     def __init__(self, pathset, k1: float, k2: float):
         self.pathset = pathset
         self.k1 = k1
@@ -79,9 +83,9 @@ class CasadiDloOptProblem():
         self.num_path = pathset.num_path
         self.seg_len = pathset.seg_len
         self.N = (self.T + 1) * self.num_path
-        
+
         self._build_problem()
-    
+
     def _build_problem(self):
         x = ca.MX.sym("x", self.N)
         sigmas = ca.reshape(x, (self.T + 1, self.num_path))
@@ -105,15 +109,19 @@ class CasadiDloOptProblem():
             cons.append(sigmas[t + 1, :] - sigmas[t, :])
 
         self.g = ca.vertcat(*cons)
-        self.nlp = {'x': x, 'f': self.obj, 'g': self.g}
-        self.solver = ca.nlpsol('solver', 'ipopt', self.nlp, {
-            'ipopt.print_level': 0,
-            'print_time': False,
-            'ipopt.tol': 1e-4,
-            'ipopt.max_iter': 500,
-        })
-        
-        
+        self.nlp = {"x": x, "f": self.obj, "g": self.g}
+        self.solver = ca.nlpsol(
+            "solver",
+            "ipopt",
+            self.nlp,
+            {
+                "ipopt.print_level": 0,
+                "print_time": False,
+                "ipopt.tol": 1e-4,
+                "ipopt.max_iter": 500,
+            },
+        )
+
     def solve(self, x0):
         lbx = [0] * self.N
         ubx = [1] * self.N
@@ -122,4 +130,4 @@ class CasadiDloOptProblem():
         ubg = [0.0] * self.g.shape[0]  # exact equality and >= 0
 
         sol = self.solver(x0=x0, lbx=lbx, ubx=ubx, lbg=lbg, ubg=ubg)
-        return sol['x'].full().reshape((self.T + 1, self.num_path))
+        return sol["x"].full().reshape((self.T + 1, self.num_path))

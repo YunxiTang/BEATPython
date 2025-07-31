@@ -10,7 +10,7 @@ import jax.numpy as jnp
 
 
 # simulate 8 CPU devices
-os.environ["XLA_FLAGS"] = '--xla_force_host_platform_device_count=8'
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
 
 def perceptron(x: jax.Array, w: jax.Array, b: jax.Array) -> jax.Array:
@@ -19,18 +19,26 @@ def perceptron(x: jax.Array, w: jax.Array, b: jax.Array) -> jax.Array:
     print("Local b shape", b.shape)
     out = x @ w + b
     out = nn.tanh(out)
-    out = jax.lax.psum( out, axis_name='i')
+    out = jax.lax.psum(out, axis_name="i")
     print("Local out shape: ", out.shape)
     return out
 
+
 # ======================
 devices = jax.devices()
-mesh = Mesh(devices, axis_names=['i',])
+mesh = Mesh(
+    devices,
+    axis_names=[
+        "i",
+    ],
+)
 
-partial_shard_map = partial(shard_map, 
-                            mesh=mesh, 
-                            in_specs=(PartitionSpec("i"), PartitionSpec(), PartitionSpec()), 
-                            out_specs=PartitionSpec())
+partial_shard_map = partial(
+    shard_map,
+    mesh=mesh,
+    in_specs=(PartitionSpec("i"), PartitionSpec(), PartitionSpec()),
+    out_specs=PartitionSpec(),
+)
 
 perceptron_shard = partial_shard_map(perceptron)
 
@@ -49,5 +57,3 @@ b_sharded = jax.device_put(b, NamedSharding(mesh, PartitionSpec()))
 out = perceptron_shard(x_sharded, w_sharded, b_sharded)
 print(out.shape)
 jax.debug.visualize_array_sharding(out)
-
-

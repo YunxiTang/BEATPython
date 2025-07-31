@@ -2,7 +2,10 @@
 import torch
 
 # cuRobo
-from curobo.cuda_robot_model.cuda_robot_model import CudaRobotModel, CudaRobotModelConfig
+from curobo.cuda_robot_model.cuda_robot_model import (
+    CudaRobotModel,
+    CudaRobotModelConfig,
+)
 from curobo.types.base import TensorDeviceType
 from curobo.types.robot import RobotConfig
 from curobo.util_file import get_robot_path, join_path, load_yaml

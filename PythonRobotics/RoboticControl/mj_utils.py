@@ -3,35 +3,39 @@ import numpy as np
 import glfw
 from typing import Union, List
 
+
 ########### mujoco wrapped math utils ######
 def aa2quat(axis: Union[List, np.ndarray], angle: float):
-    '''
-        convert axis angle into unit quaternion in order of (`qw, qx, qy, qz`)
+    """
+    convert axis angle into unit quaternion in order of (`qw, qx, qy, qz`)
 
-        Args:
+    Args:
 
-            axis (Union[List, np.ndarray]): `[x, y, z]`
+        axis (Union[List, np.ndarray]): `[x, y, z]`
 
-            angle (float): in radian
-    '''
+        angle (float): in radian
+    """
     if isinstance(axis, List):
         axis_angle = np.array([axis[0], axis[1], axis[2], angle])
     else:
         axis_angle = np.concatenate([axis, angle])
 
-    quat = np.array([1., 0., 0., 0.])
+    quat = np.array([1.0, 0.0, 0.0, 0.0])
     mujoco.mju_axisAngle2Quat(quat, axis_angle[0:3], axis_angle[3])
     return quat.copy()
 
+
 ########### mujoco utils ##########
-class InteractiveRender():
-    def __init__(self, 
-                model: mj.MjModel,
-                width: int = 1200,
-                height: int = 900,
-                max_geom: int = 5000,
-                render_contact: bool = False,
-                render_frame: bool = False):
+class InteractiveRender:
+    def __init__(
+        self,
+        model: mj.MjModel,
+        width: int = 1200,
+        height: int = 900,
+        max_geom: int = 5000,
+        render_contact: bool = False,
+        render_frame: bool = False,
+    ):
         # For callback functions
         self.button_left = False
         self.button_middle = False
@@ -40,9 +44,9 @@ class InteractiveRender():
         self.lasty = 0
 
         # MuJoCo data structures
-        self.model = model            # MuJoCo model
-        self.cam = mj.MjvCamera()     # Abstract camera
-        self.opt = mj.MjvOption()     # visualization options
+        self.model = model  # MuJoCo model
+        self.cam = mj.MjvCamera()  # Abstract camera
+        self.opt = mj.MjvOption()  # visualization options
 
         # Init GLFW, create window, make OpenGL context current, request v-sync
         glfw.init()
@@ -53,7 +57,7 @@ class InteractiveRender():
         # initialize visualization data structures
         mj.mjv_defaultCamera(self.cam)
         mj.mjv_defaultOption(self.opt)
-        
+
         if render_contact:
             self.opt.flags[mj.mjtVisFlag.mjVIS_CONTACTPOINT] = True
             self.opt.flags[mj.mjtVisFlag.mjVIS_CONTACTFORCE] = True
@@ -66,8 +70,7 @@ class InteractiveRender():
             self.opt.frame = mj.mjtFrame.mjFRAME_WORLD
 
         self.scene = mj.MjvScene(self.model, maxgeom=max_geom)
-        self.context = mj.MjrContext(
-            self.model, mj.mjtFontScale.mjFONTSCALE_150.value)
+        self.context = mj.MjrContext(self.model, mj.mjtFontScale.mjFONTSCALE_150.value)
 
         # install GLFW mouse and keyboard callbacks
         glfw.set_key_callback(self.window, self.keyboard)
@@ -82,12 +85,15 @@ class InteractiveRender():
 
     def mouse_button(self, window, button, act, mods):
         # update button state
-        self.button_left = (glfw.get_mouse_button(
-            window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS)
-        self.button_middle = (glfw.get_mouse_button(
-            window, glfw.MOUSE_BUTTON_MIDDLE) == glfw.PRESS)
-        self.button_right = (glfw.get_mouse_button(
-            window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS)
+        self.button_left = (
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS
+        )
+        self.button_middle = (
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_MIDDLE) == glfw.PRESS
+        )
+        self.button_right = (
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS
+        )
 
         # update mouse position
         glfw.get_cursor_pos(window)
@@ -100,18 +106,20 @@ class InteractiveRender():
         self.lasty = ypos
 
         # no buttons down: nothing to do
-        if (not self.button_left) and (not self.button_middle) and (not self.button_right):
+        if (
+            (not self.button_left)
+            and (not self.button_middle)
+            and (not self.button_right)
+        ):
             return
 
         # get current window size
         width, height = glfw.get_window_size(window)
 
         # get shift key state
-        PRESS_LEFT_SHIFT = glfw.get_key(
-            window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
-        PRESS_RIGHT_SHIFT = glfw.get_key(
-            window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS
-        mod_shift = (PRESS_LEFT_SHIFT or PRESS_RIGHT_SHIFT)
+        PRESS_LEFT_SHIFT = glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
+        PRESS_RIGHT_SHIFT = glfw.get_key(window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS
+        mod_shift = PRESS_LEFT_SHIFT or PRESS_RIGHT_SHIFT
 
         # determine action based on mouse button
         if self.button_right:
@@ -127,24 +135,32 @@ class InteractiveRender():
         else:
             action = mj.mjtMouse.mjMOUSE_ZOOM
 
-        mj.mjv_moveCamera(self.model, action, dx/height,
-                          dy/height, self.scene, self.cam)
+        mj.mjv_moveCamera(
+            self.model, action, dx / height, dy / height, self.scene, self.cam
+        )
 
     def scroll(self, window, xoffset, yoffset):
         action = mj.mjtMouse.mjMOUSE_ZOOM
-        mj.mjv_moveCamera(self.model, action, 0.0, -0.05 *
-                          yoffset, self.scene, self.cam)
+        mj.mjv_moveCamera(
+            self.model, action, 0.0, -0.05 * yoffset, self.scene, self.cam
+        )
 
     def render(self, data: mj.MjData):
         if not glfw.window_should_close(self.window):
             # get framebuffer viewport
-            viewport_width, viewport_height = glfw.get_framebuffer_size(
-                self.window)
+            viewport_width, viewport_height = glfw.get_framebuffer_size(self.window)
             viewport = mj.MjrRect(0, 0, viewport_width, viewport_height)
 
             # Update scene and render
-            mj.mjv_updateScene(self.model, data, self.opt, None, self.cam,
-                               mj.mjtCatBit.mjCAT_ALL.value, self.scene)
+            mj.mjv_updateScene(
+                self.model,
+                data,
+                self.opt,
+                None,
+                self.cam,
+                mj.mjtCatBit.mjCAT_ALL.value,
+                self.scene,
+            )
             mj.mjr_render(viewport, self.scene, self.context)
 
             # swap OpenGL buffers (blocking call due to v-sync)
@@ -157,6 +173,7 @@ class InteractiveRender():
 
     def close(self):
         glfw.terminate()
+
 
 ########### mujoco-developed renderer ##########
 """A utility class to collect render frames from a function that computes a single frame."""
@@ -210,8 +227,8 @@ class Renderer:
 
     def render_step(self) -> None:
         """
-            Computes a frame and save it to the render collection list.
-            This method should be usually called inside environment's step and reset method.
+        Computes a frame and save it to the render collection list.
+        This method should be usually called inside environment's step and reset method.
         """
         if self.mode is not None and self.mode not in self.single_render:
             render_return = self.render(self.mode)
@@ -235,7 +252,8 @@ class Renderer:
         """
         self.render_list = []
 
-#==============================================
+
+# ==============================================
 import collections
 import os
 import time
@@ -249,16 +267,19 @@ import numpy as np
 
 def _import_egl(width, height):
     from mujoco.egl import GLContext
+
     return GLContext(width, height)
 
 
 def _import_glfw(width, height):
     from mujoco.glfw import GLContext
+
     return GLContext(width, height)
 
 
 def _import_osmesa(width, height):
     from mujoco.osmesa import GLContext
+
     return GLContext(width, height)
 
 
@@ -275,7 +296,6 @@ class RenderContext:
     """Render context superclass for offscreen and window rendering."""
 
     def __init__(self, model, data, offscreen=True):
-
         self.model = model
         self.data = data
         self.offscreen = offscreen
@@ -314,7 +334,7 @@ class RenderContext:
 
     def render(self, width, height, camera_id=None, segmentation=False):
         rect = mujoco.MjrRect(left=0, bottom=0, width=width, height=height)
-        
+
         # # Sometimes buffers are too small.
         # if width > self.con.offWidth or height > self.con.offHeight:
         #     new_width = max(width, self.model.vis.global_.offwidth)
@@ -373,9 +393,9 @@ class RenderContext:
         ret_img = rgb_img
         if segmentation:
             seg_img = (
-                    rgb_img[:, :, 0]
-                    + rgb_img[:, :, 1] * (2 ** 8)
-                    + rgb_img[:, :, 2] * (2 ** 16)
+                rgb_img[:, :, 0]
+                + rgb_img[:, :, 1] * (2**8)
+                + rgb_img[:, :, 2] * (2**16)
             )
             seg_img[seg_img >= (self.scn.ngeom + 1)] = 0
             seg_ids = np.full((self.scn.ngeom + 1, 2), fill_value=-1, dtype=np.int32)
@@ -467,7 +487,6 @@ class RenderContextOffscreen(RenderContext):
     """Offscreen rendering class with opengl context."""
 
     def __init__(self, width, height, model, data):
-
         self._get_opengl_backend(width, height)
         self.opengl_context.make_current()
         # self.ctx = mujoco.GLContext(width, height)
@@ -476,7 +495,6 @@ class RenderContextOffscreen(RenderContext):
         super().__init__(model, data, offscreen=True)
 
     def _get_opengl_backend(self, width, height):
-
         backend = os.environ.get("MUJOCO_GL")
         if backend is not None:
             try:
@@ -618,8 +636,8 @@ class Viewer(RenderContext):
             return
 
         mod_shift = (
-                glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
-                or glfw.get_key(window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS
+            glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
+            or glfw.get_key(window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS
         )
         if self._button_right_pressed:
             action = (
@@ -650,10 +668,10 @@ class Viewer(RenderContext):
 
     def _mouse_button_callback(self, window, button, act, mods):
         self._button_left_pressed = (
-                glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS
         )
         self._button_right_pressed = (
-                glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS
         )
 
         x, y = glfw.get_cursor_pos(window)
@@ -766,7 +784,7 @@ class Viewer(RenderContext):
                 glfw.swap_buffers(self.window)
             glfw.poll_events()
             self._time_per_render = 0.9 * self._time_per_render + 0.1 * (
-                    time.time() - render_start
+                time.time() - render_start
             )
 
             # clear overlay
@@ -780,7 +798,7 @@ class Viewer(RenderContext):
                     break
         else:
             self._loop_count += self.model.opt.timestep / (
-                    self._time_per_render * self._run_speed
+                self._time_per_render * self._run_speed
             )
             if self._render_every_frame:
                 self._loop_count = 1
@@ -794,9 +812,3 @@ class Viewer(RenderContext):
     def close(self):
         glfw.destroy_window(self.window)
         glfw.terminate()
-
-
-
-
-
-

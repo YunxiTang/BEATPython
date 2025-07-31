@@ -9,17 +9,17 @@ class Vertex:
 
     def get_id(self):
         return self._id
-    
+
     def set_neighbor_weight(self, neighbor, weight=0):
         self._adjacent[neighbor] = weight
 
     def get_weight(self, neighbor):
         return self._adjacent[neighbor]
-    
+
     def get_neighbors(self):
         return self._adjacent.keys()
-    
 
-if __name__ == '__main__':
-    x = np.array([1.,2.])
+
+if __name__ == "__main__":
+    x = np.array([1.0, 2.0])
     vrtx = Vertex(x)

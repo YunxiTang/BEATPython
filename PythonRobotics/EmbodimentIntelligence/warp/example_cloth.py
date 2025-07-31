@@ -29,7 +29,10 @@ import warp.sim.render
 
 @wp.kernel
 def twist_points(
-    rest: wp.array(dtype=wp.vec3), points: wp.array(dtype=wp.vec3), mass: wp.array(dtype=float), xform: wp.transform
+    rest: wp.array(dtype=wp.vec3),
+    points: wp.array(dtype=wp.vec3),
+    mass: wp.array(dtype=float),
+    xform: wp.transform,
 ):
     tid = wp.tid()
 
@@ -43,7 +46,11 @@ def twist_points(
 
 
 @wp.kernel
-def compute_volume(points: wp.array(dtype=wp.vec3), indices: wp.array2d(dtype=int), volume: wp.array(dtype=float)):
+def compute_volume(
+    points: wp.array(dtype=wp.vec3),
+    indices: wp.array2d(dtype=int),
+    volume: wp.array(dtype=float),
+):
     tid = wp.tid()
 
     i = indices[tid, 0]
@@ -117,7 +124,9 @@ class Example:
         self.volume = wp.zeros(1, dtype=wp.float32)
 
         if stage_path:
-            self.renderer = wp.sim.render.SimRenderer(self.model, stage_path, scaling=20.0)
+            self.renderer = wp.sim.render.SimRenderer(
+                self.model, stage_path, scaling=20.0
+            )
         else:
             self.renderer = None
 
@@ -132,7 +141,9 @@ class Example:
             self.state_0.clear_forces()
             self.state_1.clear_forces()
 
-            self.integrator.simulate(self.model, self.state_0, self.state_1, self.sim_dt)
+            self.integrator.simulate(
+                self.model, self.state_0, self.state_1, self.sim_dt
+            )
 
             # swap states
             (self.state_0, self.state_1) = (self.state_1, self.state_0)
@@ -141,12 +152,19 @@ class Example:
         with wp.ScopedTimer("step"):
             xform = wp.transform(
                 (0.0, self.lift_speed * self.sim_time, 0.0),
-                wp.quat_from_axis_angle(wp.vec3(0.0, 1.0, 0.0), self.rot_speed * self.sim_time),
+                wp.quat_from_axis_angle(
+                    wp.vec3(0.0, 1.0, 0.0), self.rot_speed * self.sim_time
+                ),
             )
             wp.launch(
                 kernel=twist_points,
                 dim=len(self.state_0.particle_q),
-                inputs=[self.rest.particle_q, self.state_0.particle_q, self.model.particle_mass, xform],
+                inputs=[
+                    self.rest.particle_q,
+                    self.state_0.particle_q,
+                    self.model.particle_mass,
+                    xform,
+                ],
             )
             if self.use_cuda_graph:
                 wp.capture_launch(self.graph)
@@ -173,15 +191,21 @@ class Example:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--device", type=str, default=None, help="Override the default Warp device.")
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "--device", type=str, default=None, help="Override the default Warp device."
+    )
     parser.add_argument(
         "--stage_path",
         type=lambda x: None if x == "None" else str(x),
         default="example_soft_body.usd",
         help="Path to the output USD file.",
     )
-    parser.add_argument("--num_frames", type=int, default=300, help="Total number of frames.")
+    parser.add_argument(
+        "--num_frames", type=int, default=300, help="Total number of frames."
+    )
 
     args = parser.parse_known_args()[0]
 
