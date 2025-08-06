@@ -1,6 +1,7 @@
 import warp as wp
 import numpy as np
 import torch
+import time
 
 wp.init()
 
@@ -66,6 +67,9 @@ if __name__ == '__main__':
     
     current_device = wp.get_device()
     print(current_device)
-    out = wp.zeros([20,], dtype=int)
-    wp.launch(range_fill_kernel, dim=20, inputs=[], outputs=[out])
-    print(out)
+    out = wp.zeros([2000,], dtype=int)
+    ts = time.time()
+    for i in range(10):
+        wp.launch(range_fill_kernel, dim=2000, inputs=[], outputs=[out])
+    te = time.time() - ts
+    print(te)

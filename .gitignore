@@ -136,3 +136,5 @@ outputs/
 *.pkl
 *.mp4
 .ckpt
+data/
+output/

@@ -1,25 +1,20 @@
 from __future__ import annotations
 
 import time
-from typing import Literal
 
 import numpy as np
-# import tyro
-from robot_descriptions.loaders.yourdfpy import load_robot_description
 
 import viser
+# import yourdfpy
 from viser.extras import ViserUrdf
+from pathlib import Path
+import tyro
 
 
-def create_robot_control_sliders(
-    server: viser.ViserServer, viser_urdf: ViserUrdf
-) -> tuple[list[viser.GuiInputHandle[float]], list[float]]:
+def create_robot_control_sliders(server: viser.ViserServer, viser_urdf: ViserUrdf) -> tuple[list[viser.GuiInputHandle[float]], list[float]]:
     slider_handles: list[viser.GuiInputHandle[float]] = []
     initial_config: list[float] = []
-    for joint_name, (
-        lower,
-        upper,
-    ) in viser_urdf.get_actuated_joint_limits().items():
+    for joint_name, (lower,upper,) in viser_urdf.get_actuated_joint_limits().items():
         lower = lower if lower is not None else -np.pi
         upper = upper if upper is not None else np.pi
         initial_pos = 0.0 if lower < -0.1 and upper > 0.1 else (lower + upper) / 2.0
@@ -40,39 +35,16 @@ def create_robot_control_sliders(
     return slider_handles, initial_config
 
 
-def main(
-    robot_type: Literal[
-        "panda",
-        "ur10",
-        "cassie",
-        "allegro_hand",
-        "barrett_hand",
-        "robotiq_2f85",
-        "atlas_drc",
-        "g1",
-        "h1",
-        "anymal_c",
-        "go2",
-    ] = "panda",
-    load_meshes: bool = True,
-    load_collision_meshes: bool = False,
-) -> None:
+def main(load_meshes: bool = True, load_collision_meshes: bool = False) -> None:
     # Start viser server.
     server = viser.ViserServer()
 
-    # Load URDF.
-    #
-    # This takes either a yourdfpy.URDF object or a path to a .urdf file.
-    urdf = load_robot_description(
-        robot_type + "_description",
-        load_meshes=load_meshes,
-        build_scene_graph=load_meshes,
-        load_collision_meshes=load_collision_meshes,
-        build_collision_scene_graph=load_collision_meshes,
-    )
+    # Load URDF path to a .urdf file.
+    robot_urdf = Path('/home/tyx/CodeBase/BEATPython/PythonRobotics/RobotSim/assets/urdf/anymal_b_simple_description/urdf/anymal.urdf')
+    
     viser_urdf = ViserUrdf(
         server,
-        urdf_or_path=urdf,
+        urdf_or_path=robot_urdf,
         load_meshes=load_meshes,
         load_collision_meshes=load_collision_meshes,
         collision_mesh_color_override=(1.0, 0.0, 0.0, 0.5),
@@ -137,5 +109,5 @@ def main(
 
 
 if __name__ == "__main__":
-    # tyro.cli(main)
-    main()
+    tyro.cli(main)
+    # main()
