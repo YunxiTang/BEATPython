@@ -1046,4 +1046,5 @@ def main():
 
 
 if __name__ == "__main__":
+    wp.clear_kernel_cache()
     main()
