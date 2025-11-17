@@ -4,30 +4,34 @@ from torch.nn import functional as F
 import math
 from einops import reduce, rearrange
 from einops.layers.torch import Rearrange
-from st_dlo_planning.neural_mpc_tracker.configuration_gdm import GDM_CFG, RNN_GDM_CFG, CONV_GDM_CFG
+from st_dlo_planning.neural_mpc_tracker.configuration_gdm import (
+    GDM_CFG,
+    RNN_GDM_CFG,
+    CONV_GDM_CFG,
+)
 
 
 class LayerNorm(nn.Module):
-    """ LayerNorm but with an optional bias. 
-        PyTorch doesn't support simply bias=False 
+    """LayerNorm but with an optional bias.
+    PyTorch doesn't support simply bias=False
     """
 
-    def __init__(self, ndim, bias: bool=True):
+    def __init__(self, ndim, bias: bool = True):
         super(LayerNorm, self).__init__()
         self.weight = nn.Parameter(torch.ones(ndim))
         self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None
 
     def forward(self, input):
         return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)
-    
-    
+
+
 class MLP(nn.Module):
-    def __init__(self, embed_dim:int):
+    def __init__(self, embed_dim: int):
         super().__init__()
         self.c_fc = nn.Linear(embed_dim, 2 * embed_dim)
-        self.gelu = nn.GELU(approximate='tanh')
+        self.gelu = nn.GELU(approximate="tanh")
         self.c_proj = nn.Linear(2 * embed_dim, embed_dim)
-        
+
     def forward(self, x):
         x = self.c_fc(x)
         x = self.gelu(x)
@@ -36,139 +40,155 @@ class MLP(nn.Module):
 
 
 class MultiheadAttention(nn.Module):
-    '''
-        multi-head attention module
-    '''
-    def __init__(self, embed_dim, nhead, dropout: float=0.0, bias: bool = True):
+    """
+    multi-head attention module
+    """
+
+    def __init__(self, embed_dim, nhead, dropout: float = 0.0, bias: bool = True):
         super(MultiheadAttention, self).__init__()
         assert embed_dim % nhead == 0
         self.embed_dim = embed_dim
         self.nhead = nhead
         self.head_dim = embed_dim // nhead
-        
+
         # q, k, v projections
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias)
         self.k_proj = nn.Linear(embed_dim, embed_dim, bias)
         self.v_proj = nn.Linear(embed_dim, embed_dim, bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias)
-        
+
         # regularization
         self.dropout = dropout
         self.attn_dropout = nn.Dropout(self.dropout)
-        
+
         # optimize attention computation
-        self.use_flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-        
+        self.use_flash = hasattr(torch.nn.functional, "scaled_dot_product_attention")
+
     def forward(self, q, k, v, attn_mask=None):
-        '''
-            attn_mask: position with 0 will be masked out in attention weight matrix
-        '''
+        """
+        attn_mask: position with 0 will be masked out in attention weight matrix
+        """
         batch_size, q_seq_len, embed_dim = q.size()
         k_seq_len = k.shape[1]
-        v_seq_len = v.shape[1]        
+        v_seq_len = v.shape[1]
         # project query, key, and value
         Q = self.q_proj(q)  # (batch_size, q_seq_length, embed_dim)
         K = self.k_proj(k)  # (batch_size, k_seq_length, embed_dim)
         V = self.v_proj(v)  # (batch_size, v_seq_length, embed_dim)
-        
+
         # Split into heads and reshape for scaled_dot_product_attention
         Q = Q.view(batch_size, q_seq_len, self.nhead, self.head_dim).transpose(1, 2)
         K = K.view(batch_size, k_seq_len, self.nhead, self.head_dim).transpose(1, 2)
         V = V.view(batch_size, v_seq_len, self.nhead, self.head_dim).transpose(1, 2)
         # (batch_size, num_heads, seq_length, head_dim)
-        
+
         if self.use_flash:
             # using Flash Attention (FA) implementation
             if attn_mask is not None:
-                attn_mask = attn_mask.masked_fill(attn_mask == 0., float('-inf'))
-            y = torch.nn.functional.scaled_dot_product_attention(Q, K, V, 
-                                                                 attn_mask=attn_mask,
-                                                                 dropout_p=self.dropout if self.training else 0)
-            
+                attn_mask = attn_mask.masked_fill(attn_mask == 0.0, float("-inf"))
+            y = torch.nn.functional.scaled_dot_product_attention(
+                Q,
+                K,
+                V,
+                attn_mask=attn_mask,
+                dropout_p=self.dropout if self.training else 0,
+            )
+
         else:
             # using Native Attention (NA) implementation
             att = (Q @ K.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_dim))
             if attn_mask is not None:
-                att = att.masked_fill(attn_mask == 0, float('-inf'))
+                att = att.masked_fill(attn_mask == 0, float("-inf"))
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
-            y = att @ V # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-            
+            y = att @ V  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+
         y = y.transpose(1, 2).contiguous().view(batch_size, q_seq_len, embed_dim)
         output = self.out_proj(y)
         return output
 
 
 class MultiheadSelfAttention(nn.Module):
-    def __init__(self, embed_dim:int, nhead:int, dropout: float=0., bias: bool=True):
+    def __init__(
+        self, embed_dim: int, nhead: int, dropout: float = 0.0, bias: bool = True
+    ):
         super().__init__()
         assert embed_dim % nhead == 0
         self.attn_layer = MultiheadAttention(embed_dim, nhead, dropout, bias)
-        
+
     def forward(self, x):
         y = self.attn_layer(x, x, x)
         return y
-    
+
 
 class SABlock(nn.Module):
-    '''
-        self-attention (SA) block with pre-norm style
-    '''
+    """
+    self-attention (SA) block with pre-norm style
+    """
+
     def __init__(self, embed_dim, nhead):
         super(SABlock, self).__init__()
         self.ln_1 = LayerNorm(embed_dim)
         self.attn = MultiheadSelfAttention(embed_dim, nhead)
         self.ln_2 = LayerNorm(embed_dim)
         self.mlp = MLP(embed_dim)
-        
+
     def forward(self, x):
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x
-    
+
+
 class CABlock(nn.Module):
-    '''
-        cross-attention block
-    '''
+    """
+    cross-attention block
+    """
+
     def __init__(self, embed_dim, nhead):
         super(CABlock, self).__init__()
         self.ln_1 = LayerNorm(embed_dim)
         self.attn = MultiheadAttention(embed_dim, nhead)
         self.ln_2 = LayerNorm(embed_dim)
         self.mlp = MLP(embed_dim)
-        
+
     def forward(self, q, k, v):
         q = self.ln_1(q)
         k = self.ln_1(k)
         v = self.ln_1(v)
-        
+
         x = q + self.attn(q, k, v)
         x = x + self.mlp(self.ln_2(x))
         return x
 
+
 class KeypointEmbedding(nn.Module):
-    '''
-        Keypoint embedding with conv1d + group_norm
-    '''
-    def __init__(self, 
-                 in_channels:int = 2, 
-                 embed_dim:int = 64,
-                 kernel_size:int = 1,
-                 ngroup:int = 4):
+    """
+    Keypoint embedding with conv1d + group_norm
+    """
+
+    def __init__(
+        self,
+        in_channels: int = 2,
+        embed_dim: int = 64,
+        kernel_size: int = 1,
+        ngroup: int = 4,
+    ):
         super(KeypointEmbedding, self).__init__()
         self.in_channels = in_channels
         self.embed_dim = embed_dim
-        self.conv1d = nn.Conv1d(in_channels=in_channels, 
-                                out_channels=embed_dim, 
-                                kernel_size=kernel_size, 
-                                padding='same')
+        self.conv1d = nn.Conv1d(
+            in_channels=in_channels,
+            out_channels=embed_dim,
+            kernel_size=kernel_size,
+            padding="same",
+        )
         self.gn = nn.GroupNorm(num_groups=ngroup, num_channels=embed_dim)
 
     def forward(self, keypoints: torch.Tensor):
-        '''
-            input:
-                keypoints: [batch_size, num_keypoints, kp_dim]
-        '''
+        """
+        input:
+            keypoints: [batch_size, num_keypoints, kp_dim]
+        """
         keypoints = keypoints.permute(0, 2, 1)
         conv_output = self.conv1d(keypoints)
         conv_output = self.gn(conv_output)
@@ -181,20 +201,27 @@ class DLOEncoder(nn.Module):
         super(DLOEncoder, self).__init__()
         self.transformer = nn.ModuleDict(
             dict(
-                kp_embed_layer = KeypointEmbedding(in_channels=model_cfg.kp_dim, 
-                                                   embed_dim=model_cfg.embed_dim, 
-                                                   kernel_size=model_cfg.conv1d_kernel_size,
-                                                   ngroup=model_cfg.conv1d_ngroup),
-                pe = nn.Embedding(model_cfg.max_kp, model_cfg.embed_dim),
-                h = nn.ModuleList([SABlock(model_cfg.embed_dim, model_cfg.nhead) for _ in range(model_cfg.num_layers)]),
-                ln_f = LayerNorm(model_cfg.embed_dim)
+                kp_embed_layer=KeypointEmbedding(
+                    in_channels=model_cfg.kp_dim,
+                    embed_dim=model_cfg.embed_dim,
+                    kernel_size=model_cfg.conv1d_kernel_size,
+                    ngroup=model_cfg.conv1d_ngroup,
+                ),
+                pe=nn.Embedding(model_cfg.max_kp, model_cfg.embed_dim),
+                h=nn.ModuleList(
+                    [
+                        SABlock(model_cfg.embed_dim, model_cfg.nhead)
+                        for _ in range(model_cfg.num_layers)
+                    ]
+                ),
+                ln_f=LayerNorm(model_cfg.embed_dim),
             )
         )
-        
+
     def forward(self, x: torch.Tensor):
-        '''
-            x: in shape of [batch_size, seq_len, x_dim]
-        '''
+        """
+        x: in shape of [batch_size, seq_len, x_dim]
+        """
         seq_len = x.shape[1]
         x = self.transformer.kp_embed_layer(x)
         # add positional embedding
@@ -205,53 +232,59 @@ class DLOEncoder(nn.Module):
             x = block(x)
         x = self.transformer.ln_f(x)
         return x
-    
-    
+
+
 class GDM(nn.Module):
     def __init__(self, model_cfg: GDM_CFG):
-        '''
-            global deformation model
-        '''
+        """
+        global deformation model
+        """
         super(GDM, self).__init__()
         self.dlo_encoder = DLOEncoder(model_cfg)
-        
+
         self.eef_proj = nn.Linear(model_cfg.eef_dim, model_cfg.embed_dim)
         self.delta_eef_proj = nn.Linear(model_cfg.delta_eef_dim, model_cfg.embed_dim)
 
         self.eef_pe = nn.Embedding(model_cfg.num_eef, model_cfg.embed_dim)
-        
-        self.ca_decoder = CABlock(model_cfg.embed_dim, model_cfg.nhead)
-        
-        self.delta_kp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
-                                          nn.GELU(approximate='tanh'),
-                                          nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
-        total_params = sum(p.numel() for p in self.parameters() if p.requires_grad) / 1000000.
-        print(f"Total number of learnable parameters: {total_params}M")
 
+        self.ca_decoder = CABlock(model_cfg.embed_dim, model_cfg.nhead)
+
+        self.delta_kp_head = nn.Sequential(
+            nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
+            nn.GELU(approximate="tanh"),
+            nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim),
+        )
+        total_params = (
+            sum(p.numel() for p in self.parameters() if p.requires_grad) / 1000000.0
+        )
+        print(f"Total number of learnable parameters: {total_params}M")
 
     def local_transform(self, dlo_kp, eef_states):
         batch_size = dlo_kp.shape[0]
-        
+
         dlo_kp_center = torch.mean(dlo_kp, dim=1, keepdim=True)
         local_dlo_kp = dlo_kp - dlo_kp_center
 
-        tmp = torch.concatenate([dlo_kp_center, torch.zeros(batch_size, 1, 1, device=dlo_kp.device)], dim=2)
+        tmp = torch.concatenate(
+            [dlo_kp_center, torch.zeros(batch_size, 1, 1, device=dlo_kp.device)], dim=2
+        )
         local_eef_states = eef_states - tmp
 
-        return local_dlo_kp, local_eef_states                                                  
-
+        return local_dlo_kp, local_eef_states
 
     def forward(self, dlo_kp, eef_states, delta_eef_states):
-        '''
-            dlo_kp: in shape of (batch_size, kp_num, kp_dim)
-            eef_states: in shape of (batch_size, eef_num, eef_dim)
-            delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
-        '''
+        """
+        dlo_kp: in shape of (batch_size, kp_num, kp_dim)
+        eef_states: in shape of (batch_size, eef_num, eef_dim)
+        delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
+        """
         dlo_kp, eef_states = self.local_transform(dlo_kp, eef_states)
         q = self.dlo_encoder(dlo_kp)
         k = self.eef_proj(eef_states)
         # add positional embedding for eefs
-        pos = torch.arange(0, k.shape[1], device=dlo_kp.device, dtype=torch.long).unsqueeze(0)
+        pos = torch.arange(
+            0, k.shape[1], device=dlo_kp.device, dtype=torch.long
+        ).unsqueeze(0)
         eef_pos_emb = self.eef_pe(pos)
         k = k + 0.01 * eef_pos_emb
 
@@ -260,19 +293,20 @@ class GDM(nn.Module):
         z = self.ca_decoder(q, k, v)
         predicts = self.delta_kp_head(z)
         return predicts
-    
+
 
 # ===================================== CNN1D ===========================
 class Conv1dBlock(nn.Module):
-    
     def __init__(self, inp_channels, out_channels, kernel_size, n_groups=8):
-        '''
-            Conv1d --> GroupNorm --> Mish (only change channels)
-        '''
+        """
+        Conv1d --> GroupNorm --> Mish (only change channels)
+        """
         super().__init__()
 
         self.block = nn.Sequential(
-            nn.Conv1d(inp_channels, out_channels, kernel_size, padding=kernel_size // 2),
+            nn.Conv1d(
+                inp_channels, out_channels, kernel_size, padding=kernel_size // 2
+            ),
             # Rearrange('batch channels horizon -> batch channels 1 horizon'),
             nn.GroupNorm(n_groups, out_channels),
             # Rearrange('batch channels 1 horizon -> batch channels horizon'),
@@ -281,26 +315,30 @@ class Conv1dBlock(nn.Module):
 
     def forward(self, x):
         return self.block(x)
-    
+
 
 class ConditionalResidualBlock1D(nn.Module):
-    '''
-        conditional residual block (the channel_dim could be changed)
-    '''
-    def __init__(self, 
-            in_channels, 
-            out_channels, 
-            cond_dim,
-            kernel_size=3,
-            n_groups=8,
-            cond_predict_scale=True):
-        
+    """
+    conditional residual block (the channel_dim could be changed)
+    """
+
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        cond_dim,
+        kernel_size=3,
+        n_groups=8,
+        cond_predict_scale=True,
+    ):
         super().__init__()
 
-        self.blocks = nn.ModuleList([
-            Conv1dBlock(in_channels, out_channels, kernel_size, n_groups=n_groups),
-            Conv1dBlock(out_channels, out_channels, kernel_size, n_groups=n_groups),
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                Conv1dBlock(in_channels, out_channels, kernel_size, n_groups=n_groups),
+                Conv1dBlock(out_channels, out_channels, kernel_size, n_groups=n_groups),
+            ]
+        )
 
         # FiLM modulation https://arxiv.org/abs/1709.07871
         # predicts per-channel scale and bias
@@ -312,27 +350,30 @@ class ConditionalResidualBlock1D(nn.Module):
         self.cond_encoder = nn.Sequential(
             nn.Mish(),
             nn.Linear(cond_dim, cond_channels),
-            Rearrange('batch t -> batch t 1'),
+            Rearrange("batch t -> batch t 1"),
         )
 
         # make sure channels compatible
-        self.residual_conv = nn.Conv1d(in_channels, out_channels, 1) \
-            if in_channels != out_channels else nn.Identity()
+        self.residual_conv = (
+            nn.Conv1d(in_channels, out_channels, 1)
+            if in_channels != out_channels
+            else nn.Identity()
+        )
 
     def forward(self, x, cond):
-        '''
-            x : [ batch_size x in_channels x horizon ]
-            cond : [ batch_size x cond_dim]
+        """
+        x : [ batch_size x in_channels x horizon ]
+        cond : [ batch_size x cond_dim]
 
-            returns:
-            out : [ batch_size x out_channels x horizon ]
-        '''
+        returns:
+        out : [ batch_size x out_channels x horizon ]
+        """
         out = self.blocks[0](x)
         embed = self.cond_encoder(cond)
         if self.cond_predict_scale:
             embed = embed.reshape(embed.shape[0], 2, self.out_channels, 1)
-            scale = embed[:,0,...]
-            bias = embed[:,1,...]
+            scale = embed[:, 0, ...]
+            bias = embed[:, 1, ...]
             out = scale * out + bias
         else:
             out = out + embed
@@ -341,11 +382,11 @@ class ConditionalResidualBlock1D(nn.Module):
         return out
 
 
-
 class Conv_GDM(nn.Module):
-    '''
-        Conditional Conv1D based GDM
-    '''
+    """
+    Conditional Conv1D based GDM
+    """
+
     def __init__(self, model_cfg: CONV_GDM_CFG):
         super(Conv_GDM, self).__init__()
 
@@ -353,36 +394,47 @@ class Conv_GDM(nn.Module):
         self.eef_proj = nn.Linear(model_cfg.eef_dim, model_cfg.embed_dim)
         self.delta_eef_proj = nn.Linear(model_cfg.delta_eef_dim, model_cfg.embed_dim)
 
-        self.conv1d_1 = ConditionalResidualBlock1D(model_cfg.embed_dim, model_cfg.embed_dim, model_cfg.embed_dim*model_cfg.num_eef)
-        self.conv1d_2 = ConditionalResidualBlock1D(model_cfg.embed_dim, model_cfg.embed_dim, model_cfg.embed_dim*model_cfg.num_eef)
-        
-        self.delta_kp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
-                                           nn.GELU(approximate='tanh'),
-                                           nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
+        self.conv1d_1 = ConditionalResidualBlock1D(
+            model_cfg.embed_dim,
+            model_cfg.embed_dim,
+            model_cfg.embed_dim * model_cfg.num_eef,
+        )
+        self.conv1d_2 = ConditionalResidualBlock1D(
+            model_cfg.embed_dim,
+            model_cfg.embed_dim,
+            model_cfg.embed_dim * model_cfg.num_eef,
+        )
 
+        self.delta_kp_head = nn.Sequential(
+            nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
+            nn.GELU(approximate="tanh"),
+            nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim),
+        )
 
-        total_params = sum(p.numel() for p in self.parameters() if p.requires_grad) / 1000000.
+        total_params = (
+            sum(p.numel() for p in self.parameters() if p.requires_grad) / 1000000.0
+        )
         print(f"Total number of learnable parameters: {total_params}M")
-
 
     def local_transform(self, dlo_kp, eef_states):
         batch_size = dlo_kp.shape[0]
-        
+
         dlo_kp_center = torch.mean(dlo_kp, dim=1, keepdim=True)
         local_dlo_kp = dlo_kp - dlo_kp_center
 
-        tmp = torch.concatenate([dlo_kp_center, torch.zeros(batch_size, 1, 1, device=dlo_kp.device)], dim=2)
+        tmp = torch.concatenate(
+            [dlo_kp_center, torch.zeros(batch_size, 1, 1, device=dlo_kp.device)], dim=2
+        )
         local_eef_states = eef_states - tmp
 
-        return local_dlo_kp, local_eef_states                                                  
-
+        return local_dlo_kp, local_eef_states
 
     def forward(self, dlo_kp, eef_states, delta_eef_states):
-        '''
-            dlo_kp: in shape of (batch_size, kp_num, kp_dim)
-            eef_states: in shape of (batch_size, eef_num, eef_dim)
-            delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
-        '''
+        """
+        dlo_kp: in shape of (batch_size, kp_num, kp_dim)
+        eef_states: in shape of (batch_size, eef_num, eef_dim)
+        delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
+        """
         dlo_kp, eef_states = self.local_transform(dlo_kp, eef_states)
 
         kp_proj = self.dlo_proj(dlo_kp)
@@ -401,53 +453,59 @@ class Conv_GDM(nn.Module):
         return predicts
 
 
-
 class RNN_GDM(nn.Module):
-    '''
-        Bi-LSTM based GDM
-    '''
+    """
+    Bi-LSTM based GDM
+    """
+
     def __init__(self, model_cfg: RNN_GDM_CFG):
         super(RNN_GDM, self).__init__()
         self.dlo_proj = nn.Linear(model_cfg.kp_dim, model_cfg.embed_dim)
         self.eef_proj = nn.Linear(model_cfg.eef_dim, model_cfg.embed_dim)
         self.delta_eef_proj = nn.Linear(model_cfg.delta_eef_dim, model_cfg.embed_dim)
 
-        self.rnn = nn.LSTM(input_size=model_cfg.embed_dim, 
-                           hidden_size=model_cfg.embed_dim, 
-                           num_layers=model_cfg.num_layers, 
-                           batch_first=True, 
-                           bidirectional=True)
+        self.rnn = nn.LSTM(
+            input_size=model_cfg.embed_dim,
+            hidden_size=model_cfg.embed_dim,
+            num_layers=model_cfg.num_layers,
+            batch_first=True,
+            bidirectional=True,
+        )
         self.rnn_out = nn.Linear(model_cfg.embed_dim * 2, model_cfg.embed_dim)
 
         self.ln = LayerNorm(model_cfg.embed_dim * 2)
 
         self.film = nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim * 2)
 
-        self.delta_kp_head = nn.Sequential(nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
-                                           nn.GELU(approximate='tanh'),
-                                           nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim))
-        total_params = sum(p.numel() for p in self.parameters() if p.requires_grad) / 1000000.
+        self.delta_kp_head = nn.Sequential(
+            nn.Linear(model_cfg.embed_dim, model_cfg.embed_dim // 2),
+            nn.GELU(approximate="tanh"),
+            nn.Linear(model_cfg.embed_dim // 2, model_cfg.kp_dim),
+        )
+        total_params = (
+            sum(p.numel() for p in self.parameters() if p.requires_grad) / 1000000.0
+        )
         print(f"Total number of learnable parameters: {total_params}M")
-
 
     def local_transform(self, dlo_kp, eef_states):
         batch_size = dlo_kp.shape[0]
-        
+
         dlo_kp_center = torch.mean(dlo_kp, dim=1, keepdim=True)
         local_dlo_kp = dlo_kp - dlo_kp_center
 
-        tmp = torch.concatenate([dlo_kp_center, torch.zeros(batch_size, 1, 1, device=dlo_kp.device)], dim=2)
+        tmp = torch.concatenate(
+            [dlo_kp_center, torch.zeros(batch_size, 1, 1, device=dlo_kp.device)], dim=2
+        )
         local_eef_states = eef_states - tmp
 
-        return local_dlo_kp, local_eef_states                                                  
-
+        return local_dlo_kp, local_eef_states
 
     def forward(self, dlo_kp, eef_states, delta_eef_states):
-        '''
-            dlo_kp: in shape of (batch_size, kp_num, kp_dim)
-            eef_states: in shape of (batch_size, eef_num, eef_dim)
-            delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
-        '''
+        """
+        dlo_kp: in shape of (batch_size, kp_num, kp_dim)
+        eef_states: in shape of (batch_size, eef_num, eef_dim)
+        delta_eef_states: in shape of (batch_size, eef_num, delta_eef_dim)
+        """
         dlo_kp, eef_states = self.local_transform(dlo_kp, eef_states)
         kp_proj = self.dlo_proj(dlo_kp)
         eef_proj = self.eef_proj(eef_states)
@@ -456,7 +514,9 @@ class RNN_GDM(nn.Module):
         left_eef_proj = eef_proj[:, 0, :].unsqueeze(1)
         right_eef_proj = eef_proj[:, 1, :].unsqueeze(1)
 
-        concated_seq = torch.concatenate([left_eef_proj, kp_proj, right_eef_proj], dim=1)
+        concated_seq = torch.concatenate(
+            [left_eef_proj, kp_proj, right_eef_proj], dim=1
+        )
 
         latents, _ = self.rnn(concated_seq)
         latents = self.ln(latents)
@@ -464,12 +524,14 @@ class RNN_GDM(nn.Module):
         rnn_out = rnn_out[:, 1:-1, :]
 
         # Apply FiLM modulation using delta_eef_proj as condition
-        reduce_eef_proj = reduce(delta_eef_proj, 'b n d -> b d', 'mean')
+        reduce_eef_proj = reduce(delta_eef_proj, "b n d -> b d", "mean")
         cond = self.film(reduce_eef_proj)
-        alpha, beta = torch.split(cond, split_size_or_sections=cond.shape[1] // 2, dim=1)
+        alpha, beta = torch.split(
+            cond, split_size_or_sections=cond.shape[1] // 2, dim=1
+        )
         alpha = alpha.view(alpha.shape[0], 1, alpha.shape[1])
         beta = beta.view(beta.shape[0], 1, beta.shape[1])
         rnn_out = alpha * rnn_out + beta
-        
+
         predicts = self.delta_kp_head(rnn_out)
         return predicts

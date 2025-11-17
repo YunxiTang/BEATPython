@@ -1,6 +1,7 @@
-'''
-    class.__dict__
-'''
+"""
+class.__dict__
+"""
+
 from isaacgym import gymapi
 import torch.nn as nn
 import numpy as np
@@ -16,7 +17,7 @@ class model(nn.Module):
 
 
 class a:
-    def __init__(self, name:str):
+    def __init__(self, name: str):
         super().__init__()
         self.name = name
         self.fc = nn.Linear(13, 26)
@@ -26,24 +27,24 @@ class a:
 
     def test(self):
         for key, value in self.__dict__.items():
-            print(key, ':', value)
+            print(key, ":", value)
 
 
-if __name__ == '__main__':
-    a = a('tyx')
+if __name__ == "__main__":
+    a = a("tyx")
     # for key, val in model.__dict__.items():
     #     print(key, ':', val)
 
-    print('===========================')
+    print("===========================")
     # print(a.state_dict())
     for key, val in a.__dict__.items():
         print(key)
-        if hasattr(val, 'state_dict') and hasattr(val, 'load_state_dict'):
-            print(key, ':', val.state_dict())
+        if hasattr(val, "state_dict") and hasattr(val, "load_state_dict"):
+            print(key, ":", val.state_dict())
 
     # print('===========================')
     # a.test()
 
-    print(gymapi.DofState.dtype)    
+    print(gymapi.DofState.dtype)
     res = np.zeros(5, dtype=gymapi.DofState.dtype)
     print(res)

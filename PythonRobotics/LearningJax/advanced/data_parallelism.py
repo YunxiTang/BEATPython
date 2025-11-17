@@ -1,8 +1,8 @@
-'''
-Replicate a single model on different devices, 
-where each device processes different batches of data and their results are merged. 
+"""
+Replicate a single model on different devices,
+where each device processes different batches of data and their results are merged.
 It can be synchronous or asynchronous.
-'''
+"""
 
 import os
 import numpy as np
@@ -20,11 +20,12 @@ from jax.experimental import mesh_utils
 from jax.experimental.shard_map import shard_map
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8" 
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+
 
 def get_sharding_details(sharded_data):
     print("\nSharding Layout:")
-    
+
     # a utility to visualize the sharding
     jax.debug.visualize_array_sharding(sharded_data)
 
@@ -36,14 +37,16 @@ def get_sharding_details(sharded_data):
         print(f"Device: {str(shard.device):>5}")
         print(f"Data shape: {str(shard.data.shape):>8}")
         print(f"Data slices: {str(shard.index):>22}\n")
-        print("="*75)
+        print("=" * 75)
         print("")
+
 
 def compare_shards_data(shard1, shard2):
     """Compare two shards."""
     data1 = np.asarray(shard1.data)
     data2 = np.asarray(shard2.data)
     np.testing.assert_array_equal(data1, data2)
+
 
 def pairwise_shards_comparison(shards):
     for shard1, shard2 in zip(shards[:-1], shards[1:]):
@@ -61,21 +64,25 @@ def single_axis_sharding():
     # access the elements of this device array like any other ndarray
     print("Accessing the first device: ", devices[0])
 
-
     # Create a mesh from the device array
     mesh = Mesh(devices_array, axis_names=("ax"))
 
     # Define sharding with a partiton spec
     # If (None, ''), means that shards are replicated over the mesh dimension
     # sharding = NamedSharding(mesh, PartitionSpec("ax"))
-    sharding = NamedSharding(mesh, PartitionSpec(None,)) 
+    sharding = NamedSharding(
+        mesh,
+        PartitionSpec(
+            None,
+        ),
+    )
 
     data = jax.random.normal(jax.random.PRNGKey(0), (8, 3))
     sharded_data = jax.device_put(data, sharding)
-    
+
     print(f"Data  shape: {data.shape}")
-    print(f"Shard shape: {sharding.shard_shape(data.shape)}") 
-    get_sharding_details(sharded_data) 
+    print(f"Shard shape: {sharding.shard_shape(data.shape)}")
+    get_sharding_details(sharded_data)
 
     pairwise_shards_comparison(sharded_data.global_shards)
 
@@ -85,9 +92,9 @@ def single_axis_sharding():
 
 def multi_axis_sharding():
     devices = mesh_utils.create_device_mesh((4, 2), jax.local_devices())
-    mesh = Mesh(devices, axis_names=('ax1', 'ax2'))
+    mesh = Mesh(devices, axis_names=("ax1", "ax2"))
     # p = PartitionSpec('ax1', 'ax2')
-    p = PartitionSpec('ax1', None)
+    p = PartitionSpec("ax1", None)
     sharding = NamedSharding(mesh, spec=p)
     print(f"Number of logical devices: {len(devices)}")
     print(f"Shape of device array    : {devices.shape}")
@@ -104,5 +111,5 @@ def multi_axis_sharding():
     # print(np.asarray(sharded_data.global_shards[0].data) - np.asarray(sharded_data.global_shards[1].data))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     multi_axis_sharding()

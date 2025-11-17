@@ -25,17 +25,21 @@ class FullModel(nn.Module):
         return x
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     rng = jax.random.PRNGKey(1)
     model_init_rng, rng = jax.random.split(rng)
     dummy_inp = jax.random.normal(model_init_rng, [2, 15])
     print(dummy_inp.device())
     full_model = FullModel(64)
-    variables = full_model.init({'params': model_init_rng, 'dropout': rng}, dummy_inp, False)
+    variables = full_model.init(
+        {"params": model_init_rng, "dropout": rng}, dummy_inp, False
+    )
     print(variables.keys())
-    
+
     # for training
-    y0, updates = full_model.apply(variables, dummy_inp, True, rngs={'dropout': rng}, mutable=['batch_stats'])
+    y0, updates = full_model.apply(
+        variables, dummy_inp, True, rngs={"dropout": rng}, mutable=["batch_stats"]
+    )
     print(updates)
     # for eval
     y1 = full_model.apply(variables, dummy_inp, False)
@@ -43,6 +47,5 @@ if __name__ == '__main__':
 
     import jax.numpy as jnp
 
-
-    x = jnp.array([1,2,3.])
+    x = jnp.array([1, 2, 3.0])
     print(x.devices())

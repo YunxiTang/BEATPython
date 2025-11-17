@@ -1,6 +1,7 @@
 """
-    Models and pre-trained weights
+Models and pre-trained weights
 """
+
 import torch
 import torch.nn as nn
 from torchvision.models import resnet50, ResNet50_Weights

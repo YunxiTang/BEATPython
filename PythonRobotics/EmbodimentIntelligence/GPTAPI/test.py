@@ -1,5 +1,6 @@
 from openai import OpenAI
 import openai
+
 client = OpenAI()
 
 usage = openai.api_usage()
@@ -8,14 +9,11 @@ usage = openai.api_usage()
 print(usage)
 
 completion = client.chat.completions.create(
-    model="gpt-3.5-turbo", #"gpt-4o-mini",
+    model="gpt-3.5-turbo",  # "gpt-4o-mini",
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
-        {
-            "role": "user",
-            "content": "1 + 1 = ?."
-        }
-    ]
+        {"role": "user", "content": "1 + 1 = ?."},
+    ],
 )
 
 print(completion.choices[0].message)

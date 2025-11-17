@@ -24,6 +24,7 @@ class TheModelClass(nn.Module):
         x = self.fc3(x)
         return x
 
+
 # Initialize model
 model = TheModelClass()
 
@@ -33,7 +34,7 @@ optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 # Print model's state_dict
 print("Model's state_dict:")
 for name, param in model.state_dict().items():
-    print(name, '\t', param.shape)
+    print(name, "\t", param.shape)
 
 # Print optimizer's state_dict
 print("Optimizer's state_dict:")

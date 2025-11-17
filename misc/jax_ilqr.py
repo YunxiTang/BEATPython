@@ -10,14 +10,14 @@ from typing import Any, NamedTuple
 
 
 class Point(NamedTuple):
-    x: float = 2.
-    y: float = 1.
+    x: float = 2.0
+    y: float = 1.0
 
     @partial(jax.grad, argnums=[0, 1])
     def __call__(self, z):
         return self.x * 2.0 + self.y * 4.0 + z * 3
-    
+
+
 p = Point()
 print(p)
-print( p(3.) )
-
+print(p(3.0))

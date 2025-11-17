@@ -9,8 +9,8 @@ import numpy as np
 pipeline = rs.pipeline()
 config = rs.config()
 
-config.enable_stream( rs.stream.depth, 640, 480, rs.format.z16, 30 )
-config.enable_stream( rs.stream.color, 1280, 720, rs.format.bgr8, 30 )
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
 
 profile = pipeline.start(config)
 
@@ -28,16 +28,21 @@ try:
     t0 = time.time()
 
     frames = pipeline.wait_for_frames()
-    print('elapsed time of getting frames: {}'.format(time.time()-t0))
+    print("elapsed time of getting frames: {}".format(time.time() - t0))
     t1 = time.time()
     aligned_frames = align.process(frames)
-    print('elapsed time of aligning frames: {}'.format(time.time()-t1))
+    print("elapsed time of aligning frames: {}".format(time.time() - t1))
 
     profile = aligned_frames.get_profile()
     intrinsics = profile.as_video_stream_profile().get_intrinsics()
 
     pinhole_camera_intrinsic = o3d.camera.PinholeCameraIntrinsic(
-        intrinsics.width, intrinsics.height, intrinsics.fx, intrinsics.fy, intrinsics.ppx, intrinsics.ppy
+        intrinsics.width,
+        intrinsics.height,
+        intrinsics.fx,
+        intrinsics.fy,
+        intrinsics.ppx,
+        intrinsics.ppy,
     )
 
     depth_frame = aligned_frames.get_depth_frame()
@@ -54,16 +59,13 @@ try:
 
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, pinhole_camera_intrinsic)
 
-    print('elapsed time: {}'.format(time.time() - t2))
-    print('elapsed total time: {}'.format(time.time() - t0))
+    print("elapsed time: {}".format(time.time() - t2))
+    print("elapsed total time: {}".format(time.time() - t0))
 
-    pcd.transform([[1,0,0,0],
-                   [0,-1,0,0],
-                   [0,0,0-1,0],
-                   [0,0,0,1]])
-    
+    pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0 - 1, 0], [0, 0, 0, 1]])
+
     o3d.visualization.draw_geometries([pcd])
 
 finally:
     pipeline.stop()
-    print('done')
+    print("done")

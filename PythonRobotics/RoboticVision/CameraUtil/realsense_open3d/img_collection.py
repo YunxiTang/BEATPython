@@ -1,6 +1,7 @@
-'''
-    collect image and store as dataset
-'''
+"""
+collect image and store as dataset
+"""
+
 import pyrealsense2 as rs2
 import cv2
 import numpy as np
@@ -9,13 +10,13 @@ from threading import Thread
 from diffusion_planner.common.logger import ZarrLogger
 
 
-
-if __name__ == '__main__':
-
-    logger = ZarrLogger(path_to_save='/home/yxtang/CodeBase/PythonCourse/dataset/img_test.zarr', 
-                        ks=['timestamp', 'color_img', 'depth_img'],
-                        chunk_size=1,
-                        dtype='uint8')
+if __name__ == "__main__":
+    logger = ZarrLogger(
+        path_to_save="/home/yxtang/CodeBase/PythonCourse/dataset/img_test.zarr",
+        ks=["timestamp", "color_img", "depth_img"],
+        chunk_size=1,
+        dtype="uint8",
+    )
 
     pipeline = rs2.pipeline()
     config = rs2.config()
@@ -46,18 +47,18 @@ if __name__ == '__main__':
 
             depth_img = np.asanyarray(aligned_depth_frame.get_data())
             color_img = np.asanyarray(color_frame.get_data())
-            
+
             timestamp = time.time()
-            # save_thread = Thread( target=logger.log_dict_data, args=[{'timestamp': timestamp, 
-            #                                                           'color_img': color_img, 
+            # save_thread = Thread( target=logger.log_dict_data, args=[{'timestamp': timestamp,
+            #                                                           'color_img': color_img,
             #                                                           'depth_img': depth_img},])
             # # logger.log_dict_data()
             # save_thread.start()
-            print(f'frame id {idx}:', time.time() - timestamp)
+            print(f"frame id {idx}:", time.time() - timestamp)
 
             # render images
-            cv2.namedWindow('Align Example', cv2.WINDOW_AUTOSIZE)
-            cv2.imshow('Align Example', color_img)
+            cv2.namedWindow("Align Example", cv2.WINDOW_AUTOSIZE)
+            cv2.imshow("Align Example", color_img)
             cv2.waitKey(1)
 
         logger.save_data()

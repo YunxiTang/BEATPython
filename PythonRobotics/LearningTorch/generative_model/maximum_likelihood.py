@@ -1,4 +1,5 @@
-''' maximum likelihood '''
+"""maximum likelihood"""
+
 import torch
 import matplotlib.pyplot as plt
 import torch.nn as nn
@@ -6,6 +7,8 @@ import math
 import seaborn as sns
 
 sns.set_theme()
+
+
 # =================== Gaussian Distribution Approximation ================== #
 class Theta(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
@@ -13,22 +16,35 @@ class Theta(nn.Module):
         self._theta = nn.Parameter(torch.tensor([-10.0, 100.0]))
 
     def forward(self, x):
-        return 1. / (self._theta[1] * math.sqrt(2. * math.pi)) * torch.exp(-1./2 * ((x - self._theta[0]) / self._theta[1]) ** 2)
-    
+        return (
+            1.0
+            / (self._theta[1] * math.sqrt(2.0 * math.pi))
+            * torch.exp(-1.0 / 2 * ((x - self._theta[0]) / self._theta[1]) ** 2)
+        )
+
     def sample(self, n):
-        '''
-            sample data from the approximated distribution
-        '''
-        dist_tmp = torch.distributions.Normal(loc=self._theta.data[0], scale=self._theta.data[1])
+        """
+        sample data from the approximated distribution
+        """
+        dist_tmp = torch.distributions.Normal(
+            loc=self._theta.data[0], scale=self._theta.data[1]
+        )
         samples = dist_tmp.sample([n, 1])
         return samples
+
 
 loc = 5.0
 N = 1000
 batch_size = 500
 dist_q = Theta()
 dist_p = torch.distributions.Normal(loc=loc, scale=1.0)
-sampled_data = torch.concat((dist_p.sample([N, 1]), torch.distributions.Normal(loc=5.0, scale=1.0).sample([N, 1])), dim=0)
+sampled_data = torch.concat(
+    (
+        dist_p.sample([N, 1]),
+        torch.distributions.Normal(loc=5.0, scale=1.0).sample([N, 1]),
+    ),
+    dim=0,
+)
 
 # set optimizer
 optimizer = torch.optim.AdamW(dist_q.parameters(), 1e-3)
@@ -37,24 +53,24 @@ k = 0
 fig, ax = plt.subplots(2, 5)
 for epoch in range(100):
     if epoch % 10 == 0:
-        tmp_samples = dist_q.sample(2*N)
+        tmp_samples = dist_q.sample(2 * N)
         ax[k // 5, k % 5].set_xlim(-10, 10)
-        ax[k // 5, k % 5].set_title(f'Epoch {epoch}')
+        ax[k // 5, k % 5].set_title(f"Epoch {epoch}")
         ax[k // 5, k % 5].hist(tmp_samples.flatten().data, bins=20, density=True)
         ax[k // 5, k % 5].hist(sampled_data.flatten(), bins=20, density=True)
         k += 1
-    
-    tmp = 0.
-    for i in range(2*N-batch_size):
-        x = sampled_data[i:i+batch_size]
+
+    tmp = 0.0
+    for i in range(2 * N - batch_size):
+        x = sampled_data[i : i + batch_size]
         prob_q = dist_q(x)
-        
+
         loss = torch.mean(-torch.log(prob_q))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         tmp += loss.data
-    print(epoch, '||', tmp)
+    print(epoch, "||", tmp)
     loss_hist.append(tmp)
 plt.show()
 

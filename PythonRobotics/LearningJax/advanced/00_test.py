@@ -29,25 +29,25 @@ if USE_CPU_ONLY:
 os.environ["XLA_FLAGS"] = flags
 
 
-print(jax.devices(), '\n', jax.local_devices())
+print(jax.devices(), "\n", jax.local_devices())
 
 x = jax.random.normal(jax.random.PRNGKey(0), shape=[64, 8], dtype=jnp.float16)
-print(x.shape, '\n', x.sharding, '\n', x.devices())
+print(x.shape, "\n", x.sharding, "\n", x.devices())
 
 devices = np.array(jax.devices()).reshape(4, 2)
 
-mesh = Mesh(devices, axis_names=['i', 'j'])
-sharding = NamedSharding(mesh, PartitionSpec('i', 'j'))
+mesh = Mesh(devices, axis_names=["i", "j"])
+sharding = NamedSharding(mesh, PartitionSpec("i", "j"))
 
 x_shard = jax.device_put(x, sharding)
-print(x_shard.shape, '\n', x_shard.sharding, '\n', x_shard.devices())
-jax.debug.visualize_array_sharding(x_shard, color_map=mpl.colormaps['Set3'])
+print(x_shard.shape, "\n", x_shard.sharding, "\n", x_shard.devices())
+jax.debug.visualize_array_sharding(x_shard, color_map=mpl.colormaps["Set3"])
 
 out = nn.tanh(x_shard)
 jax.debug.visualize_array_sharding(out)
 
 # ======================
-mesh = Mesh(devices, axis_names=['i', 'j'])
+mesh = Mesh(devices, axis_names=["i", "j"])
 batch_size = 192
 input_dim = 64
 output_dim = 128
@@ -67,8 +67,16 @@ print(res.shape, res.sharding)
 
 
 matmul_fn_shard = shard_map(
-    matmul_fn, mesh, in_specs=(PartitionSpec('i',), PartitionSpec(), PartitionSpec()), 
-    out_specs=PartitionSpec('i')
+    matmul_fn,
+    mesh,
+    in_specs=(
+        PartitionSpec(
+            "i",
+        ),
+        PartitionSpec(),
+        PartitionSpec(),
+    ),
+    out_specs=PartitionSpec("i"),
 )
 
 y = matmul_fn_shard(x_sharded, w_sharded, b_sharded)
@@ -78,44 +86,56 @@ jax.debug.visualize_array_sharding(y)
 
 # ============ #
 from typing import Callable
-print('=' * 40)
 
-def check_vmap(f:Callable, xs):
+print("=" * 40)
+
+
+def check_vmap(f: Callable, xs):
     ans = jax.vmap(f, in_axes=[0], out_axes=0)(xs)
     expected = jnp.stack([f(x) for x in xs])
     print(jnp.allclose(ans, expected))
     return ans, expected
 
+
 xs = jnp.arange(12).reshape(4, 3)
 res1, res2 = check_vmap(lambda x: 2 * x, xs)
 print(res1.shape, res2.shape)
 
-print( xs )
+print(xs)
 print(res1)
 
+
 def check_shard_map(f: Callable, y):
-    ans = shard_map(f, mesh, 
-                    in_specs=PartitionSpec('i'), 
-                    out_specs=PartitionSpec('i'))(y)
-    expected = jnp.concatenate(
-        [f(y_blk) for y_blk in jnp.split(y, mesh.shape['i'])]
-        )
+    ans = shard_map(f, mesh, in_specs=PartitionSpec("i"), out_specs=PartitionSpec("i"))(
+        y
+    )
+    expected = jnp.concatenate([f(y_blk) for y_blk in jnp.split(y, mesh.shape["i"])])
     print(jnp.allclose(ans, expected))
     return ans, expected
+
 
 y = jnp.arange(32).reshape(8, 4)
 res1, res2 = check_shard_map(lambda x: x.T @ x, y)
 print(res1.shape, res1.sharding)
 
-print('=' * 40)
+print("=" * 40)
 x = jnp.arange(128 * 10 * 3).reshape(128, 10, 3)
-mesh = Mesh(jax.devices(), axis_names=['i',])
+mesh = Mesh(
+    jax.devices(),
+    axis_names=[
+        "i",
+    ],
+)
 
-@partial(shard_map, mesh=mesh, in_specs=PartitionSpec('i'), out_specs=PartitionSpec('i'))
+
+@partial(
+    shard_map, mesh=mesh, in_specs=PartitionSpec("i"), out_specs=PartitionSpec("i")
+)
 def f1(x_block):
-  y = nn.tanh(jnp.sum(x_block, axis=0, keepdims=True))
-  print(x_block.shape, y.shape)
-  return y
+    y = nn.tanh(jnp.sum(x_block, axis=0, keepdims=True))
+    print(x_block.shape, y.shape)
+    return y
+
 
 y = f1(x)
 print(y.shape, y.sharding)
