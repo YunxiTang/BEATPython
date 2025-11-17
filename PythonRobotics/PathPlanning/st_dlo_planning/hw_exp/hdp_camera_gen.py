@@ -323,6 +323,11 @@ if __name__ == "__main__":
 
     init_solution = jnp.reshape(init_sigmas, (pathset.T + 1, pathset.num_path))
     solution = jnp.reshape(opt_sigmas, (pathset.T + 1, pathset.num_path))
+    objecitve_vals = np.array(solver.obj_vals)
+    file_to_save = os.path.join(ROOT_DIR, 
+                                'st_dlo_planning/results/realworld_result/optimized_detail_res',
+                                f'{map_id}_opt_deatail.npz')
+    # np.savez(file_to_save, init_sigmas, solution, objecitve_vals)
 
     raw_dlo_shapes = []
     polished_dlo_shapes = []

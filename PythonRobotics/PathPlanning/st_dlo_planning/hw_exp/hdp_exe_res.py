@@ -21,7 +21,7 @@ if __name__ == "__main__":
     sys.path.append(ROOT_DIR)
     os.chdir(ROOT_DIR)
 
-    from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg, plot_circle
+    from st_dlo_planning.utils.world_map import Block, WorldMap, MapCfg
     from st_dlo_planning.utils.misc_utils import setup_seed
 
     from st_dlo_planning.utils.path_set import (
@@ -39,6 +39,18 @@ if __name__ == "__main__":
     from scipy.interpolate import splprep, splev
 
     setup_seed(0)
+
+    def visualize_shape(dlo: np.ndarray, ax, clrs, ld=3.0, s=25):
+        '''
+            visualize a rope shape
+        '''
+        num_kp = dlo.shape[0]
+
+        for i in range(num_kp):
+            ax.scatter(dlo[i][0], dlo[i][1], s=s, color=clrs[i], marker='o')
+        for i in range(num_kp-1):
+            ax.plot([dlo[i][0], dlo[i+1][0]], 
+                    [dlo[i][1], dlo[i+1][1]], color=clrs[i], linewidth=ld)
 
     def fit_bspline(keypoints, num_samples=10, degree=3) -> np.ndarray:
         keypoints = np.array(keypoints)  # Ensure it's a NumPy array
