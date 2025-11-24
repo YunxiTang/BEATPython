@@ -1,7 +1,6 @@
-"""
-deep energy based generative model for image generation
-"""
-
+'''
+    deep energy based generative model for image generation
+'''
 import os
 import json
 import math
@@ -14,10 +13,8 @@ from matplotlib import cm
 import matplotlib
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from mpl_toolkits.mplot3d import proj3d
-
-matplotlib.rcParams["lines.linewidth"] = 2.0
+matplotlib.rcParams['lines.linewidth'] = 2.0
 import seaborn as sns
-
 sns.reset_orig()
 
 ## PyTorch
@@ -42,42 +39,43 @@ print("Device:", device)
 
 
 class Swish(nn.Module):
+
     def forward(self, x):
         return x * torch.sigmoid(x)
-
+    
 
 class CNNModel(nn.Module):
+
     def __init__(self, hidden_features=32, out_dim=1, **kwargs):
         super().__init__()
-
-        c_hid1 = hidden_features // 2
+    
+        c_hid1 = hidden_features//2
         c_hid2 = hidden_features
-        c_hid3 = hidden_features * 2
+        c_hid3 = hidden_features*2
 
         # Series of convolutions and Swish activation functions
         self.cnn_layers = nn.Sequential(
-            nn.Conv2d(
-                1, c_hid1, kernel_size=5, stride=2, padding=4
-            ),  # [16x16] - Larger padding to get 32x32 image
-            Swish(),
-            nn.Conv2d(c_hid1, c_hid2, kernel_size=3, stride=2, padding=1),  #  [8x8]
-            Swish(),
-            nn.Conv2d(c_hid2, c_hid3, kernel_size=3, stride=2, padding=1),  # [4x4]
-            Swish(),
-            nn.Conv2d(c_hid3, c_hid3, kernel_size=3, stride=2, padding=1),  # [2x2]
-            Swish(),
-            nn.Flatten(),
-            nn.Linear(c_hid3 * 4, c_hid3),
-            Swish(),
-            nn.Linear(c_hid3, out_dim),
+                nn.Conv2d(1, c_hid1, kernel_size=5, stride=2, padding=4), # [16x16] - Larger padding to get 32x32 image
+                Swish(),
+                nn.Conv2d(c_hid1, c_hid2, kernel_size=3, stride=2, padding=1), #  [8x8]
+                Swish(),
+                nn.Conv2d(c_hid2, c_hid3, kernel_size=3, stride=2, padding=1), # [4x4]
+                Swish(),
+                nn.Conv2d(c_hid3, c_hid3, kernel_size=3, stride=2, padding=1), # [2x2]
+                Swish(),
+                nn.Flatten(),
+                nn.Linear(c_hid3*4, c_hid3),
+                Swish(),
+                nn.Linear(c_hid3, out_dim)
         )
 
     def forward(self, x):
         x = self.cnn_layers(x).squeeze(dim=-1)
         return x
-
+    
 
 class Sampler:
+
     def __init__(self, model, img_shape, sample_size, max_len=8192):
         """
         Inputs:
@@ -91,9 +89,7 @@ class Sampler:
         self.img_shape = img_shape
         self.sample_size = sample_size
         self.max_len = max_len
-        self.examples = [
-            (torch.rand((1,) + img_shape) * 2 - 1) for _ in range(self.sample_size)
-        ]
+        self.examples = [(torch.rand( (1, )+img_shape )*2-1) for _ in range(self.sample_size)]
 
     def sample_new_exmps(self, steps=60, step_size=10):
         """
@@ -105,28 +101,19 @@ class Sampler:
         # Choose 95% of the batch from the buffer, 5% generate from scratch
         n_new = np.random.binomial(self.sample_size, 0.05)
         rand_imgs = torch.rand((n_new,) + self.img_shape) * 2 - 1
-        old_imgs = torch.cat(
-            random.choices(self.examples, k=self.sample_size - n_new), dim=0
-        )
+        old_imgs = torch.cat(random.choices(self.examples, k=self.sample_size-n_new), dim=0)
         inp_imgs = torch.cat([rand_imgs, old_imgs], dim=0).detach().to(device)
 
         # Perform MCMC sampling
-        inp_imgs = Sampler.generate_samples(
-            self.model, inp_imgs, steps=steps, step_size=step_size
-        )
+        inp_imgs = Sampler.generate_samples(self.model, inp_imgs, steps=steps, step_size=step_size)
 
         # Add new images to the buffer and remove old ones if needed
-        self.examples = (
-            list(inp_imgs.to(torch.device("cpu")).chunk(self.sample_size, dim=0))
-            + self.examples
-        )
-        self.examples = self.examples[: self.max_len]
+        self.examples = list(inp_imgs.to(torch.device("cpu")).chunk(self.sample_size, dim=0)) + self.examples
+        self.examples = self.examples[:self.max_len]
         return inp_imgs
 
     @staticmethod
-    def generate_samples(
-        model, inp_imgs, steps=60, step_size=10, return_img_per_step=False
-    ):
+    def generate_samples(model, inp_imgs, steps=60, step_size=10, return_img_per_step=False):
         """
         Function for sampling images for a given model.
         Inputs:
@@ -142,7 +129,7 @@ class Sampler:
         model.eval()
         for p in model.parameters():
             p.requires_grad = False
-
+            
         inp_imgs.requires_grad = True
 
         # Enable gradient calculation if not already the case
@@ -166,9 +153,7 @@ class Sampler:
             # Part 2: calculate gradients for the current input.
             out_imgs = -model(inp_imgs)
             out_imgs.sum().backward()
-            inp_imgs.grad.data.clamp_(
-                -0.03, 0.03
-            )  # For stabilizing and preventing too high gradients
+            inp_imgs.grad.data.clamp_(-0.03, 0.03) # For stabilizing and preventing too high gradients
 
             # Apply gradients to our current samples
             inp_imgs.data.add_(-step_size * inp_imgs.grad.data)
@@ -193,25 +178,16 @@ class Sampler:
             return inp_imgs
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Transformations applied on each image => make them a tensor and normalize between -1 and 1
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
-    )
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize((0.5,), (0.5,))
+                                ])
 
     # Loading the training dataset. We need to split it into a training and validation part
-    train_set = MNIST(root="./dataset", train=True, transform=transform, download=True)
+    train_set = MNIST(root='./dataset', train=True, transform=transform, download=True)
     # Loading the test set
-    test_set = MNIST(root="./dataset", train=False, transform=transform, download=True)
+    test_set = MNIST(root='./dataset', train=False, transform=transform, download=True)
 
-    train_loader = data.DataLoader(
-        train_set,
-        batch_size=128,
-        shuffle=True,
-        drop_last=True,
-        num_workers=4,
-        pin_memory=True,
-    )
-    test_loader = data.DataLoader(
-        test_set, batch_size=256, shuffle=False, drop_last=False, num_workers=4
-    )
+    train_loader = data.DataLoader(train_set, batch_size=128, shuffle=True,  drop_last=True,  num_workers=4, pin_memory=True)
+    test_loader  = data.DataLoader(test_set,  batch_size=256, shuffle=False, drop_last=False, num_workers=4)

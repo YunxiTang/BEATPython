@@ -15,19 +15,15 @@ V = torch.randn(batch_size, num_heads, seq_length, head_dim)
 
 # Create a causal mask with False for positions that should be masked (lower triangular part)
 causal_mask = torch.tril(torch.ones(seq_length, seq_length, dtype=torch.bool))
-causal_mask = causal_mask.unsqueeze(0).unsqueeze(
-    0
-)  # Shape: (1, 1, seq_length, seq_length)
+causal_mask = causal_mask.unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, seq_length, seq_length)
 print(causal_mask)
 
 # 1. Manual scaled dot-product attention with masked_fill
 # Compute attention scores as Q * K^T / sqrt(head_dim)
-attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / torch.sqrt(
-    torch.tensor(head_dim, dtype=Q.dtype)
-)
+attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / torch.sqrt(torch.tensor(head_dim, dtype=Q.dtype))
 
 # Apply causal mask: Set future positions to -inf
-attention_scores_masked = attention_scores.masked_fill(~causal_mask, float("-inf"))
+attention_scores_masked = attention_scores.masked_fill(~causal_mask, float('-inf'))
 
 # Softmax along the last dimension to get attention weights
 attention_weights_masked = F.softmax(attention_scores_masked, dim=-1)
@@ -45,10 +41,7 @@ print("\nNative scaled_dot_product_attention output:")
 # print(output_flash_attention)
 
 # Verify if the outputs are close
-print(
-    "\nOutputs are the same:",
-    torch.allclose(output_manual, output_flash_attention, atol=1e-5),
-)
+print("\nOutputs are the same:", torch.allclose(output_manual, output_flash_attention, atol=1e-5))
 
 # Check element-wise differences
 # if not torch.allclose(output_manual, output_flash_attention, atol=1e-5):

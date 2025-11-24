@@ -5,51 +5,51 @@ import math
 
 
 def isStateValid(state):
-    # Some arbitrary condition on the state (note that thanks to
-    # dynamic type checking we can just call getX() and do not need
-    # to convert state to an SE2State.)
-    return state.getX() < 0.6
+     # Some arbitrary condition on the state (note that thanks to
+     # dynamic type checking we can just call getX() and do not need
+     # to convert state to an SE2State.)
+     return state.getX() < .6
 
 
 def planWithSimpleSetup():
-    # create an SE2 state space
-    space = ob.SE2StateSpace()
+     # create an SE2 state space
+     space = ob.SE2StateSpace()
+  
+     # set lower and upper bounds
+     bounds = ob.RealVectorBounds(2)
+     bounds.setLow(-1)
+     bounds.setHigh(1)
+     space.setBounds(bounds)
+  
+     # create a simple setup object
+     ss = og.SimpleSetup(space)
+     ss.setStateValidityChecker(ob.StateValidityCheckerFn(isStateValid))
+  
+     start = ob.State(space)
+     # we can pick a random start state...
+     start.random()
+     # ... or set specific values
+     start().setX(.5)
+  
+     goal = ob.State(space)
+     # we can pick a random goal state...
+     goal.random()
+     # ... or set specific values
+     goal().setX(-.5)
+  
+     ss.setStartAndGoalStates(start, goal)
 
-    # set lower and upper bounds
-    bounds = ob.RealVectorBounds(2)
-    bounds.setLow(-1)
-    bounds.setHigh(1)
-    space.setBounds(bounds)
-
-    # create a simple setup object
-    ss = og.SimpleSetup(space)
-    ss.setStateValidityChecker(ob.StateValidityCheckerFn(isStateValid))
-
-    start = ob.State(space)
-    # we can pick a random start state...
-    start.random()
-    # ... or set specific values
-    start().setX(0.5)
-
-    goal = ob.State(space)
-    # we can pick a random goal state...
-    goal.random()
-    # ... or set specific values
-    goal().setX(-0.5)
-
-    ss.setStartAndGoalStates(start, goal)
-
-    print(start, goal)
-
-    # this will automatically choose a default planner with
-    # default parameters
-    solved = ss.solve(1.0)
-
-    if solved:
-        # try to shorten the path
-        ss.simplifySolution()
-        # print the simplified path
-        print(ss.getSolutionPath())
+     print(start, goal)
+  
+     # this will automatically choose a default planner with
+     # default parameters
+     solved = ss.solve(1.0)
+  
+     if solved:
+         # try to shorten the path
+         ss.simplifySolution()
+         # print the simplified path
+         print(ss.getSolutionPath())
 
 
 def planWithR2():
@@ -84,16 +84,16 @@ def planWithR2():
     # we can pick a random goal state...
     goal.random()
     # ... or set specific values
-    goal[1] = -0.5
+    goal[1] = -.5
 
     simple_setup.setStartAndGoalStates(start, goal)
 
     print(start, goal)
 
     # this will automatically choose a default planner with
-    # default parameters
+     # default parameters
     solved = simple_setup.solve(1.0)
-
+  
     if solved:
         # try to shorten the path
         simple_setup.simplifySolution()
@@ -101,6 +101,8 @@ def planWithR2():
         print(simple_setup.getSolutionPath())
 
 
-if __name__ == "__main__":
+
+
+if __name__ == '__main__':
     planWithR2()
     # planWithSimpleSetup()

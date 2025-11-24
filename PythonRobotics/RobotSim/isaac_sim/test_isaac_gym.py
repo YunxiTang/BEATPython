@@ -9,10 +9,10 @@ import random
 import pathlib, os
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     gym = gymapi.acquire_gym()
     args = gymutil.parse_arguments(description="Isaac Gym Example")
-
+    
     # ============= create a simulation =======================
     # get default set of parameters
     sim_params = gymapi.SimParams()
@@ -32,18 +32,19 @@ if __name__ == "__main__":
     sim_params.physx.rest_offset = 0.0
 
     sim_params.use_gpu_pipeline = args.use_gpu_pipeline
-    device = args.sim_device if args.use_gpu_pipeline else "cpu"
-
-    sim = gym.create_sim(
-        args.compute_device_id, args.compute_device_id, gymapi.SIM_PHYSX, sim_params
-    )
+    device = args.sim_device if args.use_gpu_pipeline else 'cpu'
+    
+    sim = gym.create_sim(args.compute_device_id, 
+                         args.compute_device_id, 
+                         gymapi.SIM_PHYSX, 
+                         sim_params)
     if sim is None:
         print("*** Failed to create sim")
         quit()
 
     # creating a ground plane
     plane_params = gymapi.PlaneParams()
-    plane_params.normal = gymapi.Vec3(0, 0, 1)  # z-up!
+    plane_params.normal = gymapi.Vec3(0, 0, 1) # z-up!
     plane_params.distance = 0
     plane_params.static_friction = 1
     plane_params.dynamic_friction = 1
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     asset_options = gymapi.AssetOptions()
     asset_options.fix_base_link = False
     asset_options.armature = 0.01
-    asset_root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets")
+    asset_root = os.path.join(os.path.dirname(os.path.realpath(__file__)),  'assets')
     asset_file = "simple_model/cube.urdf"
     asset = gym.load_asset(sim, asset_root, asset_file, asset_options)
 
@@ -74,7 +75,10 @@ if __name__ == "__main__":
     # create and populate the environments
     num_actor_per_env = 1
     for i in range(num_envs):
-        env = gym.create_env(sim, env_lower, env_upper, envs_per_row)
+        env = gym.create_env(sim, 
+                             env_lower,
+                             env_upper, 
+                             envs_per_row)
         envs.append(env)
 
         c = 0.5 + 0.5 * np.random.random(3)
@@ -87,9 +91,7 @@ if __name__ == "__main__":
 
         actor_handle = gym.create_actor(env, asset, pose, f"MyActor_{i}", i, 1)
         actor_handles.append(actor_handle)
-        gym.set_rigid_body_color(
-            env, actor_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, color
-        )
+        gym.set_rigid_body_color(env, actor_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, color)
 
     cam_props = gymapi.CameraProperties()
     viewer = gym.create_viewer(sim, cam_props)
@@ -101,30 +103,29 @@ if __name__ == "__main__":
     frame_count = 0
 
     while not gym.query_viewer_has_closed(viewer):
+
         if (frame_count - 99) % 200 == 0:
             # set forces and torques for the ant root bodies
-            forces = torch.zeros(
-                (num_envs, num_bodies, 3), device=device, dtype=torch.float
-            )
-            torques = torch.zeros(
-                (num_envs, num_bodies, 3), device=device, dtype=torch.float
-            )
+            forces = torch.zeros((num_envs, num_bodies, 3), 
+                                 device=device, 
+                                 dtype=torch.float)
+            torques = torch.zeros((num_envs, num_bodies, 3), 
+                                  device=device, 
+                                  dtype=torch.float)
             forces[:, 0, 1] = 0.0
             torques[:, 0, 2] = torque_amt
 
-            gym.apply_rigid_body_force_tensors(
-                sim,
-                gymtorch.unwrap_tensor(forces),
-                gymtorch.unwrap_tensor(torques),
-                gymapi.ENV_SPACE,
-            )
+            gym.apply_rigid_body_force_tensors(sim, 
+                                               gymtorch.unwrap_tensor(forces), 
+                                               gymtorch.unwrap_tensor(torques), 
+                                               gymapi.ENV_SPACE)
             torque_amt = -torque_amt
-
+        
         # acquire tensor descriptors
         root_states_desc = gym.acquire_actor_root_state_tensor(sim)
         root_states = gymtorch.wrap_tensor(root_states_desc)
         root_states_vec = root_states.view(num_envs, num_actor_per_env, 13)
-        print("pos", root_states_vec[0, 0, 0:3])
+        print('pos', root_states_vec[0,0,0:3])
         # step the physics
         gym.simulate(sim)
 

@@ -11,72 +11,65 @@ from pydrake.trajectories import PiecewiseQuaternionSlerp, PiecewisePose
 from typing import Dict
 
 
-def DiffIKQP(
-    plant,
-    context,
-    ee_frame,
-    world_frame,
-    desired_pose,
-    q_init,
-    position_tolerance: float = 1e-8,
-    verbose: bool = False,
-):
+
+def DiffIKQP(plant, 
+             context, 
+             ee_frame, 
+             world_frame, 
+             desired_pose, 
+             q_init, 
+             position_tolerance: float = 1e-8,
+             verbose: bool = False):
     plant_context = plant.GetMyContextFromRoot(context)
     rot = desired_pose.rotation()
     trans = desired_pose.translation()
     ik = InverseKinematics(plant, plant_context, with_joint_limits=True)
 
-    ik.AddPointToPointDistanceConstraint(
-        ee_frame, np.array([0, 0, 0]), world_frame, trans, 0, position_tolerance
-    )
+    ik.AddPointToPointDistanceConstraint(ee_frame, np.array([0,0,0]), world_frame, trans, 0, position_tolerance)
     # orientation constraint
     ik.AddOrientationConstraint(ee_frame, RotationMatrix(), world_frame, rot, 0)
+
 
     prog = ik.get_mutable_prog()
     q = ik.q()
     prog.SetInitialGuess(q, q_init)
     result = Solve(prog)
-    q_result = result.GetSolution()
+    q_result = result.GetSolution() 
     success_flag = result.is_success()
 
     if verbose:
-        print("\nStates Solution: \n", np.array(q_result))
-        print("\nSuccess Flag: ", success_flag, "\n")
+      print("\nStates Solution: \n", np.array(q_result))
+      print ("\nSuccess Flag: ", success_flag, "\n")
 
     return np.array(q_result)
 
 
-def make_gripper_trajectory(X_G: Dict, times: Dict, style: str = "cubic"):
+def make_gripper_trajectory(X_G: Dict, times: Dict, style: str = 'cubic'):
     """
-    Constructs a gripper position trajectory.
+        Constructs a gripper position trajectory.
     """
     sample_times = []
     poses = []
     for key, _ in X_G.items():
         sample_times.append(times[key])
         poses.append(X_G[key])
-    if style == "cubic":
-        traj = PiecewisePose.MakeCubicLinearWithEndLinearVelocity(
-            sample_times, poses, start_vel=[0.0, 0.0, 0.0], end_vel=[0.0, 0.0, 0.0]
-        )
+    if style == 'cubic':
+        traj = PiecewisePose.MakeCubicLinearWithEndLinearVelocity(sample_times, poses, start_vel=[0.0,0.0,0.0], end_vel=[0.0,0.0,0.0])
     else:
         traj = PiecewisePose.MakeLinear(sample_times, poses)
     return traj
 
-
 class IKController:
-    def __init__(
-        self,
-        rbt_model_file: str,
-        rbt_name: str,
-        ee_name: str,
-        dt: float = 0.001,
-        fixed_base: bool = True,
-        visualize: bool = False,
-    ):
-        """
-        Inverse Kinematics Controller
-        """
+    def __init__(self, 
+                 rbt_model_file: str, 
+                 rbt_name: str, 
+                 ee_name: str,
+                 dt: float = 0.001, 
+                 fixed_base: bool = True, 
+                 visualize: bool = False):
+        '''
+            Inverse Kinematics Controller
+        '''
         self.rbt_model_file = rbt_model_file
         self.rbt_name = rbt_name
         self.fixed_base = fixed_base
@@ -85,8 +78,9 @@ class IKController:
 
         self._plant = MultibodyPlant(time_step=dt)
         self._parser = Parser(self._plant)
-        self.rbt_mdl = self._parser.AddModels(file_name=rbt_model_file)
+        self.rbt_mdl = self._parser.AddModels(file_name=rbt_model_file) 
         self._plant.Finalize()
+        
 
         self._nq = self._plant.num_positions()
         self._nv = self._plant.num_velocities()
@@ -94,15 +88,16 @@ class IKController:
 
         self._vref = np.zeros((self.nv,))
 
-        self._context = self._plant.CreateDefaultContext()
+        self._context = self._plant.CreateDefaultContext()  
         self._world_frame = self._plant.world_frame()
-        self._base_frame = self._plant.GetFrameByName(name="base_link")
+        self._base_frame = self._plant.GetFrameByName(name='base_link')
         self._ee_frame = self._plant.GetFrameByName(name=ee_name)
 
         self._plant_ad = self._plant.ToAutoDiffXd()
         self._context_ad = self._plant_ad.CreateDefaultContext()
         self._world_frame_autodiff = self._plant_ad.world_frame()
-
+    
+    
     def get_ee_pos(self, q, v, t):
         self.UpdateStoredContext(q, v, t)
         res = self._ee_frame.CalcPoseInWorld(self._context)
@@ -113,64 +108,59 @@ class IKController:
         self.duration = duration
         self.UpdateStoredContext(q, v, t)
         self.X_G_init = self._ee_frame.CalcPoseInWorld(self._context)
-        self.X_G_target = RigidTransform(
-            RollPitchYaw(self.goal_XG[3:6]), self.goal_XG[0:3]
-        )
+        self.X_G_target = RigidTransform(RollPitchYaw(self.goal_XG[3:6]), self.goal_XG[0:3])
 
         times = {"initial": t, "target": t + duration}
         X_Gs = {"initial": self.X_G_init, "target": self.X_G_target}
         self.traj = make_gripper_trajectory(X_Gs, times)
 
-    def set_task(
-        self,
-        key_frames: Dict[str, RigidTransform],
-        times: Dict[str, float],
-        style="cubic",
-    ):
-        """
-        define a trajectory for a sequence of motions
-        """
+
+    def set_task(self, key_frames: Dict[str, RigidTransform], times: Dict[str, float], style='cubic'):
+        '''
+            define a trajectory for a sequence of motions
+        '''
         self.task_traj = make_gripper_trajectory(key_frames, times, style)
         return self.task_traj
 
+
     def GetQPControl(self, q, v, t, target_ee_pos=None):
-        """
-        Get control with robot's current state `(q, v, t)`
-        """
+        '''
+            Get control with robot's current state `(q, v, t)`
+        '''
         self.UpdateStoredContext(q, v, t)
 
         if target_ee_pos is None:
             target_ee_pos = self.task_traj.GetPose(t)
-
-        q_target = DiffIKQP(
-            plant=self._plant,
-            context=self._context,
-            ee_frame=self._ee_frame,
-            world_frame=self._world_frame,
-            desired_pose=target_ee_pos,
-            q_init=q,
-            verbose=False,
-        )
+        
+        q_target = DiffIKQP(plant=self._plant,
+                            context=self._context,
+                            ee_frame=self._ee_frame,
+                            world_frame=self._world_frame,
+                            desired_pose=target_ee_pos,
+                            q_init=q,
+                            verbose=False) 
 
         ref_pos = q + 1.0 * (q_target - q)
         ref_vel = np.clip((q_target - q), -0.001, 0.001)
         res = np.hstack((ref_pos, ref_vel))
         return res
 
+    
     def UpdateStoredContext(self, q, v, t):
         """
-        Use the data in the given inputs to update `self._context`.
-        called at the beginning of each control loop.
+            Use the data in the given inputs to update `self._context`.
+            called at the beginning of each control loop.
         """
         self._context.SetTime(t)
         self._plant.SetPositions(self._context, q)
         self._plant.SetVelocities(self._context, v)
 
+
     def CalcDynamics(self):
         """
         Compute dynamics quantities, M, Cv, tau_g, and S:
             Mv̇ + C(q, v)v = tau_g(q) + S'tau_app
-        Assumes that self.context has been set properly.
+        Assumes that self.context has been set properly. 
         """
         M = self._plant.CalcMassMatrix(self._context)
         Cv = self._plant.CalcBiasTerm(self._context)
@@ -178,11 +168,11 @@ class IKController:
         S = self._plant.MakeActuationMatrix().T
 
         return M, Cv, tau_g, S
-
+    
     def CalcCoriolisMatrix(self):
         """
         Compute the coriolis matrix C(q,qd) using autodiff.
-
+        
         Assumes that self.context has been set properly.
         """
         q = self._plant.GetPositions(self._context)
@@ -193,53 +183,48 @@ class IKController:
             self._plant_ad.SetVelocities(self._context_ad, v)
             return self._plant_ad.CalcBiasTerm(self._context_ad)
 
-        C = 0.5 * jacobian(Cv_fcn, v)
+        C = 0.5*jacobian(Cv_fcn, v)
         return C
-
+    
     def CalcFramePositionQuantities(self, frame):
         """
-        Compute the position (p), jacobian (J) and
+        Compute the position (p), jacobian (J) and 
         Jdot-times-v (Jdv) for the given frame
-
-        Assumes that self.context has been set properly.
+        
+        Assumes that self.context has been set properly. 
         """
-        p = self._plant.CalcPointsPositions(
-            self._context, frame, np.array([0, 0, 0]), self._world_frame
-        )
-        J_full = self._plant.CalcJacobianSpatialVelocity(
-            self._context,
-            JacobianWrtVariable.kV,
-            frame,
-            np.array([0, 0, 0]),
-            self._world_frame,
-            self._world_frame,
-        )
-        J_trans = self._plant.CalcJacobianTranslationalVelocity(
-            self._context,
-            JacobianWrtVariable.kV,
-            frame,
-            np.array([0, 0, 0]),
-            self._world_frame,
-            self._world_frame,
-        )
-        Jdv = self._plant.CalcBiasTranslationalAcceleration(
-            self._context,
-            JacobianWrtVariable.kV,
-            frame,
-            np.array([0, 0, 0]),
-            self._world_frame,
-            self._world_frame,
-        )
+        p = self._plant.CalcPointsPositions(self._context,
+                                            frame,
+                                            np.array([0,0,0]),
+                                            self._world_frame)
+        J_full = self._plant.CalcJacobianSpatialVelocity(self._context,
+                                                          JacobianWrtVariable.kV,
+                                                          frame,
+                                                          np.array([0,0,0]),
+                                                          self._world_frame,
+                                                          self._world_frame)
+        J_trans = self._plant.CalcJacobianTranslationalVelocity(self._context,
+                                                          JacobianWrtVariable.kV,
+                                                          frame,
+                                                          np.array([0,0,0]),
+                                                          self._world_frame,
+                                                          self._world_frame)
+        Jdv = self._plant.CalcBiasTranslationalAcceleration(self._context,
+                                                            JacobianWrtVariable.kV,
+                                                            frame,
+                                                            np.array([0,0,0]),
+                                                            self._world_frame,
+                                                            self._world_frame)
         return p, J_full, J_trans, Jdv
-
+    
     @property
     def nq(self):
         return self._nq
-
+    
     @property
     def nv(self):
         return self._nv
-
+    
     @property
     def na(self):
         return self._na

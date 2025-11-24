@@ -1,6 +1,5 @@
 import torch
 
-
 class Model(torch.nn.Module):
     def __init__(self, n):
         super().__init__()
@@ -13,9 +12,9 @@ class Model(torch.nn.Module):
         return x
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     models = [Model(2), Model(3)]
-    model_names = ["model_2", "model_3"]
+    model_names = ['model_2', 'model_3']
     for model, model_name in zip(models, model_names):
         dummy_input = torch.randn(1, 3, 10, 10)
         dummy_output = model(dummy_input)
@@ -24,21 +23,17 @@ if __name__ == "__main__":
         model_script = torch.jit.script(model)
 
         # trace is equavilent to torch.onnx.export(model, ...)
-        torch.onnx.export(
-            model_trace,
-            dummy_input,
-            "./res/{}_trace.onnx".format(model_name),
-            verbose=True,
-            input_names=["actual_input"],
-            output_names=["output1"],
-        )
-
+        torch.onnx.export(model_trace, 
+                          dummy_input,
+                          './res/{}_trace.onnx'.format(model_name),
+                          verbose=True,
+                          input_names=['actual_input'],
+                          output_names=[ "output1" ])
+        
         # call torch.jit.sciprt firstly
-        torch.onnx.export(
-            model_script,
-            dummy_input,
-            f"./res/{model_name}_script.onnx",
-            verbose=True,
-            input_names=["actual_input"],
-            output_names=["output1"],
-        )
+        torch.onnx.export(model_script, 
+                          dummy_input, 
+                          f'./res/{model_name}_script.onnx', 
+                          verbose=True,
+                          input_names=['actual_input'],
+                          output_names=[ "output1" ])

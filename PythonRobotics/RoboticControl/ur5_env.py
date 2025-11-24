@@ -7,9 +7,10 @@ from mj_utils import InteractiveRender, Renderer
 
 
 class UR5Env(BaseEnv):
-    def __init__(self, mj_model, use_render=True):
+
+    def __init__(self, mj_model, use_render = True):
         """
-        mj_model: mujoco.MjModel.from_xml_path (xml_path)
+            mj_model: mujoco.MjModel.from_xml_path (xml_path)
         """
         super().__init__(mj_model)
         self.mj_data = mujoco.MjData(self.mj_model)
@@ -24,7 +25,7 @@ class UR5Env(BaseEnv):
         # make a foward kinematic propogation
         mujoco.mj_forward(self.mj_model, self.mj_data)
         self.state = self.get_obs()
-        self.vis_freq = 1.0 / 60.0
+        self.vis_freq = 1. / 60.
 
     def get_obs(self):
         # qpos = self.mj_data.qpos.copy().ravel()[0:6]
@@ -36,7 +37,7 @@ class UR5Env(BaseEnv):
 
     def set_state(self, qpos, qvel):
         """
-        Set the joints position qpos and velocity qvel of the model.
+            Set the joints position qpos and velocity qvel of the model.
         """
         assert qpos.shape == (self.mj_model.nq,) and qvel.shape == (self.mj_model.nv,)
         self.mj_data.qpos[:] = np.copy(qpos)
@@ -45,10 +46,8 @@ class UR5Env(BaseEnv):
             self.mj_data.act[:] = None
         mujoco.mj_forward(self.mj_model, self.mj_data)
 
-    def step(self, ctrl, grip_motion: float = 0.0):
-        act = np.zeros(
-            16,
-        )
+    def step(self, ctrl, grip_motion: float = 0.):
+        act = np.zeros(16,)
         act[0:12] = ctrl
         act[12] = grip_motion
         act[13] = -grip_motion
@@ -63,28 +62,24 @@ class UR5Env(BaseEnv):
         self.counts = self.counts + 1
         self.sim_time = self.mj_data.time
         return np.copy(self.state)
-
+    
     def home(self):
         self.reset()
         q = np.array([-1.57, -1.57, -1.57, 0, 1.57, -0])
         v = np.zeros((6,))
         ctrl = np.hstack((q, v))
-        for _ in range(int(5 / self.dt)):
-            obs = self.step(ctrl, 0.0)
+        for _ in range(int(5/self.dt)):
+            obs = self.step(ctrl, 0.)
         mujoco.mj_forward(self.mj_model, self.mj_data)
         return obs
 
-    def reset(self, key_frame_num=None):
+    def reset(self, key_frame_num = None):
         if key_frame_num is None:
             mujoco.mj_resetData(self.mj_model, self.mj_data)
         else:
             # reset the state to the key frame
             if key_frame_num >= self.mj_model.nkey:
-                print(
-                    "key_frame_num out of the key frames range (max. {}). Reset to 0 key frame".format(
-                        self.mj_model.nkey - 1
-                    )
-                )
+                print('key_frame_num out of the key frames range (max. {}). Reset to 0 key frame'.format(self.mj_model.nkey-1))
                 key_frame_num = 0
             mujoco.mj_resetDataKeyframe(self.mj_model, self.mj_data, key_frame_num)
 
@@ -105,29 +100,26 @@ class UR5Env(BaseEnv):
         self.renderer.close()
         return None
 
+if __name__ == '__main__':
 
-if __name__ == "__main__":
     import os
     # passive simulation testing
 
     current_path = os.path.abspath(__file__)
-    filename = PureWindowsPath(r"ur5\\scene.xml")
+    filename = PureWindowsPath(r'ur5\\scene.xml')
     correct_path = Path(filename)
-    ur5_xml = os.path.join(os.path.dirname(current_path), correct_path)
+    ur5_xml = os.path.join( os.path.dirname(current_path), correct_path )
 
     rbt_model = mujoco.MjModel.from_xml_path(ur5_xml)
 
     robot = UR5Env(rbt_model)
     robot.reset(0)
-
+    
     for _ in range(5 * 10000):
         # if robot.counts > 1000:
         #     robot.reset(0)
         action = np.zeros((12,))
         action[5] = np.sin(2 * robot.sim_time)
-        print(
-            robot.mj_data.site("arm_ee").xmat.reshape(3, 3)
-            @ robot.mj_data.site("pinch").xmat.reshape(3, 3)
-        )
+        print(robot.mj_data.site('arm_ee').xmat.reshape(3,3) @ robot.mj_data.site('pinch').xmat.reshape(3,3))
         robot.step(action, 125)
         robot.render()

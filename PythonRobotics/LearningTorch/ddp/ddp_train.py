@@ -21,17 +21,19 @@ def ddp_setup(world_size):
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "12356"
     dist.init_process_group(backend="nccl", world_size=world_size)
+    
 
 
 def cleanup():
     dist.destroy_process_group()
 
 
-def save_checkpoint(model, optimizer, ema, ckpt_path: str):
+def save_checkpoint(model, optimizer, ema, ckpt_path:str):
     checkpoint = {
         "model": model.module.state_dict(),
         "optimizer": optimizer.state_dict(),
-        "ema": ema.state_dict() if ema is not None else None,
+        "ema":  ema.state_dict() if ema is not None else None
+
     }
     torch.save(checkpoint, ckpt_path, pickle_module=dill)
 
@@ -39,7 +41,7 @@ def save_checkpoint(model, optimizer, ema, ckpt_path: str):
 @torch.no_grad()
 def update_ema(ema_model, model, decay=0.9999):
     """
-    Step the EMA model towards the current model.
+        Step the EMA model towards the current model.
     """
     ema_params = OrderedDict(ema_model.named_parameters())
     model_params = OrderedDict(model.named_parameters())
@@ -52,20 +54,17 @@ def update_ema(ema_model, model, decay=0.9999):
 
 def create_logger(logging_dir):
     """
-    Create a logger that writes to a log file and stdout.
+        Create a logger that writes to a log file and stdout.
     """
     if dist.get_rank() == 0:  # real logger
         logging.basicConfig(
             level=logging.INFO,
-            format="%(asctime)s | %(levelname)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-            handlers=[
-                logging.StreamHandler(),
-                logging.FileHandler(f"{logging_dir}/log.txt", mode="w"),
-            ],
+            format='%(asctime)s | %(levelname)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            handlers=[logging.StreamHandler(), logging.FileHandler(f"{logging_dir}/log.txt", mode='w')]
         )
         logger = logging.getLogger(__name__)
-    else:
+    else:  
         logger = logging.getLogger(__name__)
         logger.addHandler(logging.NullHandler())
     return logger
@@ -73,13 +72,14 @@ def create_logger(logging_dir):
 
 def sync_metrics(metric_tensor, world_size):
     """
-    Synchronize a metric across all processes using all_reduce. Returns the averaged value
+        Synchronize a metric across all processes using all_reduce. Returns the averaged value
     """
     dist.all_reduce(metric_tensor, op=dist.ReduceOp.SUM)
     return metric_tensor.item() / world_size
 
 
 class MyDataset(Dataset):
+
     def __init__(self):
         super().__init__()
         self.data = torch.arange(0, 16, dtype=torch.float32)
@@ -88,10 +88,11 @@ class MyDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        return self.data[index : index + 1]
-
+        return self.data[index:index + 1]
+    
 
 class ToyModel(nn.Module):
+
     def __init__(self) -> None:
         super().__init__()
         self.layer = nn.Linear(1, 1)
@@ -107,7 +108,7 @@ def main(world_size, num_epoch):
 
     device_id = rank % torch.cuda.device_count()
 
-    print(f"current pid: {pid}, current rank: {rank} device_id: {device_id}")
+    print(f'current pid: {pid}, current rank: {rank} device_id: {device_id}')
 
     model = ToyModel().to(device_id)
     ddp_model = DDP(model, device_ids=[device_id])
@@ -115,9 +116,7 @@ def main(world_size, num_epoch):
     optimizer = optim.AdamW(ddp_model.parameters(), lr=0.001)
 
     dataset = MyDataset()
-    sampler = DistributedSampler(
-        dataset, num_replicas=world_size, rank=rank, shuffle=True
-    )
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
     dataloader = DataLoader(dataset, batch_size=2, sampler=sampler)
 
     if rank == 0:
@@ -128,12 +127,12 @@ def main(world_size, num_epoch):
             print(key, val)
     dist.barrier()
 
-    logger = create_logger(logging_dir=".")
+    logger = create_logger(logging_dir='.')
 
     train_step = 0
     for epoch in range(num_epoch):
         sampler.set_epoch(epoch)
-        epoch_loss = 0.0
+        epoch_loss = 0.
         for x in dataloader:
             x = x.to(device_id)
             y = ddp_model(x)
@@ -143,21 +142,21 @@ def main(world_size, num_epoch):
             optimizer.step()
 
             epoch_loss = epoch_loss + loss.item()
-
+        
             avg_loss = sync_metrics(loss, world_size)
-            logger.info(f"train step: {train_step} loss: {avg_loss}")
+            logger.info(f'train step: {train_step} loss: {avg_loss}')
 
             train_step += 1
-
+    
             if epoch % 20 == 0:
                 if rank == 0:
-                    ckpt_path = f"checkpoint_{epoch}.ckpt"
+                    ckpt_path = f'checkpoint_{epoch}.ckpt'
                     save_checkpoint(ddp_model, optimizer, ema=None, ckpt_path=ckpt_path)
                 dist.barrier()
 
     cleanup()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # mp.spawn(main, args=(8, 10), nprocs=8)
     main(world_size=8, num_epoch=200)

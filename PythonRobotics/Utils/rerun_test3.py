@@ -3,7 +3,8 @@ import rerun as rr
 
 blue_print = rrb.Blueprint(
     rrb.Horizontal(
-        rrb.BarChartView(), rrb.Vertical(rrb.Spatial2DView(), rrb.Spatial3DView())
+        rrb.BarChartView(),
+        rrb.Vertical(rrb.Spatial2DView(), rrb.Spatial3DView())
     )
 )
 

@@ -9,4 +9,4 @@ def kl_divergence(mean, logvar):
 
 def binary_cross_entropy_with_logits(logits, labels):
     logits = nn.log_sigmoid(logits)
-    return -jnp.sum(labels * logits + (1.0 - labels) * jnp.log(-jnp.expm1(logits)))
+    return -jnp.sum(labels * logits + (1. - labels) * jnp.log(-jnp.expm1(logits)))

@@ -6,7 +6,6 @@ import itertools
 from PIL import Image
 import open3d as o3d
 
-
 def compute_camera_matrix(renderer, data):
     """Returns the 3x4 camera matrix."""
     # If the camera is a 'free' camera, we get its position and orientation
@@ -29,7 +28,7 @@ def compute_camera_matrix(renderer, data):
     rotation[0:3, 0:3] = rot
 
     # Focal transformation matrix (3x4).
-    focal_scaling = (1.0 / np.tan(np.deg2rad(fov) / 2)) * renderer.height / 2.0
+    focal_scaling = (1./np.tan(np.deg2rad(fov)/2)) * renderer.height / 2.0
     focal = np.diag([-focal_scaling, focal_scaling, 1.0, 0])[0:3, :]
 
     # Image matrix (3x3).
@@ -94,20 +93,20 @@ with mujoco.Renderer(model) as renderer:
     # img.show('rgb')
 
 with mujoco.Renderer(model) as renderer:
-    renderer.enable_depth_rendering()  # update renderer to render depth
-    renderer.update_scene(data)  # reset the scene
-    depth = renderer.render()  # depth is a float array, in meters.
+    renderer.enable_depth_rendering() # update renderer to render depth
+    renderer.update_scene(data) # reset the scene
+    depth = renderer.render() # depth is a float array, in meters.
 
     # Create an Open3D PointCloud object
     point_cloud = o3d.geometry.PointCloud()
     # Assign the points to the PointCloud object
     # point_cloud.points = o3d.utility.Vector3dVector(point_cloud_data)
 
-    depth -= depth.min()  # Shift nearest values to the origin.
-    depth /= 2 * depth[depth <= 1].mean()  # Scale by 2 mean distances of near rays.
-    pixels = 255 * np.clip(depth, 0, 1)  # Scale to [0, 255]
+    depth -= depth.min() # Shift nearest values to the origin.
+    depth /= 2*depth[depth <= 1].mean() # Scale by 2 mean distances of near rays.
+    pixels = 255*np.clip(depth, 0, 1) # Scale to [0, 255]
     img = Image.fromarray(pixels.astype(np.uint8))
-    img.show("depth")
+    img.show('depth')
 
 with mujoco.Renderer(model) as renderer:
     renderer.disable_depth_rendering()
@@ -127,6 +126,6 @@ with mujoco.Renderer(model) as renderer:
     geom_ids = geom_ids.astype(np.float64) + 1
     # Scale to [0, 1]
     geom_ids = geom_ids / geom_ids.max()
-    pixels = 255 * geom_ids
+    pixels = 255*geom_ids
     img = Image.fromarray(pixels)
-    img.show("segmentation")
+    img.show('segmentation')

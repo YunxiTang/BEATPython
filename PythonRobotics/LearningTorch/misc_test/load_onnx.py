@@ -4,7 +4,6 @@ import torch
 import numpy as np
 import time
 
-
 class Model(torch.nn.Module):
     def __init__(self, n):
         super().__init__()
@@ -15,7 +14,6 @@ class Model(torch.nn.Module):
         for i in range(self.n):
             x = self.conv(x)
         return x
-
 
 # Load the ONNX model
 model = onnx.load("./res/model_3_script.onnx")
@@ -37,14 +35,14 @@ tmp1 = []
 for i in range(100):
     ts = time.time()
     output1 = native_model(image)
-    tmp1.append(time.time() - ts)
-print(np.average(tmp1))
+    tmp1.append(time.time()-ts)
+print( np.average(tmp1) )
 
 tmp2 = []
 for i in range(100):
     ts = time.time()
-    output2 = session.run(["output1"], {"actual_input": image.cpu().numpy()})
-    tmp2.append(time.time() - ts)
+    output2 = session.run(['output1'], {"actual_input": image.cpu().numpy()})
+    tmp2.append(time.time()-ts)
 print(np.average(tmp2))
 
-print(np.average(tmp1) / np.average(tmp2))
+print( np.average(tmp1) / np.average(tmp2))

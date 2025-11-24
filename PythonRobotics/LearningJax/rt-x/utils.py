@@ -1,6 +1,7 @@
 import flax.linen as nn
 
 
+
 class LanguageTokenizer(nn.Module):
     """
     Language tokenizer that embeds text input IDs into continuous language embeddings. Supports pre-trained HF models.
@@ -37,9 +38,9 @@ class LanguageTokenizer(nn.Module):
             return None
 
         if not isinstance(tasks["language_instruction"], (jax.Array, np.ndarray)):
-            assert self.encoder is not None, (
-                "Received language tokens but no encoder specified."
-            )
+            assert (
+                self.encoder is not None
+            ), "Received language tokens but no encoder specified."
             tokens = self.hf_model(**tasks["language_instruction"]).last_hidden_state
         else:
             # add a # tokens dimension to language

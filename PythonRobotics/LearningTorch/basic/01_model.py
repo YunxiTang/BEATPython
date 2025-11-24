@@ -6,7 +6,6 @@ import torch.optim as optim
 
 from pprint import pprint
 
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -27,7 +26,7 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(9216, 128)
         # Second fully connected layer that outputs our 10 labels
         self.fc2 = nn.Linear(128, 10)
-
+      
     def forward(self, x):
         # Pass data through conv1
         x = self.conv1(x)
@@ -53,18 +52,17 @@ class Net(nn.Module):
         output = F.log_softmax(x, dim=1)
         return output
 
-
 my_nn = Net()
 print(my_nn)
 
 optimizer = optim.AdamW(my_nn.parameters(), lr=0.001)
 
 # look into the model and optimizer
-model_state_dict = my_nn.state_dict()  # by reference
+model_state_dict = my_nn.state_dict() # by reference
 
 for name, val in model_state_dict.items():
     print(name, val.shape)
-
+    
 print("Optimizer's state_dict:")
 for var_name in optimizer.state_dict():
     print(var_name, "\t", optimizer.state_dict()[var_name])

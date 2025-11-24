@@ -18,23 +18,22 @@ except ImportError as e:
 # marco constants
 DEFAULT_SIZE = 680
 
-
 class BaseMujocoEnv(gym.Env):
     """
-    Superclass for all MuJoCo environments
+        Superclass for all MuJoCo environments
     """
 
     def __init__(
-        self,
-        model_path,
-        frame_skip: int,
-        observation_space: Space,
-        action_space: Space,
-        render_mode: Optional[str] = None,
-        width: int = DEFAULT_SIZE,
-        height: int = DEFAULT_SIZE,
-        camera_id: Optional[int] = None,
-        camera_name: Optional[str] = None,
+            self,
+            model_path,
+            frame_skip: int,
+            observation_space: Space,
+            action_space: Space,
+            render_mode: Optional[str] = None,
+            width: int = DEFAULT_SIZE,
+            height: int = DEFAULT_SIZE,
+            camera_id: Optional[int] = None,
+            camera_name: Optional[str] = None,
     ):
         if model_path.startswith("/"):
             self.fullpath = model_path
@@ -62,9 +61,9 @@ class BaseMujocoEnv(gym.Env):
             "single_rgb_array",
             "single_depth_array",
         ]
-        assert int(np.round(1.0 / self.dt)) == self.metadata["render_fps"], (
-            f"Expected value: {int(np.round(1.0 / self.dt))}, Actual value: {self.metadata['render_fps']}"
-        )
+        assert (
+            int(np.round(1.0 / self.dt)) == self.metadata["render_fps"]
+            ), f'Expected value: {int(np.round(1.0 / self.dt))}, Actual value: {self.metadata["render_fps"]}'
 
         self.observation_space = observation_space
         self.action_space = action_space
@@ -119,12 +118,12 @@ class BaseMujocoEnv(gym.Env):
         raise NotImplementedError
 
     def _render(
-        self,
-        mode: str = "human",
-        width: int = DEFAULT_SIZE,
-        height: int = DEFAULT_SIZE,
-        camera_id: Optional[int] = None,
-        camera_name: Optional[str] = None,
+            self,
+            mode: str = "human",
+            width: int = DEFAULT_SIZE,
+            height: int = DEFAULT_SIZE,
+            camera_id: Optional[int] = None,
+            camera_name: Optional[str] = None,
     ):
         """
         Render a frame from the MuJoCo simulation as specified by the render_mode.
@@ -134,11 +133,11 @@ class BaseMujocoEnv(gym.Env):
     # -------- common methods ---------- #
 
     def reset(
-        self,
-        *,
-        seed: Optional[int] = None,
-        return_info: bool = True,
-        options: Optional[dict] = None,
+            self,
+            *,
+            seed: Optional[int] = None,
+            return_info: bool = True,
+            options: Optional[dict] = None,
     ):
         # super().reset()
 
@@ -172,22 +171,20 @@ class BaseMujocoEnv(gym.Env):
         self._step_mujoco_simulation(ctrl, n_frames)
 
     def render(
-        self,
-        mode: str = "human",
-        width: Optional[int] = None,
-        height: Optional[int] = None,
-        camera_id: Optional[int] = None,
-        camera_name: Optional[str] = None,
+            self,
+            mode: str = "human",
+            width: Optional[int] = None,
+            height: Optional[int] = None,
+            camera_id: Optional[int] = None,
+            camera_name: Optional[str] = None,
     ):
         if self.render_mode is not None:
             assert (
-                width is None
-                and height is None
-                and camera_id is None
-                and camera_name is None
-            ), (
-                "Unexpected argument for render. Specify render arguments at environment initialization."
-            )
+                    width is None
+                    and height is None
+                    and camera_id is None
+                    and camera_name is None
+            ), "Unexpected argument for render. Specify render arguments at environment initialization."
             return self.renderer.get_renders()
         else:
             width = width if width is not None else DEFAULT_SIZE
@@ -213,22 +210,21 @@ class BaseMujocoEnv(gym.Env):
         """Return the position and velocity joint states of the model"""
         return np.concatenate([self.data.qpos.flat, self.data.qvel.flat])
 
-
-# ==================================================================================
+#==================================================================================
 class MujocoEnv(BaseMujocoEnv):
     """Superclass for MuJoCo environments."""
 
     def __init__(
-        self,
-        model_path,
-        frame_skip,
-        observation_space: Space,
-        action_space: Space,
-        render_mode: Optional[str] = None,
-        width: int = DEFAULT_SIZE,
-        height: int = DEFAULT_SIZE,
-        camera_id: Optional[int] = None,
-        camera_name: Optional[str] = None,
+            self,
+            model_path,
+            frame_skip,
+            observation_space: Space,
+            action_space: Space,
+            render_mode: Optional[str] = None,
+            width: int = DEFAULT_SIZE,
+            height: int = DEFAULT_SIZE,
+            camera_id: Optional[int] = None,
+            camera_name: Optional[str] = None,
     ):
         if MUJOCO_NOT_INSTALLED:
             raise error.DependencyNotInstalled(
@@ -272,12 +268,12 @@ class MujocoEnv(BaseMujocoEnv):
         mujoco.mj_rnePostConstraint(self.model, self.data)
 
     def _render(
-        self,
-        mode: str = "human",
-        width: int = DEFAULT_SIZE,
-        height: int = DEFAULT_SIZE,
-        camera_id: Optional[int] = None,
-        camera_name: Optional[str] = None,
+            self,
+            mode: str = "human",
+            width: int = DEFAULT_SIZE,
+            height: int = DEFAULT_SIZE,
+            camera_id: Optional[int] = None,
+            camera_name: Optional[str] = None,
     ):
         assert mode in self.metadata["render_modes"]
 
@@ -310,6 +306,7 @@ class MujocoEnv(BaseMujocoEnv):
                 self._get_viewer(mode).render(width, height, camera_id=camera_id)
 
         if mode in {"rgb_array", "single_rgb_array"}:
+
             width = self.model.vis.global_.offwidth
             height = self.model.vis.global_.offheight
 
@@ -318,6 +315,7 @@ class MujocoEnv(BaseMujocoEnv):
             return data[::-1, :, :]
 
         elif mode in {"depth_array", "single_depth_array"}:
+
             width = self.model.vis.global_.offwidth
             height = self.model.vis.global_.offheight
 
@@ -326,7 +324,7 @@ class MujocoEnv(BaseMujocoEnv):
             data = self._get_viewer(mode).read_pixels(width, height, depth=True)[1]
             # original image is upside-down, so flip it
             return data[::-1, :]
-
+        
         elif mode == "human":
             self._get_viewer(mode).render()
             return None
@@ -351,7 +349,6 @@ class MujocoEnv(BaseMujocoEnv):
             }:
                 # from gym.envs.mujoco import RenderContextOffscreen
                 from st_dlo_planning.utils.mj_utils import RenderContextOffscreen
-
                 self.viewer = RenderContextOffscreen(
                     width, height, self.model, self.data
                 )

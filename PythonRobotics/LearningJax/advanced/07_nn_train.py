@@ -18,7 +18,7 @@ class TrainState(train_state.TrainState):
 
 def get_sharding_details(sharded_data):
     print("\nSharding Layout:")
-
+    
     # a utility to visualize the sharding
     jax.debug.visualize_array_sharding(sharded_data)
 
@@ -31,15 +31,13 @@ def get_sharding_details(sharded_data):
         print(f"Data shape: {str(shard.data.shape):>8}")
         print(f"Data slices: {str(shard.index):>22}\n")
         print(f"Data shape: {str(shard.data)}")
-        print("=" * 75)
+        print("="*75)
         print("")
 
-
 # Use 8 CPU devices
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+os.environ["XLA_FLAGS"] = '--xla_force_host_platform_device_count=8'
 devices = jax.devices()
-mesh = Mesh(jax.devices(), axis_names="batch")
-
+mesh = Mesh(jax.devices(), axis_names='batch')
 
 # Step 1: Define a Simple Model
 class SimpleModel(nn.Module):
@@ -49,9 +47,8 @@ class SimpleModel(nn.Module):
     def __call__(self, x, train):
         x = nn.Dense(self.features)(x)
         x = nn.Dropout(0.1)(x, deterministic=not train)
-        x = nn.BatchNorm()(x, use_running_average=not train)
+        x = nn.BatchNorm()(x, use_running_average = not train)
         return x
-
 
 # Initialize the model and optimizer
 model = SimpleModel(features=10)
@@ -59,9 +56,9 @@ x = jnp.ones((2, 5))
 
 rng_key = jax.random.PRNGKey(0)
 params_key, dropout_key, rng_key = jax.random.split(rng_key, 3)
-variables = model.init({"params": params_key, "dropout": dropout_key}, x, False)
-params = variables.get("params")
-batch_stats = variables.get("batch_stats", {})
+variables = model.init({'params': params_key, 'dropout': dropout_key}, x, False)
+params = variables.get('params')
+batch_stats = variables.get('batch_stats', {})
 jax.tree_util.tree_map(lambda x: print(x.devices()), params)
 exit()
 # Define an optimizer and wrap it in `train_state`
@@ -70,62 +67,50 @@ state = TrainState.create(
     params=params,
     tx=optax.sgd(learning_rate=0.001),
     dropout_rng=dropout_key,
-    batch_stats={},
+    batch_stats = {}
 )
-
 
 # Step 2: Define the Loss Function
 def loss_fn(params, state: TrainState, batch, train: bool):
-    feats = batch["feat"]
-    labels = batch["label"]
-    model_variables = {"params": params, "batch_stats": state.batch_stats}
-    output = state.apply_fn(
-        model_variables,
-        feats,
-        train,
-        rngs={"dropout": state.dropout_rng} if train else None,
-        mutable=["batch_stats"] if train else False,
-    )
+    feats = batch['feat']
+    labels = batch['label']
+    model_variables = {'params': params, 'batch_stats': state.batch_stats}
+    output = state.apply_fn(model_variables,
+                            feats, train,
+                            rngs={'dropout': state.dropout_rng} if train else None,
+                            mutable=['batch_stats'] if train else False)
     if train:
-        predicts, updated_model_state = output
+        predicts, updated_model_state = output  
     else:
         predicts, updated_model_state = output, None
-
-    loss_val = jnp.mean(optax.l2_loss(predicts, labels))  # jnp.mean(predicts, labels)
+    
+    loss_val = jnp.mean( optax.l2_loss(predicts, labels) )#jnp.mean(predicts, labels)
     return loss_val, updated_model_state
 
 
 def train_step(state: TrainState, batch: dict, dropout_rng):
     loss_val_grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (loss_value, updated_model_state), grads = loss_val_grad_fn(
-        state.params, state, batch, train=True
-    )
-
+    (loss_value, updated_model_state), grads = loss_val_grad_fn(state.params, state, batch, train=True)
+    
     updated_state = state.apply_gradients(
         grads=grads,
-        batch_stats=updated_model_state["batch_stats"],
-        dropout_rng=dropout_rng,
-    )
+        batch_stats=updated_model_state['batch_stats'],
+        dropout_rng=dropout_rng)
     return loss_value, updated_state
 
-
 # Define sharding specifications for inputs and outputs
-in_shardings = (
-    NamedSharding(mesh, spec=PartitionSpec()),
-    NamedSharding(mesh, spec=PartitionSpec("batch")),
-    None,
-)
-out_shardings = (
-    NamedSharding(mesh, spec=PartitionSpec()),
-    NamedSharding(mesh, spec=PartitionSpec()),
-)
+in_shardings = (NamedSharding(mesh, spec=PartitionSpec()), 
+                NamedSharding(mesh, spec=PartitionSpec('batch')),
+                None)
+out_shardings = (NamedSharding(mesh, spec=PartitionSpec()), 
+                 NamedSharding(mesh, spec=PartitionSpec()))
 
 
 train_step = jax.jit(train_step, in_shardings=in_shardings, out_shardings=out_shardings)
 # Dummy batch data for multi-device setup
 batch = {
     "feat": jnp.ones((32, 5)),  # Batch divided across devices
-    "label": jnp.ones((32, 10)),
+    "label": jnp.ones((32, 10))
 }
 
 step_rng = rng_key
@@ -140,6 +125,7 @@ for epoch in range(200):
 def vis_state(x):
     if isinstance(x, jax.Array) and len(x.shape) >= 1:
         jax.debug.visualize_array_sharding(x)
-
-
-jax.tree_util.tree_map(vis_state, state)
+        
+jax.tree_util.tree_map(
+    vis_state, state
+)

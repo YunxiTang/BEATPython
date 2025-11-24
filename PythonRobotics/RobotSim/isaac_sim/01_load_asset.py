@@ -21,9 +21,7 @@ class Env:
         graphics_device = 0
 
         # get sim handle
-        self.sim = self.gym.create_sim(
-            compute_device, graphics_device, gymapi.SIM_PHYSX, self.sim_params
-        )
+        self.sim = self.gym.create_sim(compute_device, graphics_device, gymapi.SIM_PHYSX, self.sim_params)
 
         # add a ground plane
         plane_params = gymapi.PlaneParams()
@@ -31,24 +29,28 @@ class Env:
         self.gym.add_ground(self.sim, plane_params)
 
         # load an asset
-        asset_root = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "assets"
-        )
-        asset_file = "urdf/ycb/025_mug/025_mug.urdf"  # 'urdf/ur5/ur5.urdf'
-
+        asset_root = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),  'assets')
+        asset_file = 'urdf/ycb/025_mug/025_mug.urdf'# 'urdf/ur5/ur5.urdf'
+        
         asset_options = gymapi.AssetOptions()
         asset_options.fix_base_link = True
         asset_options.disable_gravity = False
 
-        mug_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
+        mug_asset = self.gym.load_asset(
+            self.sim,
+            asset_root,
+            asset_file,
+            asset_options
+        )
 
         # create viewer
         camera_properties = gymapi.CameraProperties()
         self.viewer = self.gym.create_viewer(self.sim, camera_properties)
 
     def step():
-        pass
+        
 
+        
 
-if __name__ == "__main__":
-    env = Env(dt=1 / 60)
+if __name__ == '__main__':
+    env = Env(dt=1/60)

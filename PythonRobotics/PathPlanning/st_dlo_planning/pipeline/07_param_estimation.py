@@ -15,7 +15,7 @@
 
 
 # #     ROOT_DIR = str(pathlib.Path(__file__).parent.parent.parent)
-
+    
 # #     sys.path.append(ROOT_DIR)
 # #     os.chdir(ROOT_DIR)
 
@@ -25,22 +25,22 @@
 # #     jax.config.update("jax_enable_x64", True)     # enable fp64
 # #     jax.config.update('jax_platform_name', 'gpu') # use the CPU instead of GPU
 
-
+    
 # #     def get_elastic_enery(ks, dlo_shape, segment_len):
-# #         k1 = ks[0]
-# #         k2 = ks[1]
+# #         k1 = ks[0] 
+# #         k2 = ks[1] 
 # #         num_feature = dlo_shape.shape[0]
-
+        
 # #         # r = k1 / k2 # nn.relu(k1) / (nn.relu(k2) + 0.001)
 # #         U1 = 0.0
 # #         for i in range(num_feature-1):
 # #             U1 = U1 + k1/2. * (jnp.linalg.norm(dlo_shape[i+1] - dlo_shape[i]) - segment_len) ** 2
-
+            
 # #         U2 = 0.0
 # #         for j in range(num_feature-2):
 # #             U2 = U2 + k2/2. * (jnp.linalg.norm(dlo_shape[j+2] - dlo_shape[j]) - 2 * segment_len) ** 2
 # #         return U1 + U2
-
+    
 # #     loss_grad_fn = jax.jit(jax.value_and_grad(get_elastic_enery, argnums=[0,]))
 
 # #     zarr_root = zarr.open('/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/gdm_mj/train/task03_10.zarr')
@@ -71,8 +71,8 @@
 # #         ks_measure.append(ks)
 # #         print(i, ks)
 # #         print(' +++++++++++++++++++++++++++++++ ')
-
-
+    
+    
 # import numpy as np
 # from scipy.optimize import minimize
 

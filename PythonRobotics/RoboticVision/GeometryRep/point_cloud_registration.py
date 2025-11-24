@@ -12,23 +12,25 @@ from pydrake.all import (
 from scipy.spatial import KDTree
 
 
-def MakeRandomObjectModelAndScenePoints(
-    num_model_points=20,
-    noise_std=0,
-    num_outliers=0,
-    yaw_O=None,
-    p_O=None,
-    num_viewable_points=None,
-    seed=None,
-):
+
+def MakeRandomObjectModelAndScenePoints(num_model_points=20,
+                                        noise_std=0,
+                                        num_outliers=0,
+                                        yaw_O=None,
+                                        p_O=None,
+                                        num_viewable_points=None,
+                                        seed=None,
+                                        ):
     """
-    Returns p_Om, p_s
+        Returns p_Om, p_s
     """
     rng = np.random.default_rng(seed)
 
     # Make a random set of points to define an object in the x-y plane
     theta = np.arange(0, 2.0 * np.pi, 2.0 * np.pi / num_model_points)
-    l = 1.0 + 0.5 * np.sin(2.0 * theta) + 0.4 * rng.random((1, num_model_points))
+    l = (
+        1.0 + 0.5 * np.sin(2.0 * theta) + 0.4 * rng.random((1, num_model_points))
+    )
     p_Om = np.vstack((l * np.sin(theta), l * np.cos(theta), 0 * l))
 
     # Make a random object pose if one is not specified, and apply it to get the scene points.
@@ -49,10 +51,11 @@ def MakeRandomObjectModelAndScenePoints(
     assert num_viewable_points <= num_model_points
     p_s = X_O.multiply(p_Om[:, :num_viewable_points])
     p_s[:2, :] += rng.normal(scale=noise_std, size=(2, num_viewable_points))
-
+    
     if num_outliers:
         outliers = rng.uniform(low=-1.5, high=3.5, size=(3, num_outliers))
         outliers[2, :] = 0
         p_s = np.hstack((p_s, outliers))
 
     return p_Om, p_s, X_O
+

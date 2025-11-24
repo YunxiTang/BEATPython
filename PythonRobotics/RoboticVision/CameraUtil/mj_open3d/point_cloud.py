@@ -2,7 +2,7 @@ import mujoco
 # import open3d
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     xml = """
     <mujoco>
     <worldbody>
