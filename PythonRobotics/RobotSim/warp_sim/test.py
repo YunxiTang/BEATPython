@@ -32,6 +32,8 @@ import warp.examples
 import warp.sim
 import warp.sim.render
 
+warp.init()
+
 
 # Taken from env/environment.py
 def compute_env_offsets(num_envs, env_offset=(5.0, 0.0, 5.0), up_axis="Y"):
@@ -41,7 +43,7 @@ def compute_env_offsets(num_envs, env_offset=(5.0, 0.0, 5.0), up_axis="Y"):
     num_dim = nonzeros.shape[0]
     if num_dim > 0:
         side_length = int(np.ceil(num_envs ** (1.0 / num_dim)))
-        env_offsets = []
+        env_offsets = [] 
     else:
         env_offsets = np.zeros((num_envs, 3))
     if num_dim == 1:

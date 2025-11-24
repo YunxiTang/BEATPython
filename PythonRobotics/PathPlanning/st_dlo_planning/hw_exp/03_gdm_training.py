@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # trainer.run()
 
     model_dirs = '/home/yxtang/CodeBase/PythonCourse/PythonRobotics/PathPlanning/st_dlo_planning/results/checkpoints/st_dlo_gdm_30/'
-    model_ckpt_path = model_dirs + 'latest.ckpt'
+    model_ckpt_path = model_dirs + 'epoch_300.ckpt'
     model_params = torch.load(model_ckpt_path)['state_dicts']['model']
     gdm.load_state_dict(model_params)
     train_cfg = OmegaConf.load(cfg_path)

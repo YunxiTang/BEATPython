@@ -1,59 +1,52 @@
 meta:
-  author: "tyx"
-  cable_type: "short_rubber_cable"
-
+  author: tyx
+  cable_type: USB_real_cable
 train:
-  device: "cuda:0"
+  device: cuda:0
   seed: 100
-
-  # optimization
   lr_warmup_steps: 10
   num_epochs: 500
-
-  # training loop control in epochs
   validation_every: 10
   test_every: 20
-
 optimizer:
-  lr: 1.0e-4
-  betas: [0.95, 0.999]
-  eps: 1.0e-8
-  weight_decay: 1.0e-5
+  lr: 0.0001
+  betas:
+  - 0.95
+  - 0.999
+  eps: 1.0e-08
+  weight_decay: 1.0e-05
   grad_clip: 1.0
-
 train_dataloader:
-  data_dir: ['/media/yxtang/Extreme SSD/HDP/hw_dataset/${meta.cable_type}/train',]
+  data_dir:
+  - /media/yxtang/Extreme SSD/HDP/hw_dataset/${meta.cable_type}/train
   batch_size: 32
-  step: 2
-  num_workers: 1
-  shuffle: True
-  pin_memory: True
-  persistent_workers: False
-
+  step: 30
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
+  persistent_workers: false
 val_dataloader:
   batch_size: 512
-  num_workers: 1
-  shuffle: True
-  pin_memory: True
-  persistent_workers: False
-
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
+  persistent_workers: false
 test_dataloader:
-  data_dir: ['/media/yxtang/Extreme SSD/HDP/hw_dataset/${meta.cable_type}/test',]
+  data_dir:
+  - /media/yxtang/Extreme SSD/HDP/hw_dataset/${meta.cable_type}/test
   batch_size: 512
-  num_workers: 1
-  shuffle: False
-  pin_memory: True
-  persistent_workers: False
-
+  num_workers: 4
+  shuffle: false
+  pin_memory: true
+  persistent_workers: false
 logging:
-  mode: "online"
-  wandb_project: "st_dlo_hw"
-  experiment_name: "${meta.cable_type}_gdm"
-  output_dir: "/media/yxtang/Extreme SSD/HDP/wandb_outputs"
-  ckpt_dir: "/media/yxtang/Extreme SSD/HDP/results/${meta.cable_type}"
-
+  mode: online
+  wandb_project: st_dlo_hw
+  experiment_name: ${meta.cable_type}_gdm
+  output_dir: /media/yxtang/Extreme SSD/HDP/wandb_outputs
+  ckpt_dir: /media/yxtang/Extreme SSD/HDP/results/${meta.cable_type}
 checkpoint:
-  save_checkpoint: True
+  save_checkpoint: true
   checkpoint_every: 50
-  ckpt_dir: '${logging.ckpt_dir}/checkpoints/${logging.experiment_name}_${train.seed}'
-  save_last_ckpt: True
+  ckpt_dir: ${logging.ckpt_dir}/checkpoints/${logging.experiment_name}_${train.seed}
+  save_last_ckpt: true
